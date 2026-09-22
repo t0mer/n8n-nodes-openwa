@@ -52,6 +52,25 @@ describe('OpenWa.execute', () => {
 		]);
 	});
 
+	it('routes the profile and status resources, including a status binary item', async () => {
+		const { ctx: profile, calls } = fakeContext(
+			{ resource: 'profile', operation: 'setAbout', session, profileAbout: 'Hi' },
+			{ success: true, message: 'ok' },
+		);
+		expect(await run(profile)).toEqual([
+			[{ json: { success: true, message: 'ok' }, pairedItem: { item: 0 } }],
+		]);
+		expect(calls[0].url).toBe('https://wa.example.com/api/sessions/s1/profile/status');
+
+		const { ctx: status } = fakeContext(
+			{ resource: 'status', operation: 'downloadMedia', session, statusId: 'st1' },
+			{ body: Buffer.from('x'), headers: { 'content-type': 'image/png' }, statusCode: 200 },
+		);
+		const [output] = await run(status);
+		expect(output[0]).toMatchObject({ json: { statusId: 'st1' }, pairedItem: { item: 0 } });
+		expect(output[0].binary?.data).toMatchObject({ mimeType: 'image/png' });
+	});
+
 	it('maps an error whose body arrived as bytes on a raw request', async () => {
 		const { ctx } = fakeContext(
 			{ resource: 'message', operation: 'downloadMedia', session, ...recipient, messageId: 'm1' },

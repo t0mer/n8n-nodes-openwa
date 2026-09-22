@@ -1,0 +1,81 @@
+import type { INodeProperties } from 'n8n-workflow';
+
+/** Operations that act on an existing message, identified by Message ID. */
+export const MESSAGE_ID_OPERATIONS = [
+	'reply',
+	'react',
+	'forward',
+	'edit',
+	'delete',
+	'votePoll',
+	'pin',
+	'unpin',
+	'star',
+	'unstar',
+	'downloadMedia',
+];
+
+export const messageActionFields: INodeProperties[] = [
+	{
+		displayName: 'Message ID',
+		name: 'messageId',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. true_972501234567@c.us_3EB0ABCD',
+		displayOptions: { show: { resource: ['message'], operation: MESSAGE_ID_OPERATIONS } },
+		description:
+			'ID of the existing message: messageId from a send operation, or waMessageId from Get Many (not its internal row ID). The chat above must be the chat that contains it.',
+	},
+	{
+		displayName: 'Emoji',
+		name: 'emoji',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. 👍',
+		displayOptions: { show: { resource: ['message'], operation: ['react'] } },
+		description: 'The emoji to react with. Leave empty to remove your reaction.',
+	},
+	{
+		displayName: 'Source Chat',
+		name: 'sourceChat',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. 972501234567 or 120363012345678901@g.us',
+		displayOptions: { show: { resource: ['message'], operation: ['forward'] } },
+		description:
+			'The chat that contains the message to forward: a phone number, a contact ID (@c.us / @lid) or a group ID (@g.us). The recipient above is where it is forwarded to.',
+	},
+	{
+		displayName: 'Delete for Everyone',
+		name: 'forEveryone',
+		type: 'boolean',
+		default: true,
+		displayOptions: { show: { resource: ['message'], operation: ['delete'] } },
+		description:
+			'Whether to delete the message for everyone in the chat. When off, it is deleted only on this account.',
+	},
+	{
+		displayName: 'Pin Duration',
+		name: 'pinDuration',
+		type: 'options',
+		options: [
+			{ name: '24 Hours', value: 86400 },
+			{ name: '7 Days', value: 604800 },
+			{ name: '30 Days', value: 2592000 },
+		],
+		default: 86400,
+		displayOptions: { show: { resource: ['message'], operation: ['pin'] } },
+		description: 'How long the message stays pinned',
+	},
+	{
+		displayName: 'Put Output File in Field',
+		name: 'outputBinaryField',
+		type: 'string',
+		default: 'data',
+		required: true,
+		displayOptions: { show: { resource: ['message'], operation: ['downloadMedia'] } },
+		hint: 'The name of the output binary field to put the file in',
+	},
+];

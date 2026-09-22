@@ -49,3 +49,9 @@ export function parseMentions(input: unknown): string[] {
 export function chatIdUser(chatId: string): string {
 	return chatId.split('@')[0];
 }
+
+/** Normalize any single chat: a group (`@g.us`) or a contact (phone number, `@c.us`, `@lid`). */
+export function normalizeChatId(input: unknown): string {
+	const value = String(input ?? '').trim();
+	return value.endsWith('@g.us') ? validateGroupId(value) : normalizeContactId(value);
+}

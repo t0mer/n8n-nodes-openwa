@@ -48,3 +48,19 @@ export function buildMediaBody(input: MediaInput): MediaBody {
 	if (input.fileName) body.filename = input.fileName;
 	return body;
 }
+
+/** File name from a Content-Disposition header; `filename*=UTF-8''…` wins over `filename=`. */
+export function parseContentDispositionFilename(header: unknown): string | undefined {
+	if (typeof header !== 'string') return undefined;
+	const extended = /filename\*\s*=\s*([^']*)'[^']*'([^;]+)/i.exec(header);
+	if (extended) {
+		try {
+			return decodeURIComponent(extended[2].trim()) || undefined;
+		} catch {
+			// Malformed percent-encoding: fall back to the plain filename parameter.
+		}
+	}
+	const plain = /filename\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^;]+))/i.exec(header);
+	const name = (plain?.[1]?.replace(/\\(.)/g, '$1') ?? plain?.[2])?.trim();
+	return name || undefined;
+}

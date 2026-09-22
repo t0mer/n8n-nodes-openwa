@@ -11,6 +11,8 @@ export function describeOpenWaError(
 	status: number | undefined,
 	apiMessage: string | undefined,
 	sessionId?: string,
+	/** False when a 409 on this route means something else, e.g. a duplicate template name. */
+	conflictIsSessionState = true,
 ): OpenWaErrorText {
 	const session = sessionId ? `Session "${sessionId}"` : 'The session';
 	switch (status) {
@@ -29,12 +31,18 @@ export function describeOpenWaError(
 					description: apiMessage,
 				};
 			}
-			return {
-				message: apiMessage || 'Not found',
-				description:
-					'Check that the Base URL in the credentials points at the OpenWA gateway (without /api).',
-			};
+			// An unmatched route ("Cannot POST /api/api/…") or no message at all points at a wrong
+			// Base URL; anything else is the gateway saying a message, template, etc. doesn't exist.
+			if (!apiMessage || /^Cannot (GET|POST|PUT|PATCH|DELETE) \//.test(apiMessage)) {
+				return {
+					message: apiMessage || 'Not found',
+					description:
+						'Check that the Base URL in the credentials points at the OpenWA gateway (without /api).',
+				};
+			}
+			return { message: apiMessage };
 		case 409:
+			if (!conflictIsSessionState) return { message: apiMessage || 'Conflict (HTTP 409)' };
 			return {
 				message: `${session} is not ready (disconnected, reconnecting or reloading). This is usually transient — retry shortly.`,
 				description: apiMessage,
@@ -49,7 +57,7 @@ export function describeOpenWaError(
 		case 503:
 			return {
 				message:
-					'OpenWA could not reach WhatsApp or its upstream proxy. This is retryable — try again shortly.',
+					'OpenWA is temporarily unable to complete the request (for example WhatsApp, a proxy or media conversion is unavailable). This is retryable — try again shortly.',
 				description: apiMessage,
 			};
 		default:
@@ -59,7 +67,20 @@ export function describeOpenWaError(
 
 /** Pull the gateway's error message out of a NestJS-style body: `{ statusCode, message, error }`. */
 export function extractApiMessage(body: unknown): string | undefined {
-	if (typeof body === 'string') return body || undefined;
+	// Raw (file download) requests hand the error body back as bytes.
+	if (body instanceof ArrayBuffer) body = Buffer.from(body);
+	if (Buffer.isBuffer(body)) body = body.toString('utf8');
+	if (typeof body === 'string') {
+		const text = body.trim();
+		if (text.startsWith('{')) {
+			try {
+				return extractApiMessage(JSON.parse(text)) ?? text;
+			} catch {
+				return text;
+			}
+		}
+		return text || undefined;
+	}
 	if (!body || typeof body !== 'object') return undefined;
 	const message = (body as { message?: unknown }).message;
 	if (Array.isArray(message)) return message.join('; ');

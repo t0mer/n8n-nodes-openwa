@@ -73,7 +73,16 @@ export const mediaFields: INodeProperties[] = [
 		default: false,
 		displayOptions: { show: { resource: ['message'], operation: ['sendAudio'] } },
 		description:
-			'Whether to send the audio as a voice note (mic bubble with waveform) instead of an audio file. Use Ogg/Opus audio for reliable playback.',
+			'Whether to send the audio as a voice note (mic bubble with waveform) instead of an audio file. Use Ogg/Opus audio for reliable playback, or turn on Convert to Voice Note.',
+	},
+	{
+		displayName: 'Convert to Voice Note',
+		name: 'convertToVoiceNote',
+		type: 'boolean',
+		default: false,
+		displayOptions: { show: { resource: ['message'], operation: ['sendAudio'], ptt: [true] } },
+		description:
+			'Whether to have the gateway convert the audio (e.g. MP3, M4A, WAV) to Ogg/Opus first, so it plays as a voice note. Requires media conversion (ffmpeg) to be enabled on the OpenWA gateway.',
 	},
 	{
 		displayName: 'File Name',

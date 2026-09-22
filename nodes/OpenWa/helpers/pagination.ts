@@ -23,3 +23,27 @@ export async function fetchPaged<T>(
 		if (page.length < limit) return results;
 	}
 }
+
+/**
+ * Collect results from a keyset-cursor endpoint (`after` = ID of the previous page's last row).
+ * Stops at the first short page, at `max` when given, or when the cursor stops moving.
+ */
+export async function fetchByCursor<T>(
+	fetchPage: (limit: number, after?: string) => Promise<T[]>,
+	getId: (item: T) => string | undefined,
+	max?: number,
+	pageSize = 100,
+): Promise<T[]> {
+	const results: T[] = [];
+	let after: string | undefined;
+	for (;;) {
+		const limit = Math.min(pageSize, max === undefined ? pageSize : max - results.length);
+		if (limit <= 0) return results;
+		const page = (await fetchPage(limit, after)).slice(0, limit);
+		results.push(...page);
+		if (page.length < limit) return results;
+		const next = getId(page[page.length - 1]);
+		if (!next || next === after) return results;
+		after = next;
+	}
+}

@@ -2,6 +2,7 @@ import {
 	NodeApiError,
 	NodeConnectionTypes,
 	NodeOperationError,
+	type IDataObject,
 	type IExecuteFunctions,
 	type INodeExecutionData,
 	type INodeType,
@@ -11,10 +12,41 @@ import {
 import { recipientFields, sessionField } from './descriptions/common';
 import { executeContact } from './actions/contact';
 import { executeMessage } from './actions/message';
+import { executeTemplate } from './actions/template';
+import { messageActionFields } from './descriptions/actions';
 import { contactFields, contactOperations } from './descriptions/contact';
+import { contactCardFields } from './descriptions/contactCard';
+import { historyFields } from './descriptions/history';
+import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
-import { textFields, textOptions } from './descriptions/text';
-import { searchContacts, searchGroups, searchSessions } from './methods/listSearch';
+import { pollFields } from './descriptions/poll';
+import { messageOperations, messageOptions } from './descriptions/message';
+import { sendTemplateFields, templateFields, templateOperations } from './descriptions/template';
+import { textFields } from './descriptions/text';
+import {
+	searchContacts,
+	searchGroups,
+	searchSessions,
+	searchTemplates,
+} from './methods/listSearch';
+
+type Executor = (
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+) => Promise<IDataObject | IDataObject[] | INodeExecutionData>;
+
+/** A finished item (e.g. with binary data), as opposed to a plain JSON response. */
+function isExecutionData(value: unknown): value is INodeExecutionData {
+	const item = value as Partial<INodeExecutionData> | undefined;
+	return typeof item?.json === 'object' && typeof item?.binary === 'object';
+}
+
+const EXECUTORS: Record<string, Executor> = {
+	contact: executeContact,
+	message: executeMessage,
+	template: executeTemplate,
+};
 
 export class OpenWa implements INodeType {
 	description: INodeTypeDescription = {
@@ -41,81 +73,26 @@ export class OpenWa implements INodeType {
 				options: [
 					{ name: 'Contact', value: 'contact' },
 					{ name: 'Message', value: 'message' },
+					{ name: 'Template', value: 'template' },
 				],
 				default: 'message',
 			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: { show: { resource: ['message'] } },
-				options: [
-					{
-						name: 'Send Audio',
-						value: 'sendAudio',
-						action: 'Send an audio file',
-						description: 'Send an audio file to a contact or group',
-					},
-					{
-						name: 'Send Document',
-						value: 'sendDocument',
-						action: 'Send a document',
-						description: 'Send a document to a contact or group',
-					},
-					{
-						name: 'Send Image',
-						value: 'sendImage',
-						action: 'Send an image',
-						description: 'Send an image to a contact or group',
-					},
-					{
-						name: 'Send Sticker',
-						value: 'sendSticker',
-						action: 'Send a sticker',
-						description: 'Send a sticker to a contact or group',
-					},
-					{
-						name: 'Send Text',
-						value: 'sendText',
-						action: 'Send a text message',
-						description: 'Send a text message to a contact or group',
-					},
-					{
-						name: 'Send Video',
-						value: 'sendVideo',
-						action: 'Send a video',
-						description: 'Send a video to a contact or group',
-					},
-				],
-				default: 'sendText',
-			},
+			messageOperations,
 			contactOperations,
+			templateOperations,
 			sessionField,
 			...contactFields,
+			...templateFields,
 			...recipientFields,
+			...messageActionFields,
 			...textFields,
 			...mediaFields,
-			{
-				displayName: 'Options',
-				name: 'options',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				displayOptions: { show: { resource: ['message'] } },
-				options: [
-					{
-						displayName: 'Check Number Exists',
-						name: 'checkNumberExists',
-						type: 'boolean',
-						default: false,
-						displayOptions: { show: { '/recipientType': ['contact'] } },
-						description:
-							'Whether to verify the number is registered on WhatsApp before sending. OpenWA accepts sends to unregistered numbers without an error, so this is the only way to catch them.',
-					},
-					...textOptions,
-				],
-			},
+			...locationFields,
+			...pollFields,
+			...contactCardFields,
+			...historyFields,
+			...sendTemplateFields,
+			messageOptions,
 		],
 	};
 
@@ -124,6 +101,7 @@ export class OpenWa implements INodeType {
 			searchSessions,
 			searchGroups,
 			searchContacts,
+			searchTemplates,
 		},
 	};
 
@@ -141,13 +119,20 @@ export class OpenWa implements INodeType {
 				}
 
 				const resource = this.getNodeParameter('resource', i) as string;
-				const response =
-					resource === 'contact'
-						? await executeContact(this, i, sessionId)
-						: await executeMessage(this, i, sessionId);
+				const executor = EXECUTORS[resource];
+				if (!executor) {
+					throw new NodeOperationError(this.getNode(), `Unsupported resource "${resource}"`, {
+						itemIndex: i,
+					});
+				}
+				const response = await executor(this, i, sessionId);
 
-				for (const json of Array.isArray(response) ? response : [response]) {
-					returnData.push({ json, pairedItem: { item: i } });
+				if (isExecutionData(response)) {
+					returnData.push({ ...response, pairedItem: { item: i } });
+				} else {
+					for (const json of Array.isArray(response) ? response : [response]) {
+						returnData.push({ json, pairedItem: { item: i } });
+					}
 				}
 			} catch (error) {
 				if (this.continueOnFail()) {

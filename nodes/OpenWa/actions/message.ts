@@ -1,44 +1,190 @@
-import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
+import {
+	NodeOperationError,
+	type IDataObject,
+	type IExecuteFunctions,
+	type IN8nHttpFullResponse,
+	type INodeExecutionData,
+} from 'n8n-workflow';
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS } from '../descriptions/media';
-import { normalizeContactId, parseMentions, validateGroupId } from '../helpers/chatId';
-import { buildMediaBody, type MediaInput } from '../helpers/media';
+import { QUOTE_OPERATIONS, SEND_OPERATIONS } from '../descriptions/message';
+import {
+	chatIdUser,
+	normalizeChatId,
+	normalizeContactId,
+	parseMentions,
+	validateGroupId,
+} from '../helpers/chatId';
+import { pairsToObject, parseCoordinate, parsePollOptions } from '../helpers/fields';
+import {
+	MAX_BINARY_BYTES,
+	buildMediaBody,
+	parseContentDispositionFilename,
+	type MediaInput,
+} from '../helpers/media';
+import { fetchByCursor } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
+import { getTemplateId } from './template';
+
+type BodyBuilder = (
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+	operation: string,
+	sessionId: string,
+) => IDataObject | Promise<IDataObject>;
+
+/** Each Message operation: the endpoint it posts to and how its request body is built. */
+const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
+	sendText: { endpoint: 'send-text', build: buildTextBody },
+	reply: { endpoint: 'reply', build: buildReplyBody },
+	star: {
+		endpoint: 'star',
+		build: (ctx, i, chatId) => ({ ...buildMessageRefBody(ctx, i, chatId), star: true }),
+	},
+	unstar: {
+		endpoint: 'star',
+		build: (ctx, i, chatId) => ({ ...buildMessageRefBody(ctx, i, chatId), star: false }),
+	},
+	pin: { endpoint: 'pin', build: buildPinBody },
+	unpin: { endpoint: 'unpin', build: buildMessageRefBody },
+	sendContact: { endpoint: 'send-contact', build: buildContactCardBody },
+	sendTemplate: { endpoint: 'send-template', build: buildTemplateBody },
+	votePoll: { endpoint: 'vote-poll', build: buildVotePollBody },
+	sendPoll: { endpoint: 'send-poll', build: buildPollBody },
+	sendLocation: { endpoint: 'send-location', build: buildLocationBody },
+	delete: { endpoint: 'delete', build: buildDeleteBody },
+	edit: { endpoint: 'edit', build: buildEditBody },
+	forward: { endpoint: 'forward', build: buildForwardBody },
+	react: { endpoint: 'react', build: buildReactBody },
+	...Object.fromEntries(
+		Object.entries(MEDIA_ENDPOINTS).map(([operation, endpoint]) => [
+			operation,
+			{ endpoint, build: buildMediaRequestBody },
+		]),
+	),
+};
 
 /** Run one Message operation for item `i` and return the API response. */
 export async function executeMessage(
 	ctx: IExecuteFunctions,
 	i: number,
 	sessionId: string,
-): Promise<IDataObject> {
+): Promise<IDataObject | IDataObject[] | INodeExecutionData> {
 	const operation = ctx.getNodeParameter('operation', i) as string;
+	if (operation === 'getAll') return await getMessages(ctx, i, sessionId);
+
 	const chatId = getChatId(ctx, i);
+	if (operation === 'downloadMedia') return await downloadMedia(ctx, i, sessionId, chatId);
 	const options = ctx.getNodeParameter('options', i, {}) as IDataObject;
 
-	if (options.checkNumberExists && ctx.getNodeParameter('recipientType', i) === 'contact') {
-		await assertNumberExists(ctx, i, sessionId, chatId);
-	}
-
-	let endpoint: string;
-	let body: IDataObject;
-	if (operation === 'sendText') {
-		endpoint = 'send-text';
-		body = buildTextBody(ctx, i, chatId, options);
-	} else if (MEDIA_ENDPOINTS[operation]) {
-		endpoint = MEDIA_ENDPOINTS[operation];
-		body = await buildMediaRequestBody(ctx, i, operation, chatId);
-	} else {
+	const spec = OPERATIONS[operation];
+	if (!spec) {
 		throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 			itemIndex: i,
 		});
 	}
 
+	if (
+		options.checkNumberExists &&
+		SEND_OPERATIONS.includes(operation) &&
+		ctx.getNodeParameter('recipientType', i) === 'contact'
+	) {
+		await assertNumberExists(ctx, i, sessionId, chatId);
+	}
+
+	const body = await spec.build(ctx, i, chatId, options, operation, sessionId);
+	const quotedMessageId = String(options.quotedMessageId ?? '').trim();
+	if (quotedMessageId && QUOTE_OPERATIONS.includes(operation))
+		body.quotedMessageId = quotedMessageId;
 	return (await openWaApiRequest.call(
 		ctx,
 		'POST',
-		`/api/sessions/${encodeURIComponent(sessionId)}/messages/${endpoint}`,
+		`/api/sessions/${encodeURIComponent(sessionId)}/messages/${spec.endpoint}`,
 		{ body, sessionId, itemIndex: i },
 	)) as IDataObject;
+}
+
+/** Stored message history, newest first, one item per message. */
+async function getMessages(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+): Promise<IDataObject[]> {
+	const filters = ctx.getNodeParameter('filters', i, {}) as IDataObject;
+	const qs: IDataObject = { inlineMedia: filters.includeMedia === true };
+	try {
+		if (String(filters.chat ?? '').trim()) qs.chatId = normalizeChatId(filters.chat);
+		const sender = String(filters.sender ?? '').trim();
+		// A bare phone number is sent as digits so it also matches the sender's group messages.
+		if (sender)
+			qs.from = sender.includes('@')
+				? normalizeContactId(sender)
+				: chatIdUser(normalizeContactId(sender));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+
+	const returnAll = ctx.getNodeParameter('returnAll', i) as boolean;
+	const max = returnAll ? undefined : (ctx.getNodeParameter('limit', i) as number);
+	return await fetchByCursor(
+		async (limit, after) => {
+			const page = (await openWaApiRequest.call(
+				ctx,
+				'GET',
+				`/api/sessions/${encodeURIComponent(sessionId)}/messages`,
+				{ qs: { ...qs, limit, ...(after ? { after } : {}) }, sessionId, itemIndex: i },
+			)) as { messages?: IDataObject[] };
+			return page.messages ?? [];
+		},
+		(message) => (message.id === undefined ? undefined : String(message.id)),
+		max,
+	);
+}
+
+/** A message's media as a binary item, with the file name and type the gateway reports. */
+async function downloadMedia(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+	chatId: string,
+): Promise<INodeExecutionData> {
+	const messageId = getMessageId(ctx, i);
+	const field = String(ctx.getNodeParameter('outputBinaryField', i, 'data') ?? '').trim() || 'data';
+	const response = (await openWaApiRequest.call(
+		ctx,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(chatId)}/${encodeURIComponent(messageId)}/media`,
+		{ sessionId, itemIndex: i, raw: true },
+	)) as IN8nHttpFullResponse;
+
+	const body = response.body as Buffer | ArrayBuffer;
+	const data = Buffer.isBuffer(body) ? body : Buffer.from(body);
+	const header = (name: string) => {
+		const value = response.headers?.[name];
+		return Array.isArray(value) ? value[0] : value;
+	};
+	// The gateway may label every file application/octet-stream; drop that so n8n infers the
+	// real type from the file name.
+	const contentType = String(header('content-type') ?? '')
+		.split(';')[0]
+		.trim();
+	const mimeType =
+		contentType && contentType !== 'application/octet-stream' ? contentType : undefined;
+	const fileName = parseContentDispositionFilename(header('content-disposition'));
+
+	const binary = await ctx.helpers.prepareBinaryData(data, fileName, mimeType);
+	return {
+		json: {
+			chatId,
+			messageId,
+			fileName: binary.fileName,
+			mimeType: binary.mimeType,
+			fileSize: data.length,
+		},
+		binary: { [field]: binary },
+	};
 }
 
 /** Resolve and validate the recipient chat ID for an item. */
@@ -77,23 +223,204 @@ function buildTextBody(
 	chatId: string,
 	options: IDataObject,
 ): IDataObject {
-	const body: IDataObject = { chatId, text: String(ctx.getNodeParameter('text', i) ?? '') };
+	const body: IDataObject = { chatId, text: getText(ctx, i), ...getMentions(ctx, i, options) };
 	if (options.linkPreview !== undefined) body.linkPreview = options.linkPreview;
-	if (options.mentions) {
-		try {
-			body.mentions = parseMentions(options.mentions);
-		} catch (error) {
-			throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
-		}
-	}
 	return body;
+}
+
+function buildReplyBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+): IDataObject {
+	return {
+		chatId,
+		quotedMessageId: getMessageId(ctx, i),
+		text: getText(ctx, i),
+		...getMentions(ctx, i, options),
+	};
+}
+
+function buildReactBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	return {
+		chatId,
+		messageId: getMessageId(ctx, i),
+		emoji: String(ctx.getNodeParameter('emoji', i, '') ?? '').trim(),
+	};
+}
+
+function buildForwardBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	let fromChatId: string;
+	try {
+		fromChatId = normalizeChatId(ctx.getNodeParameter('sourceChat', i));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	return { fromChatId, toChatId: chatId, messageId: getMessageId(ctx, i) };
+}
+
+function buildEditBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+): IDataObject {
+	return {
+		chatId,
+		messageId: getMessageId(ctx, i),
+		body: getText(ctx, i),
+		...getMentions(ctx, i, options),
+	};
+}
+
+function buildDeleteBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	return {
+		chatId,
+		messageId: getMessageId(ctx, i),
+		forEveryone: ctx.getNodeParameter('forEveryone', i, true) as boolean,
+	};
+}
+
+function buildLocationBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+): IDataObject {
+	let latitude: number;
+	let longitude: number;
+	try {
+		latitude = parseCoordinate(ctx.getNodeParameter('latitude', i), 'latitude');
+		longitude = parseCoordinate(ctx.getNodeParameter('longitude', i), 'longitude');
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	const body: IDataObject = { chatId, latitude, longitude };
+	const name = String(options.locationName ?? '').trim();
+	const address = String(options.address ?? '').trim();
+	if (name) body.description = name;
+	if (address) body.address = address;
+	return body;
+}
+
+function buildPollBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	const name = String(ctx.getNodeParameter('pollQuestion', i) ?? '').trim();
+	if (!name)
+		throw new NodeOperationError(ctx.getNode(), 'Poll Question is required', { itemIndex: i });
+	let options: string[];
+	try {
+		options = parsePollOptions(ctx.getNodeParameter('pollOptions', i, []), { min: 2, max: 12 });
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	return {
+		chatId,
+		name,
+		options,
+		allowMultipleAnswers: ctx.getNodeParameter('allowMultipleAnswers', i, false) as boolean,
+	};
+}
+
+function buildVotePollBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	let options: string[];
+	try {
+		options = parsePollOptions(ctx.getNodeParameter('selectedOptions', i, []), { min: 0, max: 12 });
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	return { chatId, pollMessageId: getMessageId(ctx, i), options };
+}
+
+function buildTemplateBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+): IDataObject {
+	const rows = ctx.getNodeParameter('templateVariables.values', i, []) as Array<{
+		name?: string;
+		value?: string;
+	}>;
+	let vars: Record<string, string>;
+	try {
+		vars = pairsToObject(rows);
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	const body: IDataObject = {
+		chatId,
+		templateId: getTemplateId(ctx, i),
+		...getMentions(ctx, i, options),
+	};
+	if (Object.keys(vars).length > 0) body.vars = vars;
+	if (options.linkPreview !== undefined) body.linkPreview = options.linkPreview;
+	return body;
+}
+
+function buildContactCardBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	const contactName = String(ctx.getNodeParameter('contactName', i) ?? '').trim();
+	if (!contactName) {
+		throw new NodeOperationError(ctx.getNode(), 'Contact Name is required', { itemIndex: i });
+	}
+	let contactId: string;
+	try {
+		contactId = normalizeContactId(ctx.getNodeParameter('contactNumber', i));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	if (contactId.endsWith('@lid')) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			'Contact Phone Number must be a phone number, not an @lid ID',
+			{
+				itemIndex: i,
+			},
+		);
+	}
+	return { chatId, contactName, contactNumber: chatIdUser(contactId) };
+}
+
+function buildPinBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	return {
+		...buildMessageRefBody(ctx, i, chatId),
+		durationSeconds: Number(ctx.getNodeParameter('pinDuration', i, 86400)),
+	};
+}
+
+/** `{ chatId, messageId }`: the whole body for operations that only point at a message. */
+function buildMessageRefBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	return { chatId, messageId: getMessageId(ctx, i) };
+}
+
+function getText(ctx: IExecuteFunctions, i: number): string {
+	return String(ctx.getNodeParameter('text', i) ?? '');
+}
+
+/** `{ mentions }` from the Mentions option, or nothing when it is empty. */
+function getMentions(ctx: IExecuteFunctions, i: number, options: IDataObject): IDataObject {
+	if (!options.mentions) return {};
+	try {
+		return { mentions: parseMentions(options.mentions) };
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+}
+
+function getMessageId(ctx: IExecuteFunctions, i: number): string {
+	const messageId = String(ctx.getNodeParameter('messageId', i) ?? '').trim();
+	if (!messageId)
+		throw new NodeOperationError(ctx.getNode(), 'Message ID is required', { itemIndex: i });
+	return messageId;
 }
 
 async function buildMediaRequestBody(
 	ctx: IExecuteFunctions,
 	i: number,
-	operation: string,
 	chatId: string,
+	_options: IDataObject,
+	operation: string,
+	sessionId: string,
 ): Promise<IDataObject> {
 	let input: MediaInput;
 	if (ctx.getNodeParameter('mediaSource', i) === 'binary') {
@@ -122,6 +449,45 @@ async function buildMediaRequestBody(
 	}
 	if (operation === 'sendAudio') {
 		body.ptt = ctx.getNodeParameter('ptt', i, false) as boolean;
+		if (body.ptt && ctx.getNodeParameter('convertToVoiceNote', i, false)) {
+			const voice = await convertToVoiceNote(ctx, i, sessionId, body);
+			// The converted bytes replace the original source and its file name.
+			delete body.url;
+			delete body.filename;
+			return { ...body, ...voice };
+		}
 	}
 	return body;
+}
+
+/**
+ * Have the gateway convert the audio in `media` (url or base64) to Ogg/Opus, and return the
+ * `base64`/`mimetype` to send instead.
+ */
+async function convertToVoiceNote(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+	media: IDataObject,
+): Promise<IDataObject> {
+	const converted = (await openWaApiRequest.call(
+		ctx,
+		'POST',
+		`/api/sessions/${encodeURIComponent(sessionId)}/media/convert/voice`,
+		{
+			body: media.base64 ? { base64: media.base64 } : { url: media.url },
+			sessionId,
+			itemIndex: i,
+		},
+	)) as { base64: string; mimetype: string; bytes: number };
+	// The converted audio is always sent inline, so sending by URL can't get around the limit.
+	if (converted.bytes > MAX_BINARY_BYTES) {
+		const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
+		throw new NodeOperationError(
+			ctx.getNode(),
+			`The converted voice note is ${mb(converted.bytes)} MB, above the ${mb(MAX_BINARY_BYTES)} MB inline limit. Shorten the audio, or send it without Convert to Voice Note.`,
+			{ itemIndex: i },
+		);
+	}
+	return { base64: converted.base64, mimetype: converted.mimetype };
 }

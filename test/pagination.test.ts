@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PAGE_SIZE, fetchPaged } from '../nodes/OpenWa/helpers/pagination';
+import { PAGE_SIZE, fetchByCursor, fetchPaged } from '../nodes/OpenWa/helpers/pagination';
 
 /** Fake endpoint over `total` numbered items. */
 function endpoint(total: number) {
@@ -66,5 +66,51 @@ describe('fetchPaged', () => {
 		const all = await fetchPaged(fetch);
 		expect(all).toHaveLength(PAGE_SIZE);
 		expect(fetch).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe('fetchByCursor', () => {
+	/** Fake keyset endpoint over ids 0..total-1, newest first is irrelevant here. */
+	function cursorEndpoint(total: number) {
+		return vi.fn(async (limit: number, after?: string) => {
+			const start = after === undefined ? 0 : Number(after) + 1;
+			return Array.from({ length: Math.max(0, Math.min(limit, total - start)) }, (_, k) => ({
+				id: String(start + k),
+			}));
+		});
+	}
+	const id = (item: { id: string }) => item.id;
+
+	it('walks pages using the last id as the cursor', async () => {
+		const fetch = cursorEndpoint(250);
+		const all = await fetchByCursor(fetch, id);
+		expect(all).toHaveLength(250);
+		expect(fetch.mock.calls).toEqual([
+			[100, undefined],
+			[100, '99'],
+			[100, '199'],
+		]);
+	});
+
+	it('stops at max and requests only what is left', async () => {
+		const fetch = cursorEndpoint(1000);
+		expect(await fetchByCursor(fetch, id, 150)).toHaveLength(150);
+		expect(fetch.mock.calls).toEqual([
+			[100, undefined],
+			[50, '99'],
+		]);
+	});
+
+	it('stops when the cursor does not move', async () => {
+		const page = Array.from({ length: 100 }, () => ({ id: 'same' }));
+		const fetch = vi.fn(async () => page);
+		expect(await fetchByCursor(fetch, id)).toHaveLength(200);
+		expect(fetch).toHaveBeenCalledTimes(2);
+	});
+
+	it('stops when rows have no id', async () => {
+		const fetch = vi.fn(async () => Array.from({ length: 100 }, () => ({ id: '' })));
+		expect(await fetchByCursor(fetch, id)).toHaveLength(100);
+		expect(fetch).toHaveBeenCalledTimes(1);
 	});
 });

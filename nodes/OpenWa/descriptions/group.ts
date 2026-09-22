@@ -8,6 +8,9 @@ const showFor = (operation: string[]): IDisplayOptions => ({
 /** Group operations that act on one existing group. */
 export const GROUP_ID_OPERATIONS = ['get', 'getParticipants'];
 
+/** Operations that take a Participants list. */
+export const PARTICIPANT_OPERATIONS = ['create'];
+
 export const groupOperations: INodeProperties = {
 	displayName: 'Operation',
 	name: 'operation',
@@ -15,6 +18,12 @@ export const groupOperations: INodeProperties = {
 	noDataExpression: true,
 	displayOptions: { show: { resource: ['group'] } },
 	options: [
+		{
+			name: 'Create',
+			value: 'create',
+			action: 'Create a group',
+			description: 'Create a group with the given participants (Baileys engine only)',
+		},
 		{
 			name: 'Get',
 			value: 'get',
@@ -55,5 +64,25 @@ export const groupFields: INodeProperties[] = [
 		default: 50,
 		displayOptions: { show: { resource: ['group'], operation: ['getAll'], returnAll: [false] } },
 		description: 'Max number of results to return',
+	},
+	{
+		displayName: 'Group Name',
+		name: 'groupName',
+		type: 'string',
+		default: '',
+		required: true,
+		displayOptions: showFor(['create']),
+		description: 'Name (subject) of the new group',
+	},
+	{
+		displayName: 'Participants',
+		name: 'participants',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. 972501234567, 972509876543',
+		displayOptions: showFor(PARTICIPANT_OPERATIONS),
+		description:
+			'Comma-separated phone numbers (international format) or contact IDs ending in @c.us or @lid',
 	},
 ];

@@ -4,7 +4,7 @@ import {
 	type IExecuteFunctions,
 	type IHttpRequestMethods,
 } from 'n8n-workflow';
-import { validateGroupId } from '../helpers/chatId';
+import { parseContactList, validateGroupId } from '../helpers/chatId';
 import { fetchPaged } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 
@@ -51,6 +51,13 @@ export async function executeGroup(
 			const group = (await request('GET', groupPath())) as { participants?: IDataObject[] };
 			return group.participants ?? [];
 		}
+		case 'create': {
+			const name = String(ctx.getNodeParameter('groupName', i) ?? '').trim();
+			if (!name) {
+				throw new NodeOperationError(ctx.getNode(), 'Group Name is required', { itemIndex: i });
+			}
+			return await request('POST', '', { body: { name, participants: getParticipants(ctx, i) } });
+		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
@@ -64,4 +71,18 @@ function getGroupId(ctx: IExecuteFunctions, i: number): string {
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
+}
+
+/** The Participants field as normalized contact IDs; empty is an error unless `optional`. */
+function getParticipants(ctx: IExecuteFunctions, i: number, optional = false): string[] {
+	let participants: string[];
+	try {
+		participants = parseContactList(ctx.getNodeParameter('participants', i, ''));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	if (!optional && participants.length === 0) {
+		throw new NodeOperationError(ctx.getNode(), 'Add at least one participant', { itemIndex: i });
+	}
+	return participants;
 }

@@ -2,7 +2,7 @@
 
 An [n8n](https://n8n.io/) community node that sends WhatsApp messages through a self-hosted OpenWA gateway.
 
-It sends text, images, videos, audio (including voice notes), documents and stickers to **contacts** and **groups**. It can also be used as a tool by n8n AI Agents.
+It sends text, images, videos, audio (including voice notes), documents and stickers to **contacts** and **groups**, and looks up and manages contacts (list, get, check a number, profile picture, block/unblock, resolve a phone number). It can also be used as a tool by n8n AI Agents.
 
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -66,7 +66,7 @@ When you save, n8n tests the credential by calling `POST /api/auth/validate`. A 
 
 ## Operations
 
-Resource: **Message**
+### Message
 
 | Operation | OpenWA endpoint | Extra fields |
 |---|---|---|
@@ -96,6 +96,22 @@ Each item outputs the OpenWA response:
 ```
 
 A `messageId` means the gateway accepted the message. It does not confirm delivery.
+
+### Contact
+
+| Operation | OpenWA endpoint | Output |
+|---|---|---|
+| Block | `POST /contacts/{contactId}/block` | `{ success, message }` |
+| Check Number | `GET /contacts/check/{number}` | `{ number, exists, whatsappId }` |
+| Get | `GET /contacts/{contactId}` | The contact (`id`, `number`, `name`, `pushName`, `isMyContact`, `isBlocked`, `profilePicUrl`) |
+| Get Many | `GET /contacts` | One item per contact. Use **Return All**, or **Limit** (default 50). |
+| Get Phone Number | `GET /contacts/{contactId}/phone` | `{ contactId, phone }`. Resolves an ID such as an `@lid` to a phone number; `phone` is `null` when the gateway doesn't know it. |
+| Get Profile Picture | `GET /contacts/{contactId}/profile-picture` | `{ url }`. `url` is `null` when the contact has no picture or hides it. |
+| Unblock | `DELETE /contacts/{contactId}/block` | `{ success, message }` |
+
+- **Contact**: pick a contact of the selected session from the list (searchable by name, number or ID), or enter a phone number or a chat ID ending in `@c.us` or `@lid`.
+- **Phone Number** (Check Number): international format; `@lid` IDs can't be checked.
+- Block and Unblock change the WhatsApp account's state. Keep that in mind when giving the node to an AI Agent.
 
 ## Chat ID formats
 

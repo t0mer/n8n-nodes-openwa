@@ -36,6 +36,7 @@ export const recipientFields: INodeProperties[] = [
 			{ name: 'Group', value: 'group' },
 		],
 		default: 'contact',
+		displayOptions: { show: { resource: ['message'] } },
 		description: 'Whether to send to a single contact or to a group',
 	},
 	{
@@ -45,7 +46,7 @@ export const recipientFields: INodeProperties[] = [
 		default: '',
 		required: true,
 		placeholder: 'e.g. 972501234567',
-		displayOptions: { show: { recipientType: ['contact'] } },
+		displayOptions: { show: { resource: ['message'], recipientType: ['contact'] } },
 		description:
 			'Recipient phone number in international format. Spaces, dashes, parentheses and a leading + are removed. A full chat ID ending in @c.us or @lid is also accepted.',
 	},
@@ -55,7 +56,7 @@ export const recipientFields: INodeProperties[] = [
 		type: 'resourceLocator',
 		default: { mode: 'list', value: '' },
 		required: true,
-		displayOptions: { show: { recipientType: ['group'] } },
+		displayOptions: { show: { resource: ['message'], recipientType: ['group'] } },
 		description: 'The group to send to',
 		modes: [
 			{

@@ -10,6 +10,7 @@ export const SEND_OPERATIONS = [
 	'forward',
 	'sendLocation',
 	'sendPoll',
+	'sendTemplate',
 ];
 
 export const messageOperations: INodeProperties = {
@@ -84,6 +85,12 @@ export const messageOperations: INodeProperties = {
 			value: 'sendSticker',
 			action: 'Send a sticker',
 			description: 'Send a sticker to a contact or group',
+		},
+		{
+			name: 'Send Template',
+			value: 'sendTemplate',
+			action: 'Send a template',
+			description: 'Render a stored template with variables and send it to a contact or group',
 		},
 		{
 			name: 'Send Text',

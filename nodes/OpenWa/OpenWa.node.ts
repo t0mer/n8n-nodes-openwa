@@ -19,7 +19,7 @@ import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
 import { pollFields } from './descriptions/poll';
 import { messageOperations, messageOptions } from './descriptions/message';
-import { templateFields, templateOperations } from './descriptions/template';
+import { sendTemplateFields, templateFields, templateOperations } from './descriptions/template';
 import { textFields } from './descriptions/text';
 import {
 	searchContacts,
@@ -81,6 +81,7 @@ export class OpenWa implements INodeType {
 			...mediaFields,
 			...locationFields,
 			...pollFields,
+			...sendTemplateFields,
 			messageOptions,
 		],
 	};

@@ -177,3 +177,43 @@ export const templateFields: INodeProperties[] = [
 		description: 'Max number of results to return',
 	},
 ];
+
+const showForSendTemplate: IDisplayOptions = {
+	show: { resource: ['message'], operation: ['sendTemplate'] },
+};
+
+export const sendTemplateFields: INodeProperties[] = [
+	templateLocator(showForSendTemplate),
+	{
+		displayName: 'Variables',
+		name: 'templateVariables',
+		type: 'fixedCollection',
+		typeOptions: { multipleValues: true },
+		placeholder: 'Add Variable',
+		default: {},
+		displayOptions: showForSendTemplate,
+		description: 'Values for the {{placeholders}} in the template',
+		options: [
+			{
+				displayName: 'Variable',
+				name: 'values',
+				values: [
+					{
+						displayName: 'Name',
+						name: 'name',
+						type: 'string',
+						default: '',
+						placeholder: 'e.g. name',
+						description: 'Placeholder name, without the curly braces',
+					},
+					{
+						displayName: 'Value',
+						name: 'value',
+						type: 'string',
+						default: '',
+					},
+				],
+			},
+		],
+	},
+];

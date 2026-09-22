@@ -3,9 +3,9 @@ import type { INodeProperties } from 'n8n-workflow';
 /** Operations that take the Text field. */
 export const TEXT_OPERATIONS = ['sendText', 'reply', 'edit'];
 /** Operations whose request accepts `mentions`. */
-export const MENTION_OPERATIONS = ['sendText', 'reply', 'edit'];
+export const MENTION_OPERATIONS = ['sendText', 'reply', 'edit', 'sendTemplate'];
 /** Operations whose request accepts `linkPreview`. */
-export const LINK_PREVIEW_OPERATIONS = ['sendText'];
+export const LINK_PREVIEW_OPERATIONS = ['sendText', 'sendTemplate'];
 
 export const textFields: INodeProperties[] = [
 	{

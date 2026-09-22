@@ -7,10 +7,11 @@ import {
 	parseMentions,
 	validateGroupId,
 } from '../helpers/chatId';
-import { parseCoordinate, parsePollOptions } from '../helpers/fields';
+import { pairsToObject, parseCoordinate, parsePollOptions } from '../helpers/fields';
 import { buildMediaBody, type MediaInput } from '../helpers/media';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
+import { getTemplateId } from './template';
 
 type BodyBuilder = (
 	ctx: IExecuteFunctions,
@@ -24,6 +25,7 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	sendTemplate: { endpoint: 'send-template', build: buildTemplateBody },
 	votePoll: { endpoint: 'vote-poll', build: buildVotePollBody },
 	sendPoll: { endpoint: 'send-poll', build: buildPollBody },
 	sendLocation: { endpoint: 'send-location', build: buildLocationBody },
@@ -216,6 +218,32 @@ function buildVotePollBody(ctx: IExecuteFunctions, i: number, chatId: string): I
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
 	return { chatId, pollMessageId: getMessageId(ctx, i), options };
+}
+
+function buildTemplateBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+): IDataObject {
+	const rows = ctx.getNodeParameter('templateVariables.values', i, []) as Array<{
+		name?: string;
+		value?: string;
+	}>;
+	let vars: Record<string, string>;
+	try {
+		vars = pairsToObject(rows);
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	const body: IDataObject = {
+		chatId,
+		templateId: getTemplateId(ctx, i),
+		...getMentions(ctx, i, options),
+	};
+	if (Object.keys(vars).length > 0) body.vars = vars;
+	if (options.linkPreview !== undefined) body.linkPreview = options.linkPreview;
+	return body;
 }
 
 function getText(ctx: IExecuteFunctions, i: number): string {

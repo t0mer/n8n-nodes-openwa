@@ -12,7 +12,12 @@ import {
 import { recipientFields, sessionField } from './descriptions/common';
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS, mediaFields } from './descriptions/media';
 import { textFields, textOptions } from './descriptions/text';
-import { normalizeContactId, parseMentions, validateGroupId } from './helpers/chatId';
+import {
+	chatIdUser,
+	normalizeContactId,
+	parseMentions,
+	validateGroupId,
+} from './helpers/chatId';
 import { buildMediaBody, type MediaInput } from './helpers/media';
 import { searchGroups, searchSessions } from './methods/listSearch';
 import { openWaApiRequest } from './transport/request';
@@ -99,7 +104,18 @@ export class OpenWa implements INodeType {
 				placeholder: 'Add Option',
 				default: {},
 				displayOptions: { show: { resource: ['message'] } },
-				options: [...textOptions],
+				options: [
+					{
+						displayName: 'Check Number Exists',
+						name: 'checkNumberExists',
+						type: 'boolean',
+						default: false,
+						displayOptions: { show: { '/recipientType': ['contact'] } },
+						description:
+							'Whether to verify the number is registered on WhatsApp before sending. OpenWA accepts sends to unregistered numbers without an error, so this is the only way to catch them.',
+					},
+					...textOptions,
+				],
 			},
 		],
 	};
@@ -127,6 +143,10 @@ export class OpenWa implements INodeType {
 
 				const chatId = getChatId(this, i);
 				const options = this.getNodeParameter('options', i, {}) as IDataObject;
+
+				if (options.checkNumberExists && this.getNodeParameter('recipientType', i) === 'contact') {
+					await assertNumberExists(this, i, sessionId, chatId);
+				}
 
 				let endpoint: string;
 				let body: IDataObject;
@@ -179,6 +199,27 @@ function getChatId(ctx: IExecuteFunctions, i: number): string {
 		return normalizeContactId(ctx.getNodeParameter('phoneNumber', i) as string);
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+}
+
+async function assertNumberExists(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+	chatId: string,
+): Promise<void> {
+	const number = chatIdUser(chatId);
+	const result = (await openWaApiRequest.call(
+		ctx,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/contacts/check/${encodeURIComponent(number)}`,
+		{ sessionId, itemIndex: i },
+	)) as { exists?: boolean };
+	if (!result.exists) {
+		throw new NodeOperationError(ctx.getNode(), `The number ${number} is not on WhatsApp`, {
+			itemIndex: i,
+			description: 'The message was not sent. Check the number, or turn off "Check Number Exists".',
+		});
 	}
 }
 

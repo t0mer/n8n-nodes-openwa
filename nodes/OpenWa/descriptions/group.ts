@@ -19,6 +19,8 @@ export const GROUP_ID_OPERATIONS = [
 	'rejectRequests',
 	'getInviteLink',
 	'revokeInviteLink',
+	'getSettings',
+	'updateSettings',
 ];
 
 /** Operations that take a Participants list. */
@@ -98,6 +100,13 @@ export const groupOperations: INodeProperties = {
 			description: 'List the members of a group, one item per participant',
 		},
 		{
+			name: 'Get Settings',
+			value: 'getSettings',
+			action: 'Get group settings',
+			description:
+				'Get who can send, who can edit info, who can add members, and the disappearing-messages timer',
+		},
+		{
 			name: 'Join',
 			value: 'join',
 			action: 'Join a group',
@@ -133,6 +142,13 @@ export const groupOperations: INodeProperties = {
 			value: 'update',
 			action: 'Update a group',
 			description: 'Change the name or description of a group',
+		},
+		{
+			name: 'Update Settings',
+			value: 'updateSettings',
+			action: 'Update group settings',
+			description:
+				'Change who can send, who can edit info, who can add members, or the disappearing-messages timer (requires admin)',
 		},
 	],
 	default: 'getAll',
@@ -221,5 +237,52 @@ export const groupFields: INodeProperties[] = [
 		placeholder: 'e.g. https://chat.whatsapp.com/AbCdEf123456',
 		displayOptions: showFor(['getJoinInfo', 'join']),
 		description: 'A group invite link, or just the code at the end of it',
+	},
+	{
+		displayName: 'Settings',
+		name: 'groupSettings',
+		type: 'collection',
+		placeholder: 'Add Setting',
+		default: {},
+		displayOptions: showFor(['updateSettings']),
+		options: [
+			{
+				displayName: 'Disappearing Messages',
+				name: 'ephemeralSeconds',
+				type: 'options',
+				options: [
+					{ name: 'Off', value: 0 },
+					{ name: '24 Hours', value: 86400 },
+					{ name: '7 Days', value: 604800 },
+					{ name: '90 Days', value: 7776000 },
+				],
+				default: 0,
+				description: 'How long new messages stay before they disappear',
+			},
+			{
+				displayName: 'Only Admins Can Edit Group Info',
+				name: 'locked',
+				type: 'boolean',
+				default: false,
+				description: 'Whether only admins can change the name, description and picture',
+			},
+			{
+				displayName: 'Only Admins Can Send Messages',
+				name: 'announce',
+				type: 'boolean',
+				default: false,
+				description: 'Whether only admins can send messages to the group',
+			},
+			{
+				displayName: 'Who Can Add Members',
+				name: 'memberAddMode',
+				type: 'options',
+				options: [
+					{ name: 'All Members', value: 'all' },
+					{ name: 'Only Admins', value: 'admins' },
+				],
+				default: 'admins',
+			},
+		],
 	},
 ];

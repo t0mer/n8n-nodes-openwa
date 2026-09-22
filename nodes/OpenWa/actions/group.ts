@@ -11,6 +11,7 @@ import { openWaApiRequest } from '../transport/request';
 /** Group operations that are a single call with no body: method and path under the group. */
 const SIMPLE_OPERATIONS: Record<string, { method: IHttpRequestMethods; path: string }> = {
 	get: { method: 'GET', path: '' },
+	getSettings: { method: 'GET', path: '/settings' },
 	revokeInviteLink: { method: 'POST', path: '/invite-code/revoke' },
 	getInviteLink: { method: 'GET', path: '/invite-code' },
 	getMembershipRequests: { method: 'GET', path: '/membership-requests' },
@@ -111,6 +112,19 @@ export async function executeGroup(
 			return await request('GET', '/join-info', { qs: { code: getInviteCode(ctx, i) } });
 		case 'join':
 			return await request('POST', '/join', { body: { inviteCode: getInviteCode(ctx, i) } });
+		case 'updateSettings': {
+			const settings = ctx.getNodeParameter('groupSettings', i, {}) as IDataObject;
+			const body: IDataObject = {};
+			for (const key of ['announce', 'locked', 'ephemeralSeconds', 'memberAddMode']) {
+				if (settings[key] !== undefined) body[key] = settings[key];
+			}
+			if (Object.keys(body).length === 0) {
+				throw new NodeOperationError(ctx.getNode(), 'Add at least one setting to update', {
+					itemIndex: i,
+				});
+			}
+			return await request('PUT', `${groupPath()}/settings`, { body });
+		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,

@@ -28,7 +28,9 @@ describe('normalizeContactId', () => {
 	});
 
 	it('rejects a group ID with a hint to switch recipient type', () => {
-		expect(() => normalizeContactId('120363000000000000@g.us')).toThrow('Recipient Type to Group');
+		expect(() => normalizeContactId('120363000000000000@g.us')).toThrow(
+			'is a group ID, not a contact',
+		);
 	});
 
 	it('rejects unknown JID suffixes and bare suffixes', () => {
@@ -102,7 +104,9 @@ describe('parseContactList', () => {
 	});
 
 	it('rejects group IDs', () => {
-		expect(() => parseContactList('120363012345678901@g.us')).toThrow('Recipient Type to Group');
+		expect(() => parseContactList('120363012345678901@g.us')).toThrow(
+			'is a group ID, not a contact',
+		);
 	});
 });
 

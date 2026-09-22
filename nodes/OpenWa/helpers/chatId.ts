@@ -13,7 +13,7 @@ export function normalizeContactId(input: unknown): string {
 			return value;
 		}
 		if (value.endsWith('@g.us')) {
-			throw new Error(`"${value}" is a group ID — set Recipient Type to Group`);
+			throw new Error(`"${value}" is a group ID, not a contact`);
 		}
 		throw new Error(`"${value}" is not a valid contact ID (expected <number>@c.us or <id>@lid)`);
 	}

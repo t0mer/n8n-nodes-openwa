@@ -78,6 +78,12 @@ describe('executeGroup — bodies', () => {
 		]);
 	});
 
+	it('says a group ID is not a contact when one is listed as a participant', async () => {
+		await expect(
+			call({ operation: 'addParticipants', group, participants: '120363012345678901@g.us' }),
+		).rejects.toThrow('is a group ID, not a contact');
+	});
+
 	it('create requires participants and a name', async () => {
 		await expect(
 			call({ operation: 'create', groupName: 'x', participants: ' , ' }),

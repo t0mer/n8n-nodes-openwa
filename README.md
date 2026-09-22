@@ -2,7 +2,7 @@
 
 An [n8n](https://n8n.io/) community node that sends WhatsApp messages through a self-hosted OpenWA gateway.
 
-It sends text, images, videos, audio (including voice notes), documents and stickers to **contacts** and **groups**, and looks up and manages contacts (list, get, check a number, profile picture, block/unblock, resolve a phone number). It can also be used as a tool by n8n AI Agents.
+It sends text, media, locations, polls and templates to **contacts** and **groups**, replies to, reacts to, forwards, edits and deletes messages, manages text templates, and looks up and manages contacts (list, get, check a number, profile picture, block/unblock, resolve a phone number). It can also be used as a tool by n8n AI Agents.
 
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -76,6 +76,15 @@ When you save, n8n tests the credential by calling `POST /api/auth/validate`. A 
 | Send Audio | `send-audio` | Media, Send as Voice Note |
 | Send Document | `send-document` | Media, Caption, File Name |
 | Send Sticker | `send-sticker` | Media |
+| Send Location | `send-location` | Latitude, Longitude; options: Location Name, Address |
+| Send Poll | `send-poll` | Poll Question, Poll Options (2–12, all different), Allow Multiple Answers |
+| Send Template | `send-template` | Template, Variables; options: Link Preview, Mentions |
+| Reply | `reply` | Message ID, Text; option: Mentions |
+| React | `react` | Message ID, Emoji (empty removes your reaction) |
+| Forward | `forward` | Message ID, Source Chat (the recipient is the destination) |
+| Edit | `edit` | Message ID, Text (the new text); option: Mentions |
+| Delete | `delete` | Message ID, Delete for Everyone (default on) |
+| Vote Poll | `vote-poll` | Message ID (the poll), Selected Options (empty withdraws your vote) |
 
 Common fields:
 
@@ -86,8 +95,9 @@ Common fields:
 - **Media Source** (media operations):
   - `URL`: the gateway downloads the file itself.
   - `Binary Data`: sends the file from a binary field of the input item (default field `data`), e.g. from an HTTP Request or Read/Write Files from Disk node. The mimetype and file name come from the binary metadata.
-- **Options → Check Number Exists** (contacts only): looks the number up with `GET /contacts/check/{number}` before sending and fails the item if it is not on WhatsApp. OpenWA otherwise accepts sends to unregistered numbers without error.
-- **Options → Mentions** (text): comma-separated numbers to @mention. The text must contain a matching `@<number>` token for each one, e.g. `Hi @972501234567`.
+- **Message ID** (Reply, React, Forward, Edit, Delete, Vote Poll): the `messageId` returned when the message was sent, or from a trigger. The recipient must be the chat that contains the message. You can only edit messages sent by this account.
+- **Options → Check Number Exists** (contacts only, operations that send a new message): looks the number up with `GET /contacts/check/{number}` before sending and fails the item if it is not on WhatsApp. OpenWA otherwise accepts sends to unregistered numbers without error.
+- **Options → Mentions** (Send Text, Reply, Edit, Send Template): comma-separated numbers to @mention. The text must contain a matching `@<number>` token for each one, e.g. `Hi @972501234567`.
 
 Each item outputs the OpenWA response:
 
@@ -95,7 +105,7 @@ Each item outputs the OpenWA response:
 { "messageId": "true_972501234567@c.us_3EB0123456789", "timestamp": 1758585600 }
 ```
 
-A `messageId` means the gateway accepted the message. It does not confirm delivery.
+A `messageId` means the gateway accepted the message. It does not confirm delivery. React, Delete and Vote Poll output `{ "success": true }`.
 
 ### Contact
 
@@ -112,6 +122,21 @@ A `messageId` means the gateway accepted the message. It does not confirm delive
 - **Contact**: pick a contact of the selected session from the list (searchable by name, number or ID), or enter a phone number or a chat ID ending in `@c.us` or `@lid`.
 - **Phone Number** (Check Number): international format; `@lid` IDs can't be checked.
 - Block and Unblock change the WhatsApp account's state. Keep that in mind when giving the node to an AI Agent.
+
+### Template
+
+Text templates are stored on the gateway per session. Placeholders in double curly braces, e.g. `{{name}}`, are filled from the **Variables** of Message → Send Template.
+
+| Operation | OpenWA endpoint | Fields |
+|---|---|---|
+| Create | `POST /templates` | Name, Body; additional: Header, Footer |
+| Delete | `DELETE /templates/{id}` | Template. Outputs `{ success, id }`. |
+| Get | `GET /templates/{id}` | Template |
+| Get Many | `GET /templates` | Return All, or Limit (default 50) |
+| Update | `PUT /templates/{id}` | Template; at least one of Name, Body, Header, Footer |
+
+- **Template**: pick one from the list, or enter its ID.
+- Template names are unique per session. Creating or renaming to a name that exists fails with the gateway's message.
 
 ## Chat ID formats
 

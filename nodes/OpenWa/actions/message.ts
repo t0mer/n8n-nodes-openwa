@@ -23,6 +23,7 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	edit: { endpoint: 'edit', build: buildEditBody },
 	forward: { endpoint: 'forward', build: buildForwardBody },
 	react: { endpoint: 'react', build: buildReactBody },
 	...Object.fromEntries(
@@ -138,6 +139,20 @@ function buildForwardBody(ctx: IExecuteFunctions, i: number, chatId: string): ID
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
 	return { fromChatId, toChatId: chatId, messageId: getMessageId(ctx, i) };
+}
+
+function buildEditBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+): IDataObject {
+	return {
+		chatId,
+		messageId: getMessageId(ctx, i),
+		body: getText(ctx, i),
+		...getMentions(ctx, i, options),
+	};
 }
 
 function getText(ctx: IExecuteFunctions, i: number): string {

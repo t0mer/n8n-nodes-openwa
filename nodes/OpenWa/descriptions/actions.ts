@@ -1,7 +1,7 @@
 import type { INodeProperties } from 'n8n-workflow';
 
 /** Operations that act on an existing message, identified by Message ID. */
-export const MESSAGE_ID_OPERATIONS = ['reply', 'react', 'forward'];
+export const MESSAGE_ID_OPERATIONS = ['reply', 'react', 'forward', 'edit'];
 
 export const messageActionFields: INodeProperties[] = [
 	{

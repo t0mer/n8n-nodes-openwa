@@ -1,9 +1,9 @@
 import type { INodeProperties } from 'n8n-workflow';
 
 /** Operations that take the Text field. */
-export const TEXT_OPERATIONS = ['sendText', 'reply'];
+export const TEXT_OPERATIONS = ['sendText', 'reply', 'edit'];
 /** Operations whose request accepts `mentions`. */
-export const MENTION_OPERATIONS = ['sendText', 'reply'];
+export const MENTION_OPERATIONS = ['sendText', 'reply', 'edit'];
 /** Operations whose request accepts `linkPreview`. */
 export const LINK_PREVIEW_OPERATIONS = ['sendText'];
 
@@ -16,7 +16,8 @@ export const textFields: INodeProperties[] = [
 		default: '',
 		required: true,
 		displayOptions: { show: { resource: ['message'], operation: TEXT_OPERATIONS } },
-		description: 'The message text (up to 4096 characters)',
+		description:
+			'The message text (up to 4096 characters). For Edit, the new text that replaces the old one.',
 	},
 ];
 

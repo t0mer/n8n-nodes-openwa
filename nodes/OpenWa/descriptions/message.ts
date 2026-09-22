@@ -13,6 +13,12 @@ export const messageOperations: INodeProperties = {
 	displayOptions: { show: { resource: ['message'] } },
 	options: [
 		{
+			name: 'Edit',
+			value: 'edit',
+			action: 'Edit a message',
+			description: 'Change the text of a message sent by this account',
+		},
+		{
 			name: 'Forward',
 			value: 'forward',
 			action: 'Forward a message',

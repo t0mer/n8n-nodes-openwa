@@ -61,6 +61,12 @@ export class OpenWa implements INodeType {
 						action: 'Send a text message',
 						description: 'Send a text message to a contact or group',
 					},
+					{
+						name: 'Send Video',
+						value: 'sendVideo',
+						action: 'Send a video',
+						description: 'Send a video to a contact or group',
+					},
 				],
 				default: 'sendText',
 			},

@@ -3,10 +3,11 @@ import type { INodeProperties } from 'n8n-workflow';
 /** Media operations and the OpenWA endpoint each one posts to. */
 export const MEDIA_ENDPOINTS: Record<string, string> = {
 	sendImage: 'send-image',
+	sendVideo: 'send-video',
 };
 
 /** Operations whose DTO renders a caption. */
-export const CAPTION_OPERATIONS = ['sendImage'];
+export const CAPTION_OPERATIONS = ['sendImage', 'sendVideo'];
 
 const mediaOperations = Object.keys(MEDIA_ENDPOINTS);
 

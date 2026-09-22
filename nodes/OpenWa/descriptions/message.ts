@@ -9,6 +9,7 @@ export const SEND_OPERATIONS = [
 	...Object.keys(MEDIA_ENDPOINTS),
 	'forward',
 	'sendLocation',
+	'sendPoll',
 ];
 
 export const messageOperations: INodeProperties = {
@@ -71,6 +72,12 @@ export const messageOperations: INodeProperties = {
 			value: 'sendLocation',
 			action: 'Send a location',
 			description: 'Send a location pin to a contact or group',
+		},
+		{
+			name: 'Send Poll',
+			value: 'sendPoll',
+			action: 'Send a poll',
+			description: 'Send a poll to a contact or group',
 		},
 		{
 			name: 'Send Sticker',

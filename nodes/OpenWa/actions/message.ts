@@ -7,7 +7,7 @@ import {
 	parseMentions,
 	validateGroupId,
 } from '../helpers/chatId';
-import { parseCoordinate } from '../helpers/fields';
+import { parseCoordinate, parsePollOptions } from '../helpers/fields';
 import { buildMediaBody, type MediaInput } from '../helpers/media';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
@@ -24,6 +24,7 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	sendPoll: { endpoint: 'send-poll', build: buildPollBody },
 	sendLocation: { endpoint: 'send-location', build: buildLocationBody },
 	delete: { endpoint: 'delete', build: buildDeleteBody },
 	edit: { endpoint: 'edit', build: buildEditBody },
@@ -186,6 +187,24 @@ function buildLocationBody(
 	if (name) body.description = name;
 	if (address) body.address = address;
 	return body;
+}
+
+function buildPollBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	const name = String(ctx.getNodeParameter('pollQuestion', i) ?? '').trim();
+	if (!name)
+		throw new NodeOperationError(ctx.getNode(), 'Poll Question is required', { itemIndex: i });
+	let options: string[];
+	try {
+		options = parsePollOptions(ctx.getNodeParameter('pollOptions', i, []), { min: 2, max: 12 });
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	return {
+		chatId,
+		name,
+		options,
+		allowMultipleAnswers: ctx.getNodeParameter('allowMultipleAnswers', i, false) as boolean,
+	};
 }
 
 function getText(ctx: IExecuteFunctions, i: number): string {

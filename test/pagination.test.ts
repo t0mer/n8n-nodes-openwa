@@ -53,4 +53,18 @@ describe('fetchPaged', () => {
 		const fetch = vi.fn(async () => [1, 2, 3, 4, 5]);
 		expect(await fetchPaged(fetch, 2)).toEqual([1, 2]);
 	});
+
+	it('returns nothing for an empty first page', async () => {
+		const fetch = endpoint(0);
+		expect(await fetchPaged(fetch)).toEqual([]);
+		expect(fetch).toHaveBeenCalledTimes(1);
+	});
+
+	it('stops when the server ignores offset and repeats a full page', async () => {
+		const page = Array.from({ length: PAGE_SIZE }, (_, k) => ({ id: k }));
+		const fetch = vi.fn(async () => page);
+		const all = await fetchPaged(fetch);
+		expect(all).toHaveLength(PAGE_SIZE);
+		expect(fetch).toHaveBeenCalledTimes(2);
+	});
 });

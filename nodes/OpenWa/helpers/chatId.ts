@@ -13,7 +13,7 @@ export function normalizeContactId(input: unknown): string {
 			return value;
 		}
 		if (value.endsWith('@g.us')) {
-			throw new Error(`"${value}" is a group ID — set Recipient Type to Group`);
+			throw new Error(`"${value}" is a group ID, not a contact`);
 		}
 		throw new Error(`"${value}" is not a valid contact ID (expected <number>@c.us or <id>@lid)`);
 	}
@@ -38,11 +38,30 @@ export function validateGroupId(input: unknown): string {
 
 /** Parse a comma-separated list of numbers into `@c.us` mention IDs. */
 export function parseMentions(input: unknown): string[] {
-	return String(input ?? '')
-		.split(',')
-		.map((entry) => entry.trim())
+	return parseContactList(input);
+}
+
+/**
+ * Parse contacts given as a comma-separated string or an array (e.g. from an expression) into
+ * normalized contact IDs. Group IDs are rejected.
+ */
+export function parseContactList(input: unknown): string[] {
+	const entries = Array.isArray(input) ? input : String(input ?? '').split(',');
+	return entries
+		.map((entry) => String(entry ?? '').trim())
 		.filter((entry) => entry.length > 0)
 		.map(normalizeContactId);
+}
+
+/** The code from a group invite link (https://chat.whatsapp.com/<code>) or a bare code. */
+export function parseInviteCode(input: unknown): string {
+	const value = String(input ?? '').trim();
+	const fromLink = /chat\.whatsapp\.com\/(?:invite\/)?([A-Za-z0-9]+)/i.exec(value);
+	const code = fromLink ? fromLink[1] : value;
+	if (!/^[A-Za-z0-9]{6,}$/.test(code)) {
+		throw new Error(`"${value}" is not a valid group invite code or link`);
+	}
+	return code;
 }
 
 /** The bare number/ID part of a chat ID, as expected by the check-number endpoint. */

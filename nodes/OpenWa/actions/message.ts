@@ -193,7 +193,11 @@ function getChatId(ctx: IExecuteFunctions, i: number): string {
 		if (ctx.getNodeParameter('recipientType', i) === 'group') {
 			return validateGroupId(ctx.getNodeParameter('group', i, '', { extractValue: true }));
 		}
-		return normalizeContactId(ctx.getNodeParameter('phoneNumber', i));
+		const phoneNumber = String(ctx.getNodeParameter('phoneNumber', i) ?? '').trim();
+		if (phoneNumber.endsWith('@g.us')) {
+			throw new Error(`"${phoneNumber}" is a group ID — set Recipient Type to Group`);
+		}
+		return normalizeContactId(phoneNumber);
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}

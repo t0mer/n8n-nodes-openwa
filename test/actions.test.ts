@@ -163,6 +163,12 @@ describe('executeMessage request bodies', () => {
 		).toEqual({ chatId, messageId: 'm1', emoji: 'x' });
 	});
 
+	it('hints at Recipient Type when a group ID is typed as a phone number', async () => {
+		await expect(
+			sent({ operation: 'sendText', text: 'hi', phoneNumber: '120363012345678901@g.us' }),
+		).rejects.toThrow('set Recipient Type to Group');
+	});
+
 	it('requires a message ID', async () => {
 		await expect(sent({ operation: 'delete', messageId: '  ' })).rejects.toThrow(
 			'Message ID is required',

@@ -2,7 +2,7 @@
 
 An [n8n](https://n8n.io/) community node that sends WhatsApp messages through a self-hosted OpenWA gateway.
 
-It sends text, media, locations, polls, contact cards and templates to **contacts** and **groups**; replies to, reacts to, forwards, edits, deletes, pins and stars messages; reads message history and downloads media; manages text templates, and looks up and manages contacts (list, get, check a number, profile picture, block/unblock, resolve a phone number). It can also be used as a tool by n8n AI Agents.
+It sends text, media, locations, polls, contact cards and templates to **contacts** and **groups**; replies to, reacts to, forwards, edits, deletes, pins and stars messages; reads message history and downloads media; manages text templates and groups (create, participants, admins, join requests, invite links, settings, picture), and looks up and manages contacts (list, get, check a number, profile picture, block/unblock, resolve a phone number). It can also be used as a tool by n8n AI Agents.
 
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -129,6 +129,32 @@ A `messageId` means the gateway accepted the message. It does not confirm delive
 - **Contact**: pick a contact of the selected session from the list (searchable by name, number or ID), or enter a phone number or a chat ID ending in `@c.us` or `@lid`.
 - **Phone Number** (Check Number): international format; `@lid` IDs can't be checked.
 - Block and Unblock change the WhatsApp account's state. Keep that in mind when giving the node to an AI Agent.
+
+### Group
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Get Many | `GET /groups` | Return All, or Limit (default 50). One item per group. |
+| Get | `GET /groups/{groupId}` | The group with its settings and participants |
+| Get Participants | `GET /groups/{groupId}` | One item per member (`id`, `number`, `name`, `isAdmin`, `isSuperAdmin`) |
+| Create | `POST /groups` | Group Name, Participants. Baileys engine only (whatsapp-web.js answers 501). |
+| Update | `PUT /groups/{groupId}/subject`, `/description` | Name and/or Description (empty clears it). Outputs `{ success, groupId, updated }`. |
+| Add / Remove Participants | `POST` / `DELETE /groups/{groupId}/participants` | Participants. Output has a per-participant `results` list. |
+| Promote / Demote Participants | `POST /groups/{groupId}/participants/promote`, `/demote` | Participants |
+| Get Membership Requests | `GET /groups/{groupId}/membership-requests` | One item per pending join request |
+| Approve / Reject Requests | `POST /groups/{groupId}/membership-requests/approve`, `/reject` | Requests: Specific Requesters (listed below) or All Pending Requests |
+| Get Invite Link | `GET /groups/{groupId}/invite-code` | `{ inviteCode, inviteLink }` |
+| Revoke Invite Link | `POST /groups/{groupId}/invite-code/revoke` | Old link stops working; outputs the new one |
+| Get Join Info | `GET /groups/join-info?code=` | Invite Link (full link or code). Preview without joining. |
+| Join | `POST /groups/join` | Invite Link. Outputs `{ success, groupId }`. |
+| Get / Update Settings | `GET` / `PUT /groups/{groupId}/settings` | Only Admins Can Send Messages, Only Admins Can Edit Group Info, Who Can Add Members, Disappearing Messages (off, 24 hours, 7 days, 90 days) |
+| Get / Set / Remove Picture | `GET` / `PUT` / `DELETE /groups/{groupId}/picture` | Set: Picture Source (URL, or a binary image up to 18 MB) |
+| Leave | `POST /groups/{groupId}/leave` | — |
+
+- **Group**: pick one from the list, or enter its ID (ending in `@g.us`).
+- **Participants / Requesters**: comma-separated phone numbers or contact IDs (`@c.us`, `@lid`), or an array from an expression.
+- Most changes need the session account to be a group admin. WhatsApp's refusal comes back as a 403 with the gateway's message.
+- Leave, Remove Participants, Revoke Invite Link, Remove Picture, and Approve/Reject with All Pending Requests change the group and can't be undone from the node. Keep that in mind when giving the node to an AI Agent.
 
 ### Template
 

@@ -1,4 +1,4 @@
-import type { INodeProperties } from 'n8n-workflow';
+import type { IDisplayOptions, INodeProperties } from 'n8n-workflow';
 
 /** Message operations that don't target one chat, so they have no recipient. */
 export const CHATLESS_OPERATIONS = ['getAll'];
@@ -56,17 +56,28 @@ export const recipientFields: INodeProperties[] = [
 		description:
 			'Recipient phone number in international format. Spaces, dashes, parentheses and a leading + are removed. A full chat ID ending in @c.us or @lid is also accepted.',
 	},
-	{
+	groupLocator(
+		{
+			show: { resource: ['message'], recipientType: ['group'] },
+			hide: { operation: CHATLESS_OPERATIONS },
+		},
+		'The group to send to',
+	),
+];
+
+/** Group picker (list from the session, or an @g.us ID), shared by Message and Group. */
+export function groupLocator(
+	displayOptions: IDisplayOptions,
+	description: string,
+): INodeProperties {
+	return {
 		displayName: 'Group',
 		name: 'group',
 		type: 'resourceLocator',
 		default: { mode: 'list', value: '' },
 		required: true,
-		displayOptions: {
-			show: { resource: ['message'], recipientType: ['group'] },
-			hide: { operation: CHATLESS_OPERATIONS },
-		},
-		description: 'The group to send to',
+		displayOptions,
+		description,
 		modes: [
 			{
 				displayName: 'From List',
@@ -93,5 +104,5 @@ export const recipientFields: INodeProperties[] = [
 				],
 			},
 		],
-	},
-];
+	};
+}

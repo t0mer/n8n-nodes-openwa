@@ -17,6 +17,8 @@ const SIMPLE_OPERATIONS: Record<string, { method: IHttpRequestMethods; path: str
 const PARTICIPANT_ACTIONS: Record<string, { method: IHttpRequestMethods; path: string }> = {
 	addParticipants: { method: 'POST', path: '/participants' },
 	removeParticipants: { method: 'DELETE', path: '/participants' },
+	promoteParticipants: { method: 'POST', path: '/participants/promote' },
+	demoteParticipants: { method: 'POST', path: '/participants/demote' },
 };
 
 /** Run one Group operation for item `i`. List operations return one object per entry. */

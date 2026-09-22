@@ -12,10 +12,18 @@ export const GROUP_ID_OPERATIONS = [
 	'update',
 	'addParticipants',
 	'removeParticipants',
+	'promoteParticipants',
+	'demoteParticipants',
 ];
 
 /** Operations that take a Participants list. */
-export const PARTICIPANT_OPERATIONS = ['create', 'addParticipants', 'removeParticipants'];
+export const PARTICIPANT_OPERATIONS = [
+	'create',
+	'addParticipants',
+	'removeParticipants',
+	'promoteParticipants',
+	'demoteParticipants',
+];
 
 export const groupOperations: INodeProperties = {
 	displayName: 'Operation',
@@ -37,6 +45,12 @@ export const groupOperations: INodeProperties = {
 			description: 'Create a group with the given participants (Baileys engine only)',
 		},
 		{
+			name: 'Demote Participants',
+			value: 'demoteParticipants',
+			action: 'Demote participants from admin',
+			description: 'Remove admin rights from members (requires admin)',
+		},
+		{
 			name: 'Get',
 			value: 'get',
 			action: 'Get a group',
@@ -53,6 +67,12 @@ export const groupOperations: INodeProperties = {
 			value: 'getParticipants',
 			action: 'Get group participants',
 			description: 'List the members of a group, one item per participant',
+		},
+		{
+			name: 'Promote Participants',
+			value: 'promoteParticipants',
+			action: 'Promote participants to admin',
+			description: 'Make members group admins (requires admin)',
 		},
 		{
 			name: 'Remove Participants',

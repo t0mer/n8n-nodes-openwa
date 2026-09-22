@@ -10,6 +10,7 @@ import {
 } from '../helpers/chatId';
 import { pairsToObject, parseCoordinate, parsePollOptions } from '../helpers/fields';
 import { buildMediaBody, type MediaInput } from '../helpers/media';
+import { fetchByCursor } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
 import { getTemplateId } from './template';
@@ -58,8 +59,10 @@ export async function executeMessage(
 	ctx: IExecuteFunctions,
 	i: number,
 	sessionId: string,
-): Promise<IDataObject> {
+): Promise<IDataObject | IDataObject[]> {
 	const operation = ctx.getNodeParameter('operation', i) as string;
+	if (operation === 'getAll') return await getMessages(ctx, i, sessionId);
+
 	const chatId = getChatId(ctx, i);
 	const options = ctx.getNodeParameter('options', i, {}) as IDataObject;
 
@@ -88,6 +91,43 @@ export async function executeMessage(
 		`/api/sessions/${encodeURIComponent(sessionId)}/messages/${spec.endpoint}`,
 		{ body, sessionId, itemIndex: i },
 	)) as IDataObject;
+}
+
+/** Stored message history, newest first, one item per message. */
+async function getMessages(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+): Promise<IDataObject[]> {
+	const filters = ctx.getNodeParameter('filters', i, {}) as IDataObject;
+	const qs: IDataObject = { inlineMedia: filters.includeMedia === true };
+	try {
+		if (String(filters.chat ?? '').trim()) qs.chatId = normalizeChatId(filters.chat);
+		const sender = String(filters.sender ?? '').trim();
+		// A bare phone number is sent as digits so it also matches the sender's group messages.
+		if (sender)
+			qs.from = sender.includes('@')
+				? normalizeContactId(sender)
+				: chatIdUser(normalizeContactId(sender));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+
+	const returnAll = ctx.getNodeParameter('returnAll', i) as boolean;
+	const max = returnAll ? undefined : (ctx.getNodeParameter('limit', i) as number);
+	return await fetchByCursor(
+		async (limit, after) => {
+			const page = (await openWaApiRequest.call(
+				ctx,
+				'GET',
+				`/api/sessions/${encodeURIComponent(sessionId)}/messages`,
+				{ qs: { ...qs, limit, ...(after ? { after } : {}) }, sessionId, itemIndex: i },
+			)) as { messages?: IDataObject[] };
+			return page.messages ?? [];
+		},
+		(message) => (message.id === undefined ? undefined : String(message.id)),
+		max,
+	);
 }
 
 /** Resolve and validate the recipient chat ID for an item. */

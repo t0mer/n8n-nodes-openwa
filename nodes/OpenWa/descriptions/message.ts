@@ -49,6 +49,12 @@ export const messageOperations: INodeProperties = {
 			description: 'Forward a message from one chat to a contact or group',
 		},
 		{
+			name: 'Get Many',
+			value: 'getAll',
+			action: 'Get many messages',
+			description: 'List stored messages, newest first, optionally filtered by chat or sender',
+		},
+		{
 			name: 'Pin',
 			value: 'pin',
 			action: 'Pin a message',

@@ -1,5 +1,8 @@
 import type { INodeProperties } from 'n8n-workflow';
 
+/** Message operations that don't target one chat, so they have no recipient. */
+export const CHATLESS_OPERATIONS = ['getAll'];
+
 export const sessionField: INodeProperties = {
 	displayName: 'Session',
 	name: 'session',
@@ -36,7 +39,7 @@ export const recipientFields: INodeProperties[] = [
 			{ name: 'Group', value: 'group' },
 		],
 		default: 'contact',
-		displayOptions: { show: { resource: ['message'] } },
+		displayOptions: { show: { resource: ['message'] }, hide: { operation: CHATLESS_OPERATIONS } },
 		description: 'Whether to send to a single contact or to a group',
 	},
 	{
@@ -46,7 +49,10 @@ export const recipientFields: INodeProperties[] = [
 		default: '',
 		required: true,
 		placeholder: 'e.g. 972501234567',
-		displayOptions: { show: { resource: ['message'], recipientType: ['contact'] } },
+		displayOptions: {
+			show: { resource: ['message'], recipientType: ['contact'] },
+			hide: { operation: CHATLESS_OPERATIONS },
+		},
 		description:
 			'Recipient phone number in international format. Spaces, dashes, parentheses and a leading + are removed. A full chat ID ending in @c.us or @lid is also accepted.',
 	},
@@ -56,7 +62,10 @@ export const recipientFields: INodeProperties[] = [
 		type: 'resourceLocator',
 		default: { mode: 'list', value: '' },
 		required: true,
-		displayOptions: { show: { resource: ['message'], recipientType: ['group'] } },
+		displayOptions: {
+			show: { resource: ['message'], recipientType: ['group'] },
+			hide: { operation: CHATLESS_OPERATIONS },
+		},
 		description: 'The group to send to',
 		modes: [
 			{

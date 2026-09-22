@@ -16,6 +16,7 @@ import { executeTemplate } from './actions/template';
 import { messageActionFields } from './descriptions/actions';
 import { contactFields, contactOperations } from './descriptions/contact';
 import { contactCardFields } from './descriptions/contactCard';
+import { historyFields } from './descriptions/history';
 import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
 import { pollFields } from './descriptions/poll';
@@ -89,6 +90,7 @@ export class OpenWa implements INodeType {
 			...locationFields,
 			...pollFields,
 			...contactCardFields,
+			...historyFields,
 			...sendTemplateFields,
 			messageOptions,
 		],

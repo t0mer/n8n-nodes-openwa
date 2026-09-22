@@ -1,4 +1,4 @@
-# n8n-nodes-openwa
+# @t0mer/n8n-nodes-openwa
 
 An [n8n](https://n8n.io/) community node that sends WhatsApp messages through a self-hosted OpenWA gateway.
 
@@ -28,7 +28,9 @@ It sends text, media, locations, polls, contact cards and templates to **contact
 
 1. In n8n, open **Settings → Community Nodes**.
 2. Select **Install**.
-3. Enter `n8n-nodes-openwa` and confirm.
+3. Enter `@t0mer/n8n-nodes-openwa` and confirm.
+
+> The unscoped `n8n-nodes-openwa` on npm is a different, unrelated package. Use the scoped name above.
 
 See the [n8n community nodes installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) for details.
 
@@ -38,7 +40,7 @@ Install the package into a folder on the host and point n8n at it with `N8N_CUST
 
 ```bash
 mkdir -p ~/n8n-custom && cd ~/n8n-custom
-npm install n8n-nodes-openwa
+npm install @t0mer/n8n-nodes-openwa
 ```
 
 ```yaml
@@ -48,7 +50,7 @@ services:
     environment:
       N8N_CUSTOM_EXTENSIONS: /home/node/custom-nodes
     volumes:
-      - ~/n8n-custom/node_modules/n8n-nodes-openwa:/home/node/custom-nodes/n8n-nodes-openwa
+      - ~/n8n-custom/node_modules/@t0mer/n8n-nodes-openwa:/home/node/custom-nodes/n8n-nodes-openwa
 ```
 
 Restart n8n after installing or upgrading.

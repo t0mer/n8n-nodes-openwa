@@ -1,7 +1,12 @@
-import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
+import {
+	NodeOperationError,
+	type IDataObject,
+	type IExecuteFunctions,
+	type INodeExecutionData,
+} from 'n8n-workflow';
 import { normalizeContactId, parseContactList } from '../helpers/chatId';
 import { openWaApiRequest } from '../transport/request';
-import { convertToVoiceNote, readMediaInput } from './media';
+import { convertToVoiceNote, downloadBinary, readMediaInput } from './media';
 
 /** The gateway accepts at most this many recipients per status. */
 const MAX_RECIPIENTS = 256;
@@ -13,7 +18,7 @@ export async function executeStatus(
 	ctx: IExecuteFunctions,
 	i: number,
 	sessionId: string,
-): Promise<IDataObject | IDataObject[]> {
+): Promise<IDataObject | IDataObject[] | INodeExecutionData> {
 	const operation = ctx.getNodeParameter('operation', i) as string;
 	const request = (method: 'GET' | 'POST' | 'DELETE', path: string, body?: IDataObject) =>
 		openWaApiRequest.call(
@@ -66,6 +71,25 @@ export async function executeStatus(
 				...getPostOptions(ctx, i, operation),
 			});
 		}
+		case 'delete': {
+			const statusId = getStatusId(ctx, i);
+			return { ...(await request('DELETE', `/${encodeURIComponent(statusId)}`)), statusId };
+		}
+		case 'downloadMedia': {
+			const statusId = getStatusId(ctx, i);
+			const field =
+				String(ctx.getNodeParameter('statusOutputField', i, 'data') ?? '').trim() || 'data';
+			const { binary, fileSize } = await downloadBinary(
+				ctx,
+				i,
+				sessionId,
+				`/status/${encodeURIComponent(statusId)}/media`,
+			);
+			return {
+				json: { statusId, fileName: binary.fileName, mimeType: binary.mimeType, fileSize },
+				binary: { [field]: binary },
+			};
+		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
@@ -111,4 +135,11 @@ async function readStatusMedia(
 		{ source: 'statusMediaSource', url: 'statusMediaUrl', binary: 'statusBinaryField' },
 		{ accept: kind, label: `The ${kind === 'audio' ? 'voice' : kind} status` },
 	);
+}
+
+function getStatusId(ctx: IExecuteFunctions, i: number): string {
+	const statusId = String(ctx.getNodeParameter('statusId', i) ?? '').trim();
+	if (!statusId)
+		throw new NodeOperationError(ctx.getNode(), 'Status ID is required', { itemIndex: i });
+	return statusId;
 }

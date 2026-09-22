@@ -18,6 +18,18 @@ export const statusOperations: INodeProperties = {
 	displayOptions: { show: { resource: ['status'] } },
 	options: [
 		{
+			name: 'Delete',
+			value: 'delete',
+			action: 'Delete a status',
+			description: 'Delete one of your own status updates',
+		},
+		{
+			name: 'Download Media',
+			value: 'downloadMedia',
+			action: 'Download status media',
+			description: 'Download the image or video of a status as binary data',
+		},
+		{
 			name: 'Get From Contact',
 			value: 'getFromContact',
 			action: 'Get the statuses of a contact',
@@ -187,5 +199,23 @@ export const statusFields: INodeProperties[] = [
 					'Comma-separated phone numbers or contact IDs who can see the status (up to 256). Required on the Baileys engine, which posts only to this list; whatsapp-web.js ignores it and uses your status privacy settings.',
 			},
 		],
+	},
+	{
+		displayName: 'Status ID',
+		name: 'statusId',
+		type: 'string',
+		default: '',
+		required: true,
+		displayOptions: showFor(['delete', 'downloadMedia']),
+		description: 'ID of the status: statusId from a post operation, or the ID field from Get Many',
+	},
+	{
+		displayName: 'Put Output File in Field',
+		name: 'statusOutputField',
+		type: 'string',
+		default: 'data',
+		required: true,
+		displayOptions: showFor(['downloadMedia']),
+		hint: 'The name of the output binary field to put the file in',
 	},
 ];

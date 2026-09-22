@@ -97,6 +97,12 @@ export const messageOperations: INodeProperties = {
 			action: 'Send a video',
 			description: 'Send a video to a contact or group',
 		},
+		{
+			name: 'Vote Poll',
+			value: 'votePoll',
+			action: 'Vote on a poll',
+			description: 'Cast or withdraw a vote on a poll',
+		},
 	],
 	default: 'sendText',
 };

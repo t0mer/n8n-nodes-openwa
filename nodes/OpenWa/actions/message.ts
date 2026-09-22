@@ -24,6 +24,7 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	votePoll: { endpoint: 'vote-poll', build: buildVotePollBody },
 	sendPoll: { endpoint: 'send-poll', build: buildPollBody },
 	sendLocation: { endpoint: 'send-location', build: buildLocationBody },
 	delete: { endpoint: 'delete', build: buildDeleteBody },
@@ -205,6 +206,16 @@ function buildPollBody(ctx: IExecuteFunctions, i: number, chatId: string): IData
 		options,
 		allowMultipleAnswers: ctx.getNodeParameter('allowMultipleAnswers', i, false) as boolean,
 	};
+}
+
+function buildVotePollBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	let options: string[];
+	try {
+		options = parsePollOptions(ctx.getNodeParameter('selectedOptions', i, []), { min: 0, max: 12 });
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	return { chatId, pollMessageId: getMessageId(ctx, i), options };
 }
 
 function getText(ctx: IExecuteFunctions, i: number): string {

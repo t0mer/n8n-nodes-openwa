@@ -30,4 +30,14 @@ export const pollFields: INodeProperties[] = [
 		displayOptions: showForSendPoll,
 		description: 'Whether voters can pick more than one option',
 	},
+	{
+		displayName: 'Selected Options',
+		name: 'selectedOptions',
+		type: 'string',
+		typeOptions: { multipleValues: true, multipleValueButtonText: 'Add Selected Option' },
+		default: [],
+		displayOptions: { show: { resource: ['message'], operation: ['votePoll'] } },
+		description:
+			'The option texts to vote for, exactly as they appear on the poll. Replaces your current vote; leave empty to withdraw it.',
+	},
 ];

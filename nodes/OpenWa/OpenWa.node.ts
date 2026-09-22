@@ -9,7 +9,9 @@ import {
 	type JsonObject,
 } from 'n8n-workflow';
 import { recipientFields, sessionField } from './descriptions/common';
+import { executeContact } from './actions/contact';
 import { executeMessage } from './actions/message';
+import { contactFields, contactOperations } from './descriptions/contact';
 import { mediaFields } from './descriptions/media';
 import { textFields, textOptions } from './descriptions/text';
 import { searchGroups, searchSessions } from './methods/listSearch';
@@ -36,7 +38,10 @@ export class OpenWa implements INodeType {
 				name: 'resource',
 				type: 'options',
 				noDataExpression: true,
-				options: [{ name: 'Message', value: 'message' }],
+				options: [
+					{ name: 'Contact', value: 'contact' },
+					{ name: 'Message', value: 'message' },
+				],
 				default: 'message',
 			},
 			{
@@ -85,7 +90,9 @@ export class OpenWa implements INodeType {
 				],
 				default: 'sendText',
 			},
+			contactOperations,
 			sessionField,
+			...contactFields,
 			...recipientFields,
 			...textFields,
 			...mediaFields,
@@ -132,9 +139,15 @@ export class OpenWa implements INodeType {
 					throw new NodeOperationError(this.getNode(), 'Session is required', { itemIndex: i });
 				}
 
-				const response = await executeMessage(this, i, sessionId);
+				const resource = this.getNodeParameter('resource', i) as string;
+				const response =
+					resource === 'contact'
+						? await executeContact(this, i, sessionId)
+						: await executeMessage(this, i, sessionId);
 
-				returnData.push({ json: response, pairedItem: { item: i } });
+				for (const json of Array.isArray(response) ? response : [response]) {
+					returnData.push({ json, pairedItem: { item: i } });
+				}
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnData.push({

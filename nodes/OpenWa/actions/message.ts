@@ -1,6 +1,6 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS } from '../descriptions/media';
-import { SEND_OPERATIONS } from '../descriptions/message';
+import { QUOTE_OPERATIONS, SEND_OPERATIONS } from '../descriptions/message';
 import {
 	normalizeChatId,
 	normalizeContactId,
@@ -67,6 +67,9 @@ export async function executeMessage(
 	}
 
 	const body = await spec.build(ctx, i, chatId, options, operation);
+	const quotedMessageId = String(options.quotedMessageId ?? '').trim();
+	if (quotedMessageId && QUOTE_OPERATIONS.includes(operation))
+		body.quotedMessageId = quotedMessageId;
 	return (await openWaApiRequest.call(
 		ctx,
 		'POST',

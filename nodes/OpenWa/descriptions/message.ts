@@ -13,6 +13,14 @@ export const SEND_OPERATIONS = [
 	'sendTemplate',
 ];
 
+/** Send operations whose request accepts `quotedMessageId` (send-template does not). */
+export const QUOTE_OPERATIONS = [
+	'sendText',
+	...Object.keys(MEDIA_ENDPOINTS),
+	'sendLocation',
+	'sendPoll',
+];
+
 export const messageOperations: INodeProperties = {
 	displayName: 'Operation',
 	name: 'operation',
@@ -130,6 +138,16 @@ export const messageOptions: INodeProperties = {
 			displayOptions: { show: { '/operation': SEND_OPERATIONS, '/recipientType': ['contact'] } },
 			description:
 				'Whether to verify the number is registered on WhatsApp before sending. OpenWA accepts sends to unregistered numbers without an error, so this is the only way to catch them.',
+		},
+		{
+			displayName: 'Reply To Message ID',
+			name: 'quotedMessageId',
+			type: 'string',
+			default: '',
+			placeholder: 'e.g. true_972501234567@c.us_3EB0ABCD',
+			displayOptions: { show: { '/operation': QUOTE_OPERATIONS } },
+			description:
+				'ID of a message in the same chat to quote, turning this send into a reply. A message that cannot be found fails the send.',
 		},
 		...textOptions,
 		...locationOptions,

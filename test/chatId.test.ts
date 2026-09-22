@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
 	chatIdUser,
+	parseContactList,
+	parseInviteCode,
 	normalizeContactId,
 	parseMentions,
 	validateGroupId,
@@ -83,5 +85,38 @@ describe('non-string expression values', () => {
 		expect(() => normalizeContactId(undefined)).toThrow('required');
 		expect(parseMentions(null)).toEqual([]);
 		expect(() => validateGroupId(undefined)).toThrow('not a valid group ID');
+	});
+});
+
+describe('parseContactList', () => {
+	it('accepts a comma-separated string or an array', () => {
+		expect(parseContactList('+972 50 123 4567, 123456789012345@lid')).toEqual([
+			'972501234567@c.us',
+			'123456789012345@lid',
+		]);
+		expect(parseContactList(['972501234567', ' ', 972509999999])).toEqual([
+			'972501234567@c.us',
+			'972509999999@c.us',
+		]);
+		expect(parseContactList(undefined)).toEqual([]);
+	});
+
+	it('rejects group IDs', () => {
+		expect(() => parseContactList('120363012345678901@g.us')).toThrow('Recipient Type to Group');
+	});
+});
+
+describe('parseInviteCode', () => {
+	it.each([
+		['https://chat.whatsapp.com/AbCdEf123456', 'AbCdEf123456'],
+		['chat.whatsapp.com/invite/AbCdEf123456', 'AbCdEf123456'],
+		['https://chat.whatsapp.com/AbCdEf123456?mode=ac_t', 'AbCdEf123456'],
+		[' AbCdEf123456 ', 'AbCdEf123456'],
+	])('extracts the code from %j', (input, expected) => {
+		expect(parseInviteCode(input)).toBe(expected);
+	});
+
+	it.each(['', 'abc', 'https://example.com/x', 'bad code!'])('rejects %j', (input) => {
+		expect(() => parseInviteCode(input)).toThrow('not a valid group invite code or link');
 	});
 });

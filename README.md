@@ -142,19 +142,19 @@ A `messageId` means the gateway accepted the message. It does not confirm delive
 | Add / Remove Participants | `POST` / `DELETE /groups/{groupId}/participants` | Participants. Output has a per-participant `results` list. |
 | Promote / Demote Participants | `POST /groups/{groupId}/participants/promote`, `/demote` | Participants |
 | Get Membership Requests | `GET /groups/{groupId}/membership-requests` | One item per pending join request |
-| Approve / Reject Requests | `POST /groups/{groupId}/membership-requests/approve`, `/reject` | Requesters; leave empty to act on **every** pending request |
+| Approve / Reject Requests | `POST /groups/{groupId}/membership-requests/approve`, `/reject` | Requests: Specific Requesters (listed below) or All Pending Requests |
 | Get Invite Link | `GET /groups/{groupId}/invite-code` | `{ inviteCode, inviteLink }` |
 | Revoke Invite Link | `POST /groups/{groupId}/invite-code/revoke` | Old link stops working; outputs the new one |
 | Get Join Info | `GET /groups/join-info?code=` | Invite Link (full link or code). Preview without joining. |
 | Join | `POST /groups/join` | Invite Link. Outputs `{ success, groupId }`. |
 | Get / Update Settings | `GET` / `PUT /groups/{groupId}/settings` | Only Admins Can Send Messages, Only Admins Can Edit Group Info, Who Can Add Members, Disappearing Messages (off, 24 hours, 7 days, 90 days) |
-| Get / Set / Remove Picture | `GET` / `PUT` / `DELETE /groups/{groupId}/picture` | Set: Picture Source (URL, or binary up to 18 MB) |
+| Get / Set / Remove Picture | `GET` / `PUT` / `DELETE /groups/{groupId}/picture` | Set: Picture Source (URL, or a binary image up to 18 MB) |
 | Leave | `POST /groups/{groupId}/leave` | — |
 
 - **Group**: pick one from the list, or enter its ID (ending in `@g.us`).
 - **Participants / Requesters**: comma-separated phone numbers or contact IDs (`@c.us`, `@lid`), or an array from an expression.
 - Most changes need the session account to be a group admin. WhatsApp's refusal comes back as a 403 with the gateway's message.
-- Leave, Remove Participants, Revoke Invite Link, Remove Picture, and Approve/Reject with no Requesters change the group and can't be undone from the node. Keep that in mind when giving the node to an AI Agent.
+- Leave, Remove Participants, Revoke Invite Link, Remove Picture, and Approve/Reject with All Pending Requests change the group and can't be undone from the node. Keep that in mind when giving the node to an AI Agent.
 
 ### Template
 

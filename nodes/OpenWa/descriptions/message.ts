@@ -1,9 +1,15 @@
 import type { INodeProperties } from 'n8n-workflow';
+import { locationOptions } from './location';
 import { MEDIA_ENDPOINTS } from './media';
 import { textOptions } from './text';
 
 /** Operations that send a new message (these can pre-check the recipient's number). */
-export const SEND_OPERATIONS = ['sendText', ...Object.keys(MEDIA_ENDPOINTS), 'forward'];
+export const SEND_OPERATIONS = [
+	'sendText',
+	...Object.keys(MEDIA_ENDPOINTS),
+	'forward',
+	'sendLocation',
+];
 
 export const messageOperations: INodeProperties = {
 	displayName: 'Operation',
@@ -61,6 +67,12 @@ export const messageOperations: INodeProperties = {
 			description: 'Send an image to a contact or group',
 		},
 		{
+			name: 'Send Location',
+			value: 'sendLocation',
+			action: 'Send a location',
+			description: 'Send a location pin to a contact or group',
+		},
+		{
 			name: 'Send Sticker',
 			value: 'sendSticker',
 			action: 'Send a sticker',
@@ -100,5 +112,6 @@ export const messageOptions: INodeProperties = {
 				'Whether to verify the number is registered on WhatsApp before sending. OpenWA accepts sends to unregistered numbers without an error, so this is the only way to catch them.',
 		},
 		...textOptions,
+		...locationOptions,
 	],
 };

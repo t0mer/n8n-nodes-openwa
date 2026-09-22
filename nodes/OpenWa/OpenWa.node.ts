@@ -13,6 +13,7 @@ import { executeContact } from './actions/contact';
 import { executeMessage } from './actions/message';
 import { messageActionFields } from './descriptions/actions';
 import { contactFields, contactOperations } from './descriptions/contact';
+import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
 import { messageOperations, messageOptions } from './descriptions/message';
 import { textFields } from './descriptions/text';
@@ -54,6 +55,7 @@ export class OpenWa implements INodeType {
 			...messageActionFields,
 			...textFields,
 			...mediaFields,
+			...locationFields,
 			messageOptions,
 		],
 	};

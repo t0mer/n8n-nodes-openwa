@@ -7,6 +7,7 @@ import {
 	parseMentions,
 	validateGroupId,
 } from '../helpers/chatId';
+import { parseCoordinate } from '../helpers/fields';
 import { buildMediaBody, type MediaInput } from '../helpers/media';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
@@ -23,6 +24,7 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	sendLocation: { endpoint: 'send-location', build: buildLocationBody },
 	delete: { endpoint: 'delete', build: buildDeleteBody },
 	edit: { endpoint: 'edit', build: buildEditBody },
 	forward: { endpoint: 'forward', build: buildForwardBody },
@@ -162,6 +164,28 @@ function buildDeleteBody(ctx: IExecuteFunctions, i: number, chatId: string): IDa
 		messageId: getMessageId(ctx, i),
 		forEveryone: ctx.getNodeParameter('forEveryone', i, true) as boolean,
 	};
+}
+
+function buildLocationBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+): IDataObject {
+	let latitude: number;
+	let longitude: number;
+	try {
+		latitude = parseCoordinate(ctx.getNodeParameter('latitude', i), 'latitude');
+		longitude = parseCoordinate(ctx.getNodeParameter('longitude', i), 'longitude');
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	const body: IDataObject = { chatId, latitude, longitude };
+	const name = String(options.locationName ?? '').trim();
+	const address = String(options.address ?? '').trim();
+	if (name) body.description = name;
+	if (address) body.address = address;
+	return body;
 }
 
 function getText(ctx: IExecuteFunctions, i: number): string {

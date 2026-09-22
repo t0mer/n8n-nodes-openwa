@@ -40,7 +40,9 @@
     "credentials": [
       "dist/credentials/OpenWaApi.credentials.js"
     ],
-    "nodes": []
+    "nodes": [
+      "dist/nodes/OpenWa/OpenWa.node.js"
+    ]
   },
   "devDependencies": {
     "@n8n/node-cli": "*",

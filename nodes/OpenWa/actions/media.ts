@@ -1,9 +1,11 @@
 import {
+	NodeApiError,
 	NodeOperationError,
 	type IBinaryData,
 	type IDataObject,
 	type IExecuteFunctions,
 	type IN8nHttpFullResponse,
+	type JsonObject,
 } from 'n8n-workflow';
 import {
 	MAX_BINARY_BYTES,
@@ -99,16 +101,28 @@ export async function convertToVoiceNote(
 	sessionId: string,
 	media: IDataObject,
 ): Promise<IDataObject> {
-	const converted = (await openWaApiRequest.call(
-		ctx,
-		'POST',
-		`/api/sessions/${encodeURIComponent(sessionId)}/media/convert/voice`,
-		{
-			body: media.base64 ? { base64: media.base64 } : { url: media.url },
-			sessionId,
-			itemIndex: i,
-		},
-	)) as { base64: string; mimetype: string; bytes: number };
+	let converted: { base64: string; mimetype: string; bytes: number };
+	try {
+		converted = (await openWaApiRequest.call(
+			ctx,
+			'POST',
+			`/api/sessions/${encodeURIComponent(sessionId)}/media/convert/voice`,
+			{
+				body: media.base64 ? { base64: media.base64 } : { url: media.url },
+				sessionId,
+				itemIndex: i,
+			},
+		)) as typeof converted;
+	} catch (error) {
+		// A 503 here usually means conversion is off or ffmpeg is missing, which retrying won't fix.
+		if (error instanceof NodeApiError && error.httpCode === '503') {
+			const reason = error.description;
+			error.message =
+				'The gateway could not convert the audio to a voice note (media conversion disabled, ffmpeg missing, or the conversion queue is full)';
+			error.description = `Enable media conversion on the OpenWA gateway, or turn off Convert to Voice Note if the audio is already Ogg/Opus.${reason ? ` Gateway: ${reason}` : ''}`;
+		}
+		throw new NodeApiError(ctx.getNode(), error as JsonObject, { itemIndex: i });
+	}
 	// The converted audio is always sent inline, so sending by URL can't get around the limit.
 	if (converted.bytes > MAX_BINARY_BYTES) {
 		const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);

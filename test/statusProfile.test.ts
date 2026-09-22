@@ -1,4 +1,4 @@
-import type { IHttpRequestOptions } from 'n8n-workflow';
+import { NodeApiError, type IHttpRequestOptions } from 'n8n-workflow';
 import { describe, expect, it } from 'vitest';
 import { executeProfile } from '../nodes/OpenWa/actions/profile';
 import { executeStatus } from '../nodes/OpenWa/actions/status';
@@ -224,6 +224,27 @@ describe('executeStatus — posting', () => {
 				},
 			},
 		]);
+	});
+
+	it('explains a 503 from conversion instead of suggesting a retry', async () => {
+		const disabled = Object.assign(new Error('Request failed with status code 503'), {
+			httpCode: '503',
+			cause: { response: { status: 503, data: { message: 'Media conversion is disabled' } } },
+		});
+		const error = await run(
+			executeStatus,
+			{
+				operation: 'postVoice',
+				statusMediaSource: 'url',
+				statusMediaUrl: 'https://example.com/a.mp3',
+			},
+			() => disabled,
+		).catch((e: unknown) => e as NodeApiError);
+		expect(error).toBeInstanceOf(NodeApiError);
+		expect(error.message).toMatch(/could not convert the audio to a voice note/);
+		expect(error.description).toMatch(
+			/turn off Convert to Voice Note.*Gateway: Media conversion is disabled/,
+		);
 	});
 
 	it('post voice without conversion sends the source as-is', async () => {

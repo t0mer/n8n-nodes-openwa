@@ -13,7 +13,8 @@ import { executeContact } from './actions/contact';
 import { executeMessage } from './actions/message';
 import { contactFields, contactOperations } from './descriptions/contact';
 import { mediaFields } from './descriptions/media';
-import { textFields, textOptions } from './descriptions/text';
+import { messageOperations, messageOptions } from './descriptions/message';
+import { textFields } from './descriptions/text';
 import { searchContacts, searchGroups, searchSessions } from './methods/listSearch';
 
 export class OpenWa implements INodeType {
@@ -44,78 +45,14 @@ export class OpenWa implements INodeType {
 				],
 				default: 'message',
 			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: { show: { resource: ['message'] } },
-				options: [
-					{
-						name: 'Send Audio',
-						value: 'sendAudio',
-						action: 'Send an audio file',
-						description: 'Send an audio file to a contact or group',
-					},
-					{
-						name: 'Send Document',
-						value: 'sendDocument',
-						action: 'Send a document',
-						description: 'Send a document to a contact or group',
-					},
-					{
-						name: 'Send Image',
-						value: 'sendImage',
-						action: 'Send an image',
-						description: 'Send an image to a contact or group',
-					},
-					{
-						name: 'Send Sticker',
-						value: 'sendSticker',
-						action: 'Send a sticker',
-						description: 'Send a sticker to a contact or group',
-					},
-					{
-						name: 'Send Text',
-						value: 'sendText',
-						action: 'Send a text message',
-						description: 'Send a text message to a contact or group',
-					},
-					{
-						name: 'Send Video',
-						value: 'sendVideo',
-						action: 'Send a video',
-						description: 'Send a video to a contact or group',
-					},
-				],
-				default: 'sendText',
-			},
+			messageOperations,
 			contactOperations,
 			sessionField,
 			...contactFields,
 			...recipientFields,
 			...textFields,
 			...mediaFields,
-			{
-				displayName: 'Options',
-				name: 'options',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				displayOptions: { show: { resource: ['message'] } },
-				options: [
-					{
-						displayName: 'Check Number Exists',
-						name: 'checkNumberExists',
-						type: 'boolean',
-						default: false,
-						displayOptions: { show: { '/recipientType': ['contact'] } },
-						description:
-							'Whether to verify the number is registered on WhatsApp before sending. OpenWA accepts sends to unregistered numbers without an error, so this is the only way to catch them.',
-					},
-					...textOptions,
-				],
-			},
+			messageOptions,
 		],
 	};
 

@@ -1,9 +1,29 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS } from '../descriptions/media';
+import { SEND_OPERATIONS } from '../descriptions/message';
 import { normalizeContactId, parseMentions, validateGroupId } from '../helpers/chatId';
 import { buildMediaBody, type MediaInput } from '../helpers/media';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
+
+type BodyBuilder = (
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+	operation: string,
+) => IDataObject | Promise<IDataObject>;
+
+/** Each Message operation: the endpoint it posts to and how its request body is built. */
+const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
+	sendText: { endpoint: 'send-text', build: buildTextBody },
+	...Object.fromEntries(
+		Object.entries(MEDIA_ENDPOINTS).map(([operation, endpoint]) => [
+			operation,
+			{ endpoint, build: buildMediaRequestBody },
+		]),
+	),
+};
 
 /** Run one Message operation for item `i` and return the API response. */
 export async function executeMessage(
@@ -15,28 +35,26 @@ export async function executeMessage(
 	const chatId = getChatId(ctx, i);
 	const options = ctx.getNodeParameter('options', i, {}) as IDataObject;
 
-	if (options.checkNumberExists && ctx.getNodeParameter('recipientType', i) === 'contact') {
-		await assertNumberExists(ctx, i, sessionId, chatId);
-	}
-
-	let endpoint: string;
-	let body: IDataObject;
-	if (operation === 'sendText') {
-		endpoint = 'send-text';
-		body = buildTextBody(ctx, i, chatId, options);
-	} else if (MEDIA_ENDPOINTS[operation]) {
-		endpoint = MEDIA_ENDPOINTS[operation];
-		body = await buildMediaRequestBody(ctx, i, operation, chatId);
-	} else {
+	const spec = OPERATIONS[operation];
+	if (!spec) {
 		throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 			itemIndex: i,
 		});
 	}
 
+	if (
+		options.checkNumberExists &&
+		SEND_OPERATIONS.includes(operation) &&
+		ctx.getNodeParameter('recipientType', i) === 'contact'
+	) {
+		await assertNumberExists(ctx, i, sessionId, chatId);
+	}
+
+	const body = await spec.build(ctx, i, chatId, options, operation);
 	return (await openWaApiRequest.call(
 		ctx,
 		'POST',
-		`/api/sessions/${encodeURIComponent(sessionId)}/messages/${endpoint}`,
+		`/api/sessions/${encodeURIComponent(sessionId)}/messages/${spec.endpoint}`,
 		{ body, sessionId, itemIndex: i },
 	)) as IDataObject;
 }
@@ -92,8 +110,9 @@ function buildTextBody(
 async function buildMediaRequestBody(
 	ctx: IExecuteFunctions,
 	i: number,
-	operation: string,
 	chatId: string,
+	_options: IDataObject,
+	operation: string,
 ): Promise<IDataObject> {
 	let input: MediaInput;
 	if (ctx.getNodeParameter('mediaSource', i) === 'binary') {

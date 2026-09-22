@@ -18,6 +18,7 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	react: { endpoint: 'react', build: buildReactBody },
 	...Object.fromEntries(
 		Object.entries(MEDIA_ENDPOINTS).map(([operation, endpoint]) => [
 			operation,
@@ -112,6 +113,14 @@ function buildReplyBody(
 		quotedMessageId: getMessageId(ctx, i),
 		text: getText(ctx, i),
 		...getMentions(ctx, i, options),
+	};
+}
+
+function buildReactBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	return {
+		chatId,
+		messageId: getMessageId(ctx, i),
+		emoji: String(ctx.getNodeParameter('emoji', i, '') ?? '').trim(),
 	};
 }
 

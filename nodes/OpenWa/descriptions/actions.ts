@@ -1,7 +1,7 @@
 import type { INodeProperties } from 'n8n-workflow';
 
 /** Operations that act on an existing message, identified by Message ID. */
-export const MESSAGE_ID_OPERATIONS = ['reply'];
+export const MESSAGE_ID_OPERATIONS = ['reply', 'react'];
 
 export const messageActionFields: INodeProperties[] = [
 	{
@@ -14,5 +14,14 @@ export const messageActionFields: INodeProperties[] = [
 		displayOptions: { show: { resource: ['message'], operation: MESSAGE_ID_OPERATIONS } },
 		description:
 			'ID of the existing message, as returned by a send operation (messageId) or a trigger. The chat above must be the chat that contains it.',
+	},
+	{
+		displayName: 'Emoji',
+		name: 'emoji',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. 👍',
+		displayOptions: { show: { resource: ['message'], operation: ['react'] } },
+		description: 'The emoji to react with. Leave empty to remove your reaction.',
 	},
 ];

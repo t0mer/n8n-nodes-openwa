@@ -13,6 +13,12 @@ export const messageOperations: INodeProperties = {
 	displayOptions: { show: { resource: ['message'] } },
 	options: [
 		{
+			name: 'React',
+			value: 'react',
+			action: 'React to a message',
+			description: 'Add or remove an emoji reaction on a message',
+		},
+		{
 			name: 'Reply',
 			value: 'reply',
 			action: 'Reply to a message',

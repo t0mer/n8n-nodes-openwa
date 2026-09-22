@@ -6,10 +6,16 @@ const showFor = (operation: string[]): IDisplayOptions => ({
 });
 
 /** Group operations that act on one existing group. */
-export const GROUP_ID_OPERATIONS = ['get', 'getParticipants', 'update'];
+export const GROUP_ID_OPERATIONS = [
+	'get',
+	'getParticipants',
+	'update',
+	'addParticipants',
+	'removeParticipants',
+];
 
 /** Operations that take a Participants list. */
-export const PARTICIPANT_OPERATIONS = ['create'];
+export const PARTICIPANT_OPERATIONS = ['create', 'addParticipants', 'removeParticipants'];
 
 export const groupOperations: INodeProperties = {
 	displayName: 'Operation',
@@ -18,6 +24,12 @@ export const groupOperations: INodeProperties = {
 	noDataExpression: true,
 	displayOptions: { show: { resource: ['group'] } },
 	options: [
+		{
+			name: 'Add Participants',
+			value: 'addParticipants',
+			action: 'Add participants to a group',
+			description: 'Add members to a group (requires admin)',
+		},
 		{
 			name: 'Create',
 			value: 'create',
@@ -41,6 +53,12 @@ export const groupOperations: INodeProperties = {
 			value: 'getParticipants',
 			action: 'Get group participants',
 			description: 'List the members of a group, one item per participant',
+		},
+		{
+			name: 'Remove Participants',
+			value: 'removeParticipants',
+			action: 'Remove participants from a group',
+			description: 'Remove members from a group (requires admin). Changes the group.',
 		},
 		{
 			name: 'Update',

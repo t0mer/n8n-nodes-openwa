@@ -13,6 +13,12 @@ const SIMPLE_OPERATIONS: Record<string, { method: IHttpRequestMethods; path: str
 	get: { method: 'GET', path: '' },
 };
 
+/** Operations that post a participants list: method and path under the group. */
+const PARTICIPANT_ACTIONS: Record<string, { method: IHttpRequestMethods; path: string }> = {
+	addParticipants: { method: 'POST', path: '/participants' },
+	removeParticipants: { method: 'DELETE', path: '/participants' },
+};
+
 /** Run one Group operation for item `i`. List operations return one object per entry. */
 export async function executeGroup(
 	ctx: IExecuteFunctions,
@@ -36,6 +42,13 @@ export async function executeGroup(
 
 	const simple = SIMPLE_OPERATIONS[operation];
 	if (simple) return await request(simple.method, `${groupPath()}${simple.path}`);
+
+	const action = PARTICIPANT_ACTIONS[operation];
+	if (action) {
+		return await request(action.method, `${groupPath()}${action.path}`, {
+			body: { participants: getParticipants(ctx, i) },
+		});
+	}
 
 	switch (operation) {
 		case 'getAll': {

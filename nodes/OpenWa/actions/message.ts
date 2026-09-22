@@ -26,6 +26,14 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	star: {
+		endpoint: 'star',
+		build: (ctx, i, chatId) => ({ ...buildMessageRefBody(ctx, i, chatId), star: true }),
+	},
+	unstar: {
+		endpoint: 'star',
+		build: (ctx, i, chatId) => ({ ...buildMessageRefBody(ctx, i, chatId), star: false }),
+	},
 	pin: { endpoint: 'pin', build: buildPinBody },
 	unpin: { endpoint: 'unpin', build: buildMessageRefBody },
 	sendContact: { endpoint: 'send-contact', build: buildContactCardBody },

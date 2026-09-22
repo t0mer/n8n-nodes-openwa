@@ -127,10 +127,22 @@ export const messageOperations: INodeProperties = {
 			description: 'Send a video to a contact or group',
 		},
 		{
+			name: 'Star',
+			value: 'star',
+			action: 'Star a message',
+			description: 'Star a message (best-effort on some engines)',
+		},
+		{
 			name: 'Unpin',
 			value: 'unpin',
 			action: 'Unpin a message',
 			description: 'Remove a message pin',
+		},
+		{
+			name: 'Unstar',
+			value: 'unstar',
+			action: 'Unstar a message',
+			description: 'Remove the star from a message',
 		},
 		{
 			name: 'Vote Poll',

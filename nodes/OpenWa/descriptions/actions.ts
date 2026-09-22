@@ -10,6 +10,8 @@ export const MESSAGE_ID_OPERATIONS = [
 	'votePoll',
 	'pin',
 	'unpin',
+	'star',
+	'unstar',
 ];
 
 export const messageActionFields: INodeProperties[] = [

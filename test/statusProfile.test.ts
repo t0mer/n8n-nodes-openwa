@@ -98,6 +98,15 @@ describe('executeStatus — reading', () => {
 		expect(fromContact.result).toHaveLength(2);
 	});
 
+	it('get from contact rejects an empty contact and a group ID', async () => {
+		await expect(
+			run(executeStatus, { operation: 'getFromContact', statusContact: ' ' }),
+		).rejects.toThrow('Contact is required');
+		await expect(
+			run(executeStatus, { operation: 'getFromContact', statusContact: '120363012345678901@g.us' }),
+		).rejects.toThrow('is a group ID, not a contact');
+	});
+
 	it('copes with a response without statuses', async () => {
 		expect((await run(executeStatus, { operation: 'getAll' }, {})).result).toEqual([]);
 	});

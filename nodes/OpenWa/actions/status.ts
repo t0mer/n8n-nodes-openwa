@@ -38,9 +38,13 @@ export async function executeStatus(
 		case 'getAll':
 			return await list('');
 		case 'getFromContact': {
+			const contact = String(ctx.getNodeParameter('statusContact', i) ?? '').trim();
+			if (!contact) {
+				throw new NodeOperationError(ctx.getNode(), 'Contact is required', { itemIndex: i });
+			}
 			let contactId: string;
 			try {
-				contactId = normalizeContactId(ctx.getNodeParameter('statusContact', i));
+				contactId = normalizeContactId(contact);
 			} catch (error) {
 				throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 			}

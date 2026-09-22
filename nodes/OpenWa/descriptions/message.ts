@@ -13,6 +13,12 @@ export const messageOperations: INodeProperties = {
 	displayOptions: { show: { resource: ['message'] } },
 	options: [
 		{
+			name: 'Reply',
+			value: 'reply',
+			action: 'Reply to a message',
+			description: 'Reply to a message with text, quoting it',
+		},
+		{
 			name: 'Send Audio',
 			value: 'sendAudio',
 			action: 'Send an audio file',

@@ -11,6 +11,7 @@ import {
 import { recipientFields, sessionField } from './descriptions/common';
 import { executeContact } from './actions/contact';
 import { executeMessage } from './actions/message';
+import { messageActionFields } from './descriptions/actions';
 import { contactFields, contactOperations } from './descriptions/contact';
 import { mediaFields } from './descriptions/media';
 import { messageOperations, messageOptions } from './descriptions/message';
@@ -50,6 +51,7 @@ export class OpenWa implements INodeType {
 			sessionField,
 			...contactFields,
 			...recipientFields,
+			...messageActionFields,
 			...textFields,
 			...mediaFields,
 			messageOptions,

@@ -17,6 +17,7 @@ type BodyBuilder = (
 /** Each Message operation: the endpoint it posts to and how its request body is built. */
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
+	reply: { endpoint: 'reply', build: buildReplyBody },
 	...Object.fromEntries(
 		Object.entries(MEDIA_ENDPOINTS).map(([operation, endpoint]) => [
 			operation,
@@ -95,16 +96,44 @@ function buildTextBody(
 	chatId: string,
 	options: IDataObject,
 ): IDataObject {
-	const body: IDataObject = { chatId, text: String(ctx.getNodeParameter('text', i) ?? '') };
+	const body: IDataObject = { chatId, text: getText(ctx, i), ...getMentions(ctx, i, options) };
 	if (options.linkPreview !== undefined) body.linkPreview = options.linkPreview;
-	if (options.mentions) {
-		try {
-			body.mentions = parseMentions(options.mentions);
-		} catch (error) {
-			throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
-		}
-	}
 	return body;
+}
+
+function buildReplyBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+): IDataObject {
+	return {
+		chatId,
+		quotedMessageId: getMessageId(ctx, i),
+		text: getText(ctx, i),
+		...getMentions(ctx, i, options),
+	};
+}
+
+function getText(ctx: IExecuteFunctions, i: number): string {
+	return String(ctx.getNodeParameter('text', i) ?? '');
+}
+
+/** `{ mentions }` from the Mentions option, or nothing when it is empty. */
+function getMentions(ctx: IExecuteFunctions, i: number, options: IDataObject): IDataObject {
+	if (!options.mentions) return {};
+	try {
+		return { mentions: parseMentions(options.mentions) };
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+}
+
+function getMessageId(ctx: IExecuteFunctions, i: number): string {
+	const messageId = String(ctx.getNodeParameter('messageId', i) ?? '').trim();
+	if (!messageId)
+		throw new NodeOperationError(ctx.getNode(), 'Message ID is required', { itemIndex: i });
+	return messageId;
 }
 
 async function buildMediaRequestBody(

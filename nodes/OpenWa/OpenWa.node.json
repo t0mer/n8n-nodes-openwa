@@ -1,5 +1,5 @@
 {
-	"node": "n8n-nodes-openwa.openWa",
+	"node": "@t0mer/n8n-nodes-openwa.openWa",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": ["Communication"],

@@ -1,6 +1,7 @@
 import { NodeApiError } from 'n8n-workflow';
 import { describe, expect, it } from 'vitest';
 import { executeGroup } from '../nodes/OpenWa/actions/group';
+import { MAX_BINARY_BYTES } from '../nodes/OpenWa/helpers/media';
 import { fakeContext } from './fakeContext';
 
 const groupId = '120363012345678901@g.us';
@@ -45,6 +46,22 @@ describe('executeGroup — lists', () => {
 		expect(result).toEqual([{ id: 'a' }, { id: 'b' }]);
 		expect(calls).toEqual([
 			{ method: 'GET', url: base, body: undefined, qs: { limit: 2, offset: 0 } },
+		]);
+	});
+
+	it('get many with Return All pages past 1000 and stops at a short page', async () => {
+		const { ctx, calls } = fakeContext(
+			{ operation: 'getAll', returnAll: true },
+			(options: { qs?: { limit?: number; offset?: number } }) => {
+				const { limit = 0, offset = 0 } = options.qs ?? {};
+				const count = Math.max(0, Math.min(limit, 1500 - offset));
+				return Array.from({ length: count }, (_, k) => ({ id: String(offset + k) }));
+			},
+		);
+		expect(await executeGroup(ctx, 0, 's1')).toHaveLength(1500);
+		expect(calls.map((c) => c.qs)).toEqual([
+			{ limit: 1000, offset: 0 },
+			{ limit: 1000, offset: 1000 },
 		]);
 	});
 
@@ -239,10 +256,37 @@ describe('executeGroup — bodies', () => {
 			group,
 			pictureSource: 'binary',
 			pictureBinaryField: 'data',
+			binaryMeta: { mimeType: 'image/png', fileName: 'logo.png' },
+			binaryData: Buffer.from('png-bytes'),
 		});
 		expect(byBinary.calls[0].body).toEqual({
-			base64: Buffer.from('mp3-bytes').toString('base64'),
-			mimetype: 'audio/mpeg',
+			base64: Buffer.from('png-bytes').toString('base64'),
+			mimetype: 'image/png',
 		});
+	});
+
+	it('set picture rejects non-images and oversized images before calling the API', async () => {
+		const picture = {
+			operation: 'setPicture',
+			group,
+			pictureSource: 'binary',
+			pictureBinaryField: 'data',
+		};
+		const { ctx: pdf, calls: pdfCalls } = fakeContext({
+			...picture,
+			binaryMeta: { mimeType: 'application/pdf' },
+		});
+		await expect(executeGroup(pdf, 0, 's1')).rejects.toThrow(
+			'must be an image, but "data" is application/pdf',
+		);
+		expect(pdfCalls).toHaveLength(0);
+
+		const { ctx: big, calls: bigCalls } = fakeContext({
+			...picture,
+			binaryMeta: { mimeType: 'image/jpeg' },
+			binaryData: Buffer.alloc(MAX_BINARY_BYTES + 1),
+		});
+		await expect(executeGroup(big, 0, 's1')).rejects.toThrow('above the 18.0 MB limit');
+		expect(bigCalls).toHaveLength(0);
 	});
 });

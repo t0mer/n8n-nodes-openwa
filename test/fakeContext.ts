@@ -49,8 +49,13 @@ export function fakeContext(
 			async prepareBinaryData(data: Buffer, fileName?: string, mimeType?: string) {
 				return { data: data.toString('base64'), fileName, mimeType };
 			},
-			assertBinaryData: () => ({ mimeType: 'audio/mpeg', fileName: 'note.mp3' }),
-			getBinaryDataBuffer: async () => Buffer.from('mp3-bytes'),
+			assertBinaryData: () =>
+				(params.binaryMeta as object | undefined) ?? {
+					mimeType: 'audio/mpeg',
+					fileName: 'note.mp3',
+				},
+			getBinaryDataBuffer: async () =>
+				(params.binaryData as Buffer | undefined) ?? Buffer.from('mp3-bytes'),
 		},
 	};
 	return { ctx: ctx as unknown as IExecuteFunctions, calls };

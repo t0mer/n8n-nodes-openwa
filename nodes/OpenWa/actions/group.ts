@@ -196,6 +196,13 @@ async function getPicture(ctx: IExecuteFunctions, i: number): Promise<IDataObjec
 	if (ctx.getNodeParameter('pictureSource', i) === 'binary') {
 		const field = ctx.getNodeParameter('pictureBinaryField', i) as string;
 		const binary = ctx.helpers.assertBinaryData(i, field);
+		if (!binary.mimeType?.startsWith('image/')) {
+			throw new NodeOperationError(
+				ctx.getNode(),
+				`The group picture must be an image, but "${field}" is ${binary.mimeType || 'of unknown type'}`,
+				{ itemIndex: i },
+			);
+		}
 		const data = await ctx.helpers.getBinaryDataBuffer(i, field);
 		input = { source: 'binary', data, mimeType: binary.mimeType };
 	} else {

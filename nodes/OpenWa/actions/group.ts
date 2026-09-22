@@ -1,8 +1,10 @@
 import {
+	NodeApiError,
 	NodeOperationError,
 	type IDataObject,
 	type IExecuteFunctions,
 	type IHttpRequestMethods,
+	type JsonObject,
 } from 'n8n-workflow';
 import { parseContactList, parseInviteCode, validateGroupId } from '../helpers/chatId';
 import { buildMediaBody, type MediaInput } from '../helpers/media';
@@ -84,22 +86,35 @@ export async function executeGroup(
 		case 'update': {
 			const path = groupPath();
 			const fields = ctx.getNodeParameter('groupUpdateFields', i, {}) as IDataObject;
+			if (fields.name === undefined && fields.description === undefined) {
+				throw new NodeOperationError(ctx.getNode(), 'Add a Name or a Description to update', {
+					itemIndex: i,
+				});
+			}
 			const name = String(fields.name ?? '').trim();
+			if (fields.name !== undefined && !name) {
+				throw new NodeOperationError(ctx.getNode(), 'Name cannot be empty', { itemIndex: i });
+			}
+
 			const updated: string[] = [];
 			if (name) {
 				await request('PUT', `${path}/subject`, { body: { subject: name } });
 				updated.push('name');
 			}
 			if (fields.description !== undefined) {
-				await request('PUT', `${path}/description`, {
-					body: { description: String(fields.description) },
-				});
+				try {
+					await request('PUT', `${path}/description`, {
+						body: { description: String(fields.description) },
+					});
+				} catch (error) {
+					// Name and description are two calls; say what already changed so a retry is safe.
+					if (updated.length && error instanceof NodeApiError) {
+						error.description =
+							`The name was already updated; only the description failed. ${error.description ?? ''}`.trim();
+					}
+					throw new NodeApiError(ctx.getNode(), error as JsonObject, { itemIndex: i });
+				}
 				updated.push('description');
-			}
-			if (updated.length === 0) {
-				throw new NodeOperationError(ctx.getNode(), 'Add a Name or a Description to update', {
-					itemIndex: i,
-				});
 			}
 			return { success: true, groupId: getGroupId(ctx, i), updated };
 		}

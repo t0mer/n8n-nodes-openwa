@@ -1,3 +1,4 @@
+import { NodeApiError } from 'n8n-workflow';
 import { describe, expect, it } from 'vitest';
 import { executeGroup } from '../nodes/OpenWa/actions/group';
 import { fakeContext } from './fakeContext';
@@ -164,9 +165,34 @@ describe('executeGroup — bodies', () => {
 		const nameOnly = await call({ operation: 'update', group, groupUpdateFields: { name: 'New' } });
 		expect(nameOnly.calls.map((c) => c.url)).toEqual([`${groupUrl}/subject`]);
 
+		await expect(call({ operation: 'update', group, groupUpdateFields: {} })).rejects.toThrow(
+			'Add a Name or a Description',
+		);
 		await expect(
-			call({ operation: 'update', group, groupUpdateFields: { name: ' ' } }),
-		).rejects.toThrow('Add a Name or a Description');
+			call({ operation: 'update', group, groupUpdateFields: { name: ' ', description: 'x' } }),
+		).rejects.toThrow('Name cannot be empty');
+	});
+
+	it('update says the name already changed when the description call fails', async () => {
+		const { ctx, calls } = fakeContext(
+			{
+				operation: 'update',
+				group,
+				groupUpdateFields: { name: 'New', description: 'x'.repeat(2000) },
+			},
+			(options: { url?: string }) =>
+				String(options.url).endsWith('/description')
+					? Object.assign(new Error('Request failed with status code 400'), {
+							httpCode: '400',
+							cause: { response: { status: 400, data: { message: 'description too long' } } },
+						})
+					: { success: true },
+		);
+		const error = await executeGroup(ctx, 0, 's1').catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(NodeApiError);
+		expect((error as NodeApiError).message).toBe('description too long');
+		expect((error as NodeApiError).description).toMatch(/^The name was already updated/);
+		expect(calls).toHaveLength(2);
 	});
 
 	it('update settings sends only the chosen settings', async () => {

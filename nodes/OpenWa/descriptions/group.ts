@@ -24,6 +24,7 @@ export const GROUP_ID_OPERATIONS = [
 	'getPicture',
 	'setPicture',
 	'removePicture',
+	'leave',
 ];
 
 /** Operations that take a Participants list. */
@@ -120,6 +121,12 @@ export const groupOperations: INodeProperties = {
 			value: 'join',
 			action: 'Join a group',
 			description: 'Join a group with an invite link',
+		},
+		{
+			name: 'Leave',
+			value: 'leave',
+			action: 'Leave a group',
+			description: 'Leave a group with the session account. Changes the group.',
 		},
 		{
 			name: 'Promote Participants',

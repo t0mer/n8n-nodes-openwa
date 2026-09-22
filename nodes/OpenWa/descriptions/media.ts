@@ -4,6 +4,7 @@ import type { INodeProperties } from 'n8n-workflow';
 export const MEDIA_ENDPOINTS: Record<string, string> = {
 	sendImage: 'send-image',
 	sendVideo: 'send-video',
+	sendAudio: 'send-audio',
 };
 
 /** Operations whose DTO renders a caption. */
@@ -62,5 +63,14 @@ export const mediaFields: INodeProperties[] = [
 		default: '',
 		displayOptions: { show: { resource: ['message'], operation: CAPTION_OPERATIONS } },
 		description: 'Text shown with the media (up to 1024 characters)',
+	},
+	{
+		displayName: 'Send as Voice Note',
+		name: 'ptt',
+		type: 'boolean',
+		default: false,
+		displayOptions: { show: { resource: ['message'], operation: ['sendAudio'] } },
+		description:
+			'Whether to send the audio as a voice note (mic bubble with waveform) instead of an audio file. Use Ogg/Opus audio for reliable playback.',
 	},
 ];

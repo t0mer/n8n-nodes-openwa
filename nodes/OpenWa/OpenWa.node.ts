@@ -50,6 +50,12 @@ export class OpenWa implements INodeType {
 				displayOptions: { show: { resource: ['message'] } },
 				options: [
 					{
+						name: 'Send Audio',
+						value: 'sendAudio',
+						action: 'Send an audio file',
+						description: 'Send an audio file to a contact or group',
+					},
+					{
 						name: 'Send Image',
 						value: 'sendImage',
 						action: 'Send an image',
@@ -208,6 +214,9 @@ async function buildMediaRequestBody(
 	if (CAPTION_OPERATIONS.includes(operation)) {
 		const caption = ctx.getNodeParameter('caption', i, '') as string;
 		if (caption) body.caption = caption;
+	}
+	if (operation === 'sendAudio') {
+		body.ptt = ctx.getNodeParameter('ptt', i, false) as boolean;
 	}
 	return body;
 }

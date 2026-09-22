@@ -11,6 +11,7 @@ export const SEND_OPERATIONS = [
 	'sendLocation',
 	'sendPoll',
 	'sendTemplate',
+	'sendContact',
 ];
 
 /** Send operations whose request accepts `quotedMessageId` (send-template does not). */
@@ -19,6 +20,7 @@ export const QUOTE_OPERATIONS = [
 	...Object.keys(MEDIA_ENDPOINTS),
 	'sendLocation',
 	'sendPoll',
+	'sendContact',
 ];
 
 export const messageOperations: INodeProperties = {
@@ -63,6 +65,12 @@ export const messageOperations: INodeProperties = {
 			value: 'sendAudio',
 			action: 'Send an audio file',
 			description: 'Send an audio file to a contact or group',
+		},
+		{
+			name: 'Send Contact Card',
+			value: 'sendContact',
+			action: 'Send a contact card',
+			description: 'Send a contact card (vCard) to a contact or group',
 		},
 		{
 			name: 'Send Document',

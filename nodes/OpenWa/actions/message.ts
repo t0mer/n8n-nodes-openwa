@@ -2,6 +2,7 @@ import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS } from '../descriptions/media';
 import { QUOTE_OPERATIONS, SEND_OPERATIONS } from '../descriptions/message';
 import {
+	chatIdUser,
 	normalizeChatId,
 	normalizeContactId,
 	parseMentions,
@@ -25,6 +26,7 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	sendContact: { endpoint: 'send-contact', build: buildContactCardBody },
 	sendTemplate: { endpoint: 'send-template', build: buildTemplateBody },
 	votePoll: { endpoint: 'vote-poll', build: buildVotePollBody },
 	sendPoll: { endpoint: 'send-poll', build: buildPollBody },
@@ -247,6 +249,29 @@ function buildTemplateBody(
 	if (Object.keys(vars).length > 0) body.vars = vars;
 	if (options.linkPreview !== undefined) body.linkPreview = options.linkPreview;
 	return body;
+}
+
+function buildContactCardBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	const contactName = String(ctx.getNodeParameter('contactName', i) ?? '').trim();
+	if (!contactName) {
+		throw new NodeOperationError(ctx.getNode(), 'Contact Name is required', { itemIndex: i });
+	}
+	let contactId: string;
+	try {
+		contactId = normalizeContactId(ctx.getNodeParameter('contactNumber', i));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	if (contactId.endsWith('@lid')) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			'Contact Phone Number must be a phone number, not an @lid ID',
+			{
+				itemIndex: i,
+			},
+		);
+	}
+	return { chatId, contactName, contactNumber: chatIdUser(contactId) };
 }
 
 function getText(ctx: IExecuteFunctions, i: number): string {

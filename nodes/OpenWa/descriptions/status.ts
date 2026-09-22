@@ -5,7 +5,10 @@ const showFor = (operation: string[]): IDisplayOptions => ({
 });
 
 /** Operations that post a new status. */
-export const POST_OPERATIONS = ['postText'];
+export const POST_OPERATIONS = ['postText', 'postImage', 'postVideo'];
+
+/** Post operations that take a media file. */
+export const MEDIA_POST_OPERATIONS = ['postImage', 'postVideo'];
 
 export const statusOperations: INodeProperties = {
 	displayName: 'Operation',
@@ -27,10 +30,22 @@ export const statusOperations: INodeProperties = {
 			description: 'List the status updates visible to the session, one item per status',
 		},
 		{
+			name: 'Post Image',
+			value: 'postImage',
+			action: 'Post an image status',
+			description: 'Post an image status update, visible for 24 hours',
+		},
+		{
 			name: 'Post Text',
 			value: 'postText',
 			action: 'Post a text status',
 			description: 'Post a text status update, visible for 24 hours',
+		},
+		{
+			name: 'Post Video',
+			value: 'postVideo',
+			action: 'Post a video status',
+			description: 'Post a video status update, visible for 24 hours',
 		},
 	],
 	default: 'getAll',
@@ -56,6 +71,61 @@ export const statusFields: INodeProperties[] = [
 		required: true,
 		displayOptions: showFor(['postText']),
 		description: 'The status text (up to 4096 characters)',
+	},
+	{
+		displayName: 'Media Source',
+		name: 'statusMediaSource',
+		type: 'options',
+		options: [
+			{
+				name: 'URL',
+				value: 'url',
+				description: 'The OpenWA gateway downloads the file from a URL',
+			},
+			{
+				name: 'Binary Data',
+				value: 'binary',
+				description: 'Upload a file from a previous node (up to 18 MB)',
+			},
+		],
+		default: 'url',
+		displayOptions: showFor(MEDIA_POST_OPERATIONS),
+	},
+	{
+		displayName: 'Media URL',
+		name: 'statusMediaUrl',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. https://example.com/photo.jpg',
+		displayOptions: {
+			show: { resource: ['status'], operation: MEDIA_POST_OPERATIONS, statusMediaSource: ['url'] },
+		},
+		description: 'Public http(s) URL of the file. The OpenWA gateway must be able to reach it.',
+	},
+	{
+		displayName: 'Input Binary Field',
+		name: 'statusBinaryField',
+		type: 'string',
+		default: 'data',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['status'],
+				operation: MEDIA_POST_OPERATIONS,
+				statusMediaSource: ['binary'],
+			},
+		},
+		hint: 'The name of the input binary field containing the file',
+	},
+	{
+		displayName: 'Caption',
+		name: 'statusCaption',
+		type: 'string',
+		typeOptions: { rows: 2 },
+		default: '',
+		displayOptions: showFor(['postImage', 'postVideo']),
+		description: 'Text shown with the image or video (up to 1024 characters)',
 	},
 	{
 		displayName: 'Options',

@@ -1,6 +1,7 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
 import { normalizeContactId, parseContactList } from '../helpers/chatId';
 import { openWaApiRequest } from '../transport/request';
+import { readMediaInput } from './media';
 
 /** The gateway accepts at most this many recipients per status. */
 const MAX_RECIPIENTS = 256;
@@ -46,6 +47,17 @@ export async function executeStatus(
 				throw new NodeOperationError(ctx.getNode(), 'Text is required', { itemIndex: i });
 			return await request('POST', '/send-text', { text, ...getPostOptions(ctx, i, operation) });
 		}
+		case 'postImage':
+		case 'postVideo': {
+			const kind = operation === 'postImage' ? 'image' : 'video';
+			const body: IDataObject = {
+				[kind]: await readStatusMedia(ctx, i, kind),
+				...getPostOptions(ctx, i, operation),
+			};
+			const caption = String(ctx.getNodeParameter('statusCaption', i, '') ?? '');
+			if (caption) body.caption = caption;
+			return await request('POST', `/send-${kind}`, body);
+		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
@@ -77,4 +89,18 @@ function getPostOptions(ctx: IExecuteFunctions, i: number, operation: string): I
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
 	return body;
+}
+
+/** The status media as `{ url }` or `{ base64, mimetype }`; binary must be of the right kind. */
+async function readStatusMedia(
+	ctx: IExecuteFunctions,
+	i: number,
+	kind: 'image' | 'video' | 'audio',
+): Promise<IDataObject> {
+	return await readMediaInput(
+		ctx,
+		i,
+		{ source: 'statusMediaSource', url: 'statusMediaUrl', binary: 'statusBinaryField' },
+		{ accept: kind, label: `The ${kind === 'audio' ? 'voice' : kind} status` },
+	);
 }

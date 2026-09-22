@@ -31,11 +31,16 @@ export function describeOpenWaError(
 					description: apiMessage,
 				};
 			}
-			return {
-				message: apiMessage || 'Not found',
-				description:
-					'Check that the Base URL in the credentials points at the OpenWA gateway (without /api).',
-			};
+			// An unmatched route ("Cannot POST /api/api/…") or no message at all points at a wrong
+			// Base URL; anything else is the gateway saying a message, template, etc. doesn't exist.
+			if (!apiMessage || /^Cannot (GET|POST|PUT|PATCH|DELETE) \//.test(apiMessage)) {
+				return {
+					message: apiMessage || 'Not found',
+					description:
+						'Check that the Base URL in the credentials points at the OpenWA gateway (without /api).',
+				};
+			}
+			return { message: apiMessage };
 		case 409:
 			if (!conflictIsSessionState) return { message: apiMessage || 'Conflict (HTTP 409)' };
 			return {

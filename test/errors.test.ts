@@ -44,6 +44,17 @@ describe('describeOpenWaError', () => {
 		const proxy404 = describeOpenWaError(404, 'Cannot POST /api/api/x', 'main');
 		expect(proxy404.message).toBe('Cannot POST /api/api/x');
 		expect(proxy404.description).toMatch(/Base URL/);
+		expect(describeOpenWaError(404, undefined, 'main').description).toMatch(/Base URL/);
+	});
+
+	it('shows a resource 404 without the Base URL hint', () => {
+		for (const text of [
+			'Message not found',
+			'Template not found',
+			"Poll not found in the chat's recent history",
+		]) {
+			expect(describeOpenWaError(404, text, 'main')).toEqual({ message: text });
+		}
 	});
 
 	it('names the session on 409', () => {

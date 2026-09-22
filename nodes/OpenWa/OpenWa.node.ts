@@ -203,6 +203,16 @@ async function assertNumberExists(
 	sessionId: string,
 	chatId: string,
 ): Promise<void> {
+	if (chatId.endsWith('@lid')) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			'Check Number Exists needs a phone number, not an @lid ID',
+			{
+				itemIndex: i,
+				description: 'Enter the phone number instead, or turn off "Check Number Exists".',
+			},
+		);
+	}
 	const number = chatIdUser(chatId);
 	const result = (await openWaApiRequest.call(
 		ctx,

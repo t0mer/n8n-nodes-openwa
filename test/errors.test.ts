@@ -18,6 +18,18 @@ describe('extractApiMessage', () => {
 		).toBe('chatId must be a string; text should not be empty');
 	});
 
+	it('decodes byte bodies from raw requests', () => {
+		const json = JSON.stringify({ message: 'Media not found', statusCode: 404 });
+		expect(extractApiMessage(Buffer.from(json))).toBe('Media not found');
+		const bytes = new TextEncoder().encode(json);
+		expect(
+			extractApiMessage(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)),
+		).toBe('Media not found');
+		expect(extractApiMessage(Buffer.from('Bad Gateway'))).toBe('Bad Gateway');
+		expect(extractApiMessage(json)).toBe('Media not found');
+		expect(extractApiMessage('{not json')).toBe('{not json');
+	});
+
 	it('handles strings and unknown shapes', () => {
 		expect(extractApiMessage('Bad Gateway')).toBe('Bad Gateway');
 		expect(extractApiMessage(undefined)).toBeUndefined();

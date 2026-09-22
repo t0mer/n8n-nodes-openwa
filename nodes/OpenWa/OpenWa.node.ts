@@ -32,7 +32,13 @@ type Executor = (
 	ctx: IExecuteFunctions,
 	i: number,
 	sessionId: string,
-) => Promise<IDataObject | IDataObject[]>;
+) => Promise<IDataObject | IDataObject[] | INodeExecutionData>;
+
+/** A finished item (e.g. with binary data), as opposed to a plain JSON response. */
+function isExecutionData(value: unknown): value is INodeExecutionData {
+	const item = value as Partial<INodeExecutionData> | undefined;
+	return typeof item?.json === 'object' && typeof item?.binary === 'object';
+}
 
 const EXECUTORS: Record<string, Executor> = {
 	contact: executeContact,
@@ -117,8 +123,12 @@ export class OpenWa implements INodeType {
 				}
 				const response = await executor(this, i, sessionId);
 
-				for (const json of Array.isArray(response) ? response : [response]) {
-					returnData.push({ json, pairedItem: { item: i } });
+				if (isExecutionData(response)) {
+					returnData.push({ ...response, pairedItem: { item: i } });
+				} else {
+					for (const json of Array.isArray(response) ? response : [response]) {
+						returnData.push({ json, pairedItem: { item: i } });
+					}
 				}
 			} catch (error) {
 				if (this.continueOnFail()) {

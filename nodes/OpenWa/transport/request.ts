@@ -17,6 +17,8 @@ interface RequestOptions {
 	itemIndex?: number;
 	/** Set to false where a 409 is not about session state (e.g. duplicate template name). */
 	conflictIsSessionState?: boolean;
+	/** Return the full response with the body as bytes (for file downloads). */
+	raw?: boolean;
 }
 
 /** Authenticated request to the OpenWA API with errors mapped to clear messages. */
@@ -24,7 +26,7 @@ export async function openWaApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
-	{ body, qs, sessionId, itemIndex, conflictIsSessionState }: RequestOptions = {},
+	{ body, qs, sessionId, itemIndex, conflictIsSessionState, raw }: RequestOptions = {},
 ): Promise<unknown> {
 	const credentials = await this.getCredentials('openWaApi');
 	const baseUrl = String(credentials.baseUrl).trim().replace(/\/+$/, '');
@@ -36,6 +38,11 @@ export async function openWaApiRequest(
 		qs,
 		body,
 	};
+	if (raw) {
+		options.json = false;
+		options.encoding = 'arraybuffer';
+		options.returnFullResponse = true;
+	}
 
 	try {
 		return await this.helpers.httpRequestWithAuthentication.call(this, 'openWaApi', options);

@@ -67,7 +67,20 @@ export function describeOpenWaError(
 
 /** Pull the gateway's error message out of a NestJS-style body: `{ statusCode, message, error }`. */
 export function extractApiMessage(body: unknown): string | undefined {
-	if (typeof body === 'string') return body || undefined;
+	// Raw (file download) requests hand the error body back as bytes.
+	if (body instanceof ArrayBuffer) body = Buffer.from(body);
+	if (Buffer.isBuffer(body)) body = body.toString('utf8');
+	if (typeof body === 'string') {
+		const text = body.trim();
+		if (text.startsWith('{')) {
+			try {
+				return extractApiMessage(JSON.parse(text)) ?? text;
+			} catch {
+				return text;
+			}
+		}
+		return text || undefined;
+	}
 	if (!body || typeof body !== 'object') return undefined;
 	const message = (body as { message?: unknown }).message;
 	if (Array.isArray(message)) return message.join('; ');

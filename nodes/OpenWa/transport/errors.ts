@@ -22,9 +22,17 @@ export function describeOpenWaError(
 				description: apiMessage,
 			};
 		case 404:
+			// Only blame the session when the gateway says so; a proxy 404 usually means a wrong Base URL.
+			if (sessionId && /session/i.test(apiMessage ?? '')) {
+				return {
+					message: `${session} was not found on the OpenWA gateway`,
+					description: apiMessage,
+				};
+			}
 			return {
-				message: sessionId ? `${session} was not found on the OpenWA gateway` : apiMessage || 'Not found',
-				description: sessionId ? apiMessage : undefined,
+				message: apiMessage || 'Not found',
+				description:
+					'Check that the Base URL in the credentials points at the OpenWA gateway (without /api).',
 			};
 		case 409:
 			return {
@@ -32,12 +40,16 @@ export function describeOpenWaError(
 				description: apiMessage,
 			};
 		case 413:
-			return { message: 'Media too large', description: SIZE_LIMITS_TEXT };
+			return {
+				message: 'Media too large',
+				description: apiMessage ? `${apiMessage}. ${SIZE_LIMITS_TEXT}` : SIZE_LIMITS_TEXT,
+			};
 		case 501:
 			return { message: apiMessage || 'Not supported by the active OpenWA engine' };
 		case 503:
 			return {
-				message: 'OpenWA could not reach WhatsApp or its upstream proxy. This is retryable — try again shortly.',
+				message:
+					'OpenWA could not reach WhatsApp or its upstream proxy. This is retryable — try again shortly.',
 				description: apiMessage,
 			};
 		default:
@@ -53,4 +65,27 @@ export function extractApiMessage(body: unknown): string | undefined {
 	if (Array.isArray(message)) return message.join('; ');
 	if (typeof message === 'string') return message;
 	return undefined;
+}
+
+interface HttpErrorLike {
+	httpCode?: string | null;
+	description?: string | null;
+	message?: string;
+	response?: { status?: number; data?: unknown };
+	cause?: { response?: { status?: number; data?: unknown } };
+}
+
+/**
+ * Read the status and gateway message from an error thrown by `httpRequestWithAuthentication`
+ * (a NodeApiError carrying `httpCode`/`description`) or from a raw Axios-style error.
+ */
+export function parseHttpError(error: unknown): { status?: number; apiMessage?: string } {
+	const err = (error ?? {}) as HttpErrorLike;
+	const response = err.response ?? err.cause?.response;
+	const status = Number(err.httpCode ?? response?.status) || undefined;
+	const apiMessage =
+		extractApiMessage(response?.data) ??
+		(err.description || undefined) ??
+		(err.message || undefined);
+	return { status, apiMessage };
 }

@@ -7,7 +7,7 @@ import {
 	type ILoadOptionsFunctions,
 	type JsonObject,
 } from 'n8n-workflow';
-import { describeOpenWaError, extractApiMessage } from './errors';
+import { describeOpenWaError, parseHttpError } from './errors';
 
 interface RequestOptions {
 	body?: IDataObject;
@@ -15,14 +15,6 @@ interface RequestOptions {
 	/** Session the request targets, used to name it in error messages. */
 	sessionId?: string;
 	itemIndex?: number;
-}
-
-interface HttpErrorLike {
-	httpCode?: string | null;
-	description?: string | null;
-	message?: string;
-	response?: { status?: number; data?: unknown };
-	cause?: { response?: { status?: number; data?: unknown } };
 }
 
 /** Authenticated request to the OpenWA API with errors mapped to clear messages. */
@@ -46,11 +38,8 @@ export async function openWaApiRequest(
 	try {
 		return await this.helpers.httpRequestWithAuthentication.call(this, 'openWaApi', options);
 	} catch (error) {
-		const err = error as HttpErrorLike;
-		const response = err.response ?? err.cause?.response;
-		const status = Number(err.httpCode ?? response?.status) || undefined;
-		const apiMessage = extractApiMessage(response?.data) ?? err.description ?? err.message;
-		const { message, description } = describeOpenWaError(status, apiMessage ?? undefined, sessionId);
+		const { status, apiMessage } = parseHttpError(error);
+		const { message, description } = describeOpenWaError(status, apiMessage, sessionId);
 		throw new NodeApiError(this.getNode(), { message: apiMessage ?? message } as JsonObject, {
 			message,
 			description,

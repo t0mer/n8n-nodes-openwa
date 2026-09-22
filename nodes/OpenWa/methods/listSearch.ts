@@ -3,7 +3,7 @@ import {
 	type ILoadOptionsFunctions,
 	type INodeListSearchResult,
 } from 'n8n-workflow';
-import { fetchPaged } from '../helpers/pagination';
+import { PAGE_SIZE } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 
 interface Group {
@@ -79,17 +79,17 @@ export async function searchGroups(
 export async function searchContacts(
 	this: ILoadOptionsFunctions,
 	filter?: string,
+	paginationToken?: string,
 ): Promise<INodeListSearchResult> {
 	const sessionId = getSelectedSessionId(this, 'contacts');
-	const contacts = await fetchPaged(
-		async (limit, offset) =>
-			(await openWaApiRequest.call(
-				this,
-				'GET',
-				`/api/sessions/${encodeURIComponent(sessionId)}/contacts`,
-				{ qs: { limit, offset }, sessionId },
-			)) as Contact[],
-	);
+	// One page per call; n8n asks for the next page (by offset token) as the user scrolls.
+	const offset = Number(paginationToken) || 0;
+	const contacts = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/contacts`,
+		{ qs: { limit: PAGE_SIZE, offset }, sessionId },
+	)) as Contact[];
 	return {
 		results: contacts
 			.filter((contact) =>
@@ -101,5 +101,6 @@ export async function searchContacts(
 				return { name: label ? `${label} (${number})` : number, value: contact.id };
 			})
 			.sort((a, b) => a.name.localeCompare(b.name)),
+		paginationToken: contacts.length === PAGE_SIZE ? String(offset + PAGE_SIZE) : undefined,
 	};
 }

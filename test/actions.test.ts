@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { executeMessage } from '../nodes/OpenWa/actions/message';
 import { executeTemplate } from '../nodes/OpenWa/actions/template';
 
-/** Minimal IExecuteFunctions stand-in: parameters from a map, HTTP calls recorded. */
+type Responder = (options: IHttpRequestOptions) => unknown;
+
+/**
+ * Minimal IExecuteFunctions stand-in: parameters from a map, HTTP calls recorded. `response` is
+ * returned for every call, or computed per call when it is a function.
+ */
 function fakeContext(params: Record<string, unknown>, response: unknown = { ok: true }) {
 	const calls: IHttpRequestOptions[] = [];
 	const ctx = {
@@ -34,8 +39,13 @@ function fakeContext(params: Record<string, unknown>, response: unknown = { ok: 
 		helpers: {
 			async httpRequestWithAuthentication(_type: string, options: IHttpRequestOptions) {
 				calls.push(options);
-				return response;
+				return typeof response === 'function' ? (response as Responder)(options) : response;
 			},
+			async prepareBinaryData(data: Buffer, fileName?: string, mimeType?: string) {
+				return { data: data.toString('base64'), fileName, mimeType };
+			},
+			assertBinaryData: () => ({ mimeType: 'audio/mpeg', fileName: 'note.mp3' }),
+			getBinaryDataBuffer: async () => Buffer.from('mp3-bytes'),
 		},
 	};
 	return { ctx: ctx as unknown as IExecuteFunctions, calls };
@@ -204,6 +214,228 @@ describe('executeMessage request bodies', () => {
 		await expect(sent({ operation: 'delete', messageId: '  ' })).rejects.toThrow(
 			'Message ID is required',
 		);
+	});
+});
+
+describe('executeMessage — contact cards, pins, stars, replies', () => {
+	it('send contact card sends digits only', async () => {
+		expect(
+			await sent({
+				operation: 'sendContact',
+				contactName: ' Dana ',
+				contactNumber: '+972 50-999-9999',
+			}),
+		).toEqual({
+			url: `${base}/messages/send-contact`,
+			method: 'POST',
+			body: { chatId, contactName: 'Dana', contactNumber: '972509999999' },
+		});
+	});
+
+	it('send contact card rejects an @lid number', async () => {
+		await expect(
+			sent({ operation: 'sendContact', contactName: 'Dana', contactNumber: '123456789012345@lid' }),
+		).rejects.toThrow('not an @lid ID');
+	});
+
+	it('pin defaults to 24 hours and honours the chosen duration', async () => {
+		expect((await sent({ operation: 'pin', messageId: 'm1' })).body).toEqual({
+			chatId,
+			messageId: 'm1',
+			durationSeconds: 86400,
+		});
+		expect(
+			(await sent({ operation: 'pin', messageId: 'm1', pinDuration: 604800 })).body,
+		).toMatchObject({
+			durationSeconds: 604800,
+		});
+	});
+
+	it('unpin, star and unstar', async () => {
+		expect(await sent({ operation: 'unpin', messageId: 'm1' })).toEqual({
+			url: `${base}/messages/unpin`,
+			method: 'POST',
+			body: { chatId, messageId: 'm1' },
+		});
+		expect(await sent({ operation: 'star', messageId: 'm1' })).toMatchObject({
+			url: `${base}/messages/star`,
+			body: { chatId, messageId: 'm1', star: true },
+		});
+		expect(await sent({ operation: 'unstar', messageId: 'm1' })).toMatchObject({
+			url: `${base}/messages/star`,
+			body: { chatId, messageId: 'm1', star: false },
+		});
+	});
+
+	it('adds Reply To only to operations that accept quotedMessageId', async () => {
+		const options = { quotedMessageId: ' q1 ' };
+		expect((await sent({ operation: 'sendText', text: 'hi', options })).body).toMatchObject({
+			quotedMessageId: 'q1',
+		});
+		expect(
+			(await sent({ operation: 'sendLocation', latitude: 1, longitude: 2, options })).body,
+		).toMatchObject({ quotedMessageId: 'q1' });
+		expect(
+			(await sent({ operation: 'sendTemplate', template: { value: 't1' }, options })).body,
+		).not.toHaveProperty('quotedMessageId');
+		expect(
+			(await sent({ operation: 'react', messageId: 'm1', emoji: 'x', options })).body,
+		).not.toHaveProperty('quotedMessageId');
+	});
+});
+
+describe('executeMessage — get many', () => {
+	it('filters, omits inline media and walks the cursor', async () => {
+		const { ctx, calls } = fakeContext(
+			{
+				operation: 'getAll',
+				returnAll: true,
+				filters: { chat: '120363012345678901@g.us', sender: '+972 50 123 4567' },
+			},
+			(options: IHttpRequestOptions) => {
+				const after = (options.qs as { after?: string }).after;
+				const start = after ? Number(after) + 1 : 0;
+				const count = Math.max(0, Math.min(100, 130 - start));
+				return {
+					messages: Array.from({ length: count }, (_, k) => ({ id: String(start + k) })),
+					total: 130,
+				};
+			},
+		);
+		const messages = (await executeMessage(ctx, 0, 's1')) as Array<{ id: string }>;
+		expect(messages).toHaveLength(130);
+		expect(calls.map((call) => call.qs)).toEqual([
+			{ inlineMedia: false, chatId: '120363012345678901@g.us', from: '972501234567', limit: 100 },
+			{
+				inlineMedia: false,
+				chatId: '120363012345678901@g.us',
+				from: '972501234567',
+				limit: 100,
+				after: '99',
+			},
+		]);
+		expect(calls[0].url).toBe(`${base}/messages`);
+		expect(calls[0].method).toBe('GET');
+	});
+
+	it('needs no recipient and respects the limit', async () => {
+		const { ctx, calls } = fakeContext(
+			{ operation: 'getAll', returnAll: false, limit: 5, filters: { includeMedia: true } },
+			{ messages: Array.from({ length: 5 }, (_, k) => ({ id: String(k) })), total: 99 },
+		);
+		expect(await executeMessage(ctx, 0, 's1')).toHaveLength(5);
+		expect(calls[0].qs).toEqual({ inlineMedia: true, limit: 5 });
+	});
+});
+
+describe('executeMessage — download media', () => {
+	it('returns a binary item named from Content-Disposition', async () => {
+		const { ctx, calls } = fakeContext(
+			{
+				...contact,
+				operation: 'downloadMedia',
+				messageId: 'true_1@c.us_AB',
+				outputBinaryField: 'file',
+			},
+			{
+				body: Buffer.from('jpeg-bytes'),
+				headers: {
+					'content-type': 'image/jpeg',
+					'content-disposition': 'attachment; filename="photo.jpg"',
+				},
+				statusCode: 200,
+			},
+		);
+		const item = (await executeMessage(ctx, 0, 's1')) as {
+			json: Record<string, unknown>;
+			binary: Record<string, { data: string; fileName?: string; mimeType?: string }>;
+		};
+		expect(calls[0]).toMatchObject({
+			method: 'GET',
+			url: `${base}/messages/972501234567%40c.us/true_1%40c.us_AB/media`,
+			encoding: 'arraybuffer',
+			returnFullResponse: true,
+			json: false,
+		});
+		expect(item.binary.file).toEqual({
+			data: Buffer.from('jpeg-bytes').toString('base64'),
+			fileName: 'photo.jpg',
+			mimeType: 'image/jpeg',
+		});
+		expect(item.json).toEqual({
+			chatId,
+			messageId: 'true_1@c.us_AB',
+			fileName: 'photo.jpg',
+			mimeType: 'image/jpeg',
+			fileSize: 10,
+		});
+	});
+});
+
+describe('executeMessage — convert to voice note', () => {
+	const converted = { base64: 'T2dnUw==', mimetype: 'audio/ogg; codecs=opus', bytes: 5 };
+	const responder = (options: IHttpRequestOptions) =>
+		String(options.url).endsWith('/media/convert/voice') ? converted : { messageId: 'x' };
+
+	it('converts a URL source, then sends the Ogg/Opus bytes as a voice note', async () => {
+		const { ctx, calls } = fakeContext(
+			{
+				...contact,
+				operation: 'sendAudio',
+				mediaSource: 'url',
+				mediaUrl: 'https://example.com/a.mp3',
+				ptt: true,
+				convertToVoiceNote: true,
+			},
+			responder,
+		);
+		await executeMessage(ctx, 0, 's1');
+		expect(calls.map((call) => [call.url, call.body])).toEqual([
+			[`${base}/media/convert/voice`, { url: 'https://example.com/a.mp3' }],
+			[
+				`${base}/messages/send-audio`,
+				{ chatId, ptt: true, base64: converted.base64, mimetype: converted.mimetype },
+			],
+		]);
+	});
+
+	it('converts a binary source by base64 and drops the original file name', async () => {
+		const { ctx, calls } = fakeContext(
+			{
+				...contact,
+				operation: 'sendAudio',
+				mediaSource: 'binary',
+				binaryPropertyName: 'data',
+				ptt: true,
+				convertToVoiceNote: true,
+			},
+			responder,
+		);
+		await executeMessage(ctx, 0, 's1');
+		expect(calls[0].body).toEqual({ base64: Buffer.from('mp3-bytes').toString('base64') });
+		expect(Object.keys(calls[1].body as object).sort()).toEqual([
+			'base64',
+			'chatId',
+			'mimetype',
+			'ptt',
+		]);
+	});
+
+	it('does not convert when voice note is off', async () => {
+		const { ctx, calls } = fakeContext(
+			{
+				...contact,
+				operation: 'sendAudio',
+				mediaSource: 'url',
+				mediaUrl: 'https://example.com/a.mp3',
+				ptt: false,
+				convertToVoiceNote: true,
+			},
+			responder,
+		);
+		await executeMessage(ctx, 0, 's1');
+		expect(calls).toHaveLength(1);
+		expect(calls[0].body).toMatchObject({ url: 'https://example.com/a.mp3', ptt: false });
 	});
 });
 

@@ -9,8 +9,11 @@ import {
 	type INodeTypeDescription,
 	type JsonObject,
 } from 'n8n-workflow';
-import { sessionField } from './descriptions/common';
+import { recipientFields, sessionField } from './descriptions/common';
+import { textFields, textOptions } from './descriptions/text';
+import { normalizeContactId, parseMentions } from './helpers/chatId';
 import { searchSessions } from './methods/listSearch';
+import { openWaApiRequest } from './transport/request';
 
 export class OpenWa implements INodeType {
 	description: INodeTypeDescription = {
@@ -43,10 +46,28 @@ export class OpenWa implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				displayOptions: { show: { resource: ['message'] } },
-				options: [],
-				default: '',
+				options: [
+					{
+						name: 'Send Text',
+						value: 'sendText',
+						action: 'Send a text message',
+						description: 'Send a text message to a contact or group',
+					},
+				],
+				default: 'sendText',
 			},
 			sessionField,
+			...recipientFields,
+			...textFields,
+			{
+				displayName: 'Options',
+				name: 'options',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: { show: { resource: ['message'] } },
+				options: [...textOptions],
+			},
 		],
 	};
 
@@ -70,13 +91,28 @@ export class OpenWa implements INodeType {
 					throw new NodeOperationError(this.getNode(), 'Session is required', { itemIndex: i });
 				}
 
-				let response: IDataObject;
+				const chatId = getChatId(this, i);
+				const options = this.getNodeParameter('options', i, {}) as IDataObject;
+
+				let endpoint: string;
+				let body: IDataObject;
 				switch (operation) {
+					case 'sendText':
+						endpoint = 'send-text';
+						body = buildTextBody(this, i, chatId, options);
+						break;
 					default:
 						throw new NodeOperationError(this.getNode(), `Unsupported operation "${operation}"`, {
 							itemIndex: i,
 						});
 				}
+
+				const response = (await openWaApiRequest.call(
+					this,
+					'POST',
+					`/api/sessions/${encodeURIComponent(sessionId)}/messages/${endpoint}`,
+					{ body, sessionId, itemIndex: i },
+				)) as IDataObject;
 
 				returnData.push({ json: response, pairedItem: { item: i } });
 			} catch (error) {
@@ -97,4 +133,31 @@ export class OpenWa implements INodeType {
 
 		return [returnData];
 	}
+}
+
+/** Resolve and validate the recipient chat ID for an item. */
+function getChatId(ctx: IExecuteFunctions, i: number): string {
+	try {
+		return normalizeContactId(ctx.getNodeParameter('phoneNumber', i) as string);
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+}
+
+function buildTextBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	chatId: string,
+	options: IDataObject,
+): IDataObject {
+	const body: IDataObject = { chatId, text: ctx.getNodeParameter('text', i) as string };
+	if (options.linkPreview !== undefined) body.linkPreview = options.linkPreview;
+	if (options.mentions) {
+		try {
+			body.mentions = parseMentions(options.mentions as string);
+		} catch (error) {
+			throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+		}
+	}
+	return body;
 }

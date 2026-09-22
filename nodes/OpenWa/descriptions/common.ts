@@ -25,3 +25,16 @@ export const sessionField: INodeProperties = {
 		},
 	],
 };
+
+export const recipientFields: INodeProperties[] = [
+	{
+		displayName: 'Phone Number',
+		name: 'phoneNumber',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. 972501234567',
+		description:
+			'Recipient phone number in international format. Spaces, dashes, parentheses and a leading + are removed. A full chat ID ending in @c.us or @lid is also accepted.',
+	},
+];

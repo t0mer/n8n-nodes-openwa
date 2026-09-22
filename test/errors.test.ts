@@ -93,7 +93,9 @@ describe('describeOpenWaError', () => {
 	});
 
 	it('marks 503 as retryable', () => {
-		expect(describeOpenWaError(503, 'upstream').message).toMatch(/retryable/);
+		const { message, description } = describeOpenWaError(503, 'Conversion is disabled');
+		expect(message).toMatch(/temporarily unable.*retryable/);
+		expect(description).toBe('Conversion is disabled');
 	});
 
 	it('falls back to the API message or status', () => {

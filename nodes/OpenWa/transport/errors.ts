@@ -57,7 +57,7 @@ export function describeOpenWaError(
 		case 503:
 			return {
 				message:
-					'OpenWA could not reach WhatsApp or its upstream proxy. This is retryable — try again shortly.',
+					'OpenWA is temporarily unable to complete the request (for example WhatsApp, a proxy or media conversion is unavailable). This is retryable — try again shortly.',
 				description: apiMessage,
 			};
 		default:

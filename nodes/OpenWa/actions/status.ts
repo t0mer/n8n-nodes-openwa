@@ -1,6 +1,11 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
-import { normalizeContactId } from '../helpers/chatId';
+import { normalizeContactId, parseContactList } from '../helpers/chatId';
 import { openWaApiRequest } from '../transport/request';
+
+/** The gateway accepts at most this many recipients per status. */
+const MAX_RECIPIENTS = 256;
+/** Post operations that accept a background color. */
+const BACKGROUND_OPERATIONS = ['postText'];
 
 /** Run one Status (Stories) operation for item `i`. List operations return one object per status. */
 export async function executeStatus(
@@ -35,9 +40,41 @@ export async function executeStatus(
 			}
 			return await list(`/${encodeURIComponent(contactId)}`);
 		}
+		case 'postText': {
+			const text = String(ctx.getNodeParameter('statusText', i) ?? '');
+			if (!text.trim())
+				throw new NodeOperationError(ctx.getNode(), 'Text is required', { itemIndex: i });
+			return await request('POST', '/send-text', { text, ...getPostOptions(ctx, i, operation) });
+		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
 			});
 	}
+}
+
+/** Options shared by the post operations; only those that apply to `operation` are read. */
+function getPostOptions(ctx: IExecuteFunctions, i: number, operation: string): IDataObject {
+	const options = ctx.getNodeParameter('statusOptions', i, {}) as IDataObject;
+	const body: IDataObject = {};
+	try {
+		const recipients = parseContactList(options.recipients);
+		if (recipients.length > MAX_RECIPIENTS) {
+			throw new Error(
+				`Recipients lists ${recipients.length} contacts; the limit is ${MAX_RECIPIENTS}`,
+			);
+		}
+		if (recipients.length) body.recipients = recipients;
+		if (BACKGROUND_OPERATIONS.includes(operation) && options.backgroundColor !== undefined) {
+			const color = String(options.backgroundColor).trim();
+			if (!/^#[0-9a-f]{6}$/i.test(color)) {
+				throw new Error(`Background Color must be a #RRGGBB hex color, got "${color}"`);
+			}
+			body.backgroundColor = color;
+		}
+		if (operation === 'postText' && options.font !== undefined) body.font = Number(options.font);
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	return body;
 }

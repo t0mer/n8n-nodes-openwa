@@ -4,6 +4,9 @@ const showFor = (operation: string[]): IDisplayOptions => ({
 	show: { resource: ['status'], operation },
 });
 
+/** Operations that post a new status. */
+export const POST_OPERATIONS = ['postText'];
+
 export const statusOperations: INodeProperties = {
 	displayName: 'Operation',
 	name: 'operation',
@@ -23,6 +26,12 @@ export const statusOperations: INodeProperties = {
 			action: 'Get many statuses',
 			description: 'List the status updates visible to the session, one item per status',
 		},
+		{
+			name: 'Post Text',
+			value: 'postText',
+			action: 'Post a text status',
+			description: 'Post a text status update, visible for 24 hours',
+		},
 	],
 	default: 'getAll',
 };
@@ -37,5 +46,60 @@ export const statusFields: INodeProperties[] = [
 		placeholder: 'e.g. 972501234567',
 		displayOptions: showFor(['getFromContact']),
 		description: 'Phone number in international format, or a contact ID ending in @c.us or @lid',
+	},
+	{
+		displayName: 'Text',
+		name: 'statusText',
+		type: 'string',
+		typeOptions: { rows: 4 },
+		default: '',
+		required: true,
+		displayOptions: showFor(['postText']),
+		description: 'The status text (up to 4096 characters)',
+	},
+	{
+		displayName: 'Options',
+		name: 'statusOptions',
+		type: 'collection',
+		placeholder: 'Add Option',
+		default: {},
+		displayOptions: showFor(POST_OPERATIONS),
+		options: [
+			{
+				displayName: 'Background Color',
+				name: 'backgroundColor',
+				type: 'color',
+				default: '#25D366',
+				displayOptions: { show: { '/operation': ['postText'] } },
+				description: 'Background color behind the status, as #RRGGBB',
+			},
+			{
+				displayName: 'Font',
+				name: 'font',
+				type: 'options',
+				options: [
+					{ name: 'Default', value: 0 },
+					{ name: 'Font 1', value: 1 },
+					{ name: 'Font 2', value: 2 },
+					{ name: 'Bold', value: 6 },
+					{ name: 'Font 7', value: 7 },
+					{ name: 'Font 8', value: 8 },
+					{ name: 'Font 9', value: 9 },
+					{ name: 'Font 10', value: 10 },
+				],
+				default: 0,
+				displayOptions: { show: { '/operation': ['postText'] } },
+				description: 'WhatsApp status font. whatsapp-web.js only supports up to Font 7.',
+			},
+			{
+				displayName: 'Recipients',
+				name: 'recipients',
+				type: 'string',
+				default: '',
+				placeholder: 'e.g. 972501234567, 972509876543',
+				description:
+					'Comma-separated phone numbers or contact IDs who can see the status (up to 256). Required on the Baileys engine, which posts only to this list; whatsapp-web.js ignores it and uses your status privacy settings.',
+			},
+		],
 	},
 ];

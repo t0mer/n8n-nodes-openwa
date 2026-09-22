@@ -4,7 +4,7 @@ import {
 	type IExecuteFunctions,
 	type IHttpRequestMethods,
 } from 'n8n-workflow';
-import { parseContactList, validateGroupId } from '../helpers/chatId';
+import { parseContactList, parseInviteCode, validateGroupId } from '../helpers/chatId';
 import { fetchPaged } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 
@@ -107,6 +107,10 @@ export async function executeGroup(
 				body: requesters.length ? { participants: requesters } : {},
 			});
 		}
+		case 'getJoinInfo':
+			return await request('GET', '/join-info', { qs: { code: getInviteCode(ctx, i) } });
+		case 'join':
+			return await request('POST', '/join', { body: { inviteCode: getInviteCode(ctx, i) } });
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
@@ -138,4 +142,12 @@ function getParticipants(
 		throw new NodeOperationError(ctx.getNode(), 'Add at least one participant', { itemIndex: i });
 	}
 	return participants;
+}
+
+function getInviteCode(ctx: IExecuteFunctions, i: number): string {
+	try {
+		return parseInviteCode(ctx.getNodeParameter('inviteCode', i));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
 }

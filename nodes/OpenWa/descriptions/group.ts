@@ -74,6 +74,12 @@ export const groupOperations: INodeProperties = {
 			description: 'Get the invite code and link of a group (requires admin)',
 		},
 		{
+			name: 'Get Join Info',
+			value: 'getJoinInfo',
+			action: 'Preview a group from an invite link',
+			description: 'See a group (name, description, members) from its invite link without joining',
+		},
+		{
 			name: 'Get Many',
 			value: 'getAll',
 			action: 'Get many groups',
@@ -90,6 +96,12 @@ export const groupOperations: INodeProperties = {
 			value: 'getParticipants',
 			action: 'Get group participants',
 			description: 'List the members of a group, one item per participant',
+		},
+		{
+			name: 'Join',
+			value: 'join',
+			action: 'Join a group',
+			description: 'Join a group with an invite link',
 		},
 		{
 			name: 'Promote Participants',
@@ -199,5 +211,15 @@ export const groupFields: INodeProperties[] = [
 		displayOptions: showFor(['approveRequests', 'rejectRequests']),
 		description:
 			'Comma-separated phone numbers or contact IDs of the requests to act on. Leave empty to act on every pending request.',
+	},
+	{
+		displayName: 'Invite Link',
+		name: 'inviteCode',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. https://chat.whatsapp.com/AbCdEf123456',
+		displayOptions: showFor(['getJoinInfo', 'join']),
+		description: 'A group invite link, or just the code at the end of it',
 	},
 ];

@@ -5,10 +5,11 @@ export const MEDIA_ENDPOINTS: Record<string, string> = {
 	sendImage: 'send-image',
 	sendVideo: 'send-video',
 	sendAudio: 'send-audio',
+	sendDocument: 'send-document',
 };
 
 /** Operations whose DTO renders a caption. */
-export const CAPTION_OPERATIONS = ['sendImage', 'sendVideo'];
+export const CAPTION_OPERATIONS = ['sendImage', 'sendVideo', 'sendDocument'];
 
 const mediaOperations = Object.keys(MEDIA_ENDPOINTS);
 
@@ -72,5 +73,15 @@ export const mediaFields: INodeProperties[] = [
 		displayOptions: { show: { resource: ['message'], operation: ['sendAudio'] } },
 		description:
 			'Whether to send the audio as a voice note (mic bubble with waveform) instead of an audio file. Use Ogg/Opus audio for reliable playback.',
+	},
+	{
+		displayName: 'File Name',
+		name: 'fileName',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. invoice.pdf',
+		displayOptions: { show: { resource: ['message'], operation: ['sendDocument'] } },
+		description:
+			'File name shown to the recipient. Defaults to the binary file name, or to the name in the URL.',
 	},
 ];

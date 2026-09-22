@@ -56,6 +56,12 @@ export class OpenWa implements INodeType {
 						description: 'Send an audio file to a contact or group',
 					},
 					{
+						name: 'Send Document',
+						value: 'sendDocument',
+						action: 'Send a document',
+						description: 'Send a document to a contact or group',
+					},
+					{
 						name: 'Send Image',
 						value: 'sendImage',
 						action: 'Send an image',
@@ -214,6 +220,10 @@ async function buildMediaRequestBody(
 	if (CAPTION_OPERATIONS.includes(operation)) {
 		const caption = ctx.getNodeParameter('caption', i, '') as string;
 		if (caption) body.caption = caption;
+	}
+	if (operation === 'sendDocument') {
+		const fileName = (ctx.getNodeParameter('fileName', i, '') as string).trim();
+		if (fileName) body.filename = fileName;
 	}
 	if (operation === 'sendAudio') {
 		body.ptt = ctx.getNodeParameter('ptt', i, false) as boolean;

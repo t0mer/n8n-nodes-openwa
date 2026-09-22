@@ -11,11 +11,13 @@ import {
 } from 'n8n-workflow';
 import { recipientFields, sessionField } from './descriptions/common';
 import { executeContact } from './actions/contact';
+import { executeGroup } from './actions/group';
 import { executeMessage } from './actions/message';
 import { executeTemplate } from './actions/template';
 import { messageActionFields } from './descriptions/actions';
 import { contactFields, contactOperations } from './descriptions/contact';
 import { contactCardFields } from './descriptions/contactCard';
+import { groupFields, groupOperations } from './descriptions/group';
 import { historyFields } from './descriptions/history';
 import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
@@ -44,6 +46,7 @@ function isExecutionData(value: unknown): value is INodeExecutionData {
 
 const EXECUTORS: Record<string, Executor> = {
 	contact: executeContact,
+	group: executeGroup,
 	message: executeMessage,
 	template: executeTemplate,
 };
@@ -72,6 +75,7 @@ export class OpenWa implements INodeType {
 				noDataExpression: true,
 				options: [
 					{ name: 'Contact', value: 'contact' },
+					{ name: 'Group', value: 'group' },
 					{ name: 'Message', value: 'message' },
 					{ name: 'Template', value: 'template' },
 				],
@@ -80,9 +84,11 @@ export class OpenWa implements INodeType {
 			messageOperations,
 			contactOperations,
 			templateOperations,
+			groupOperations,
 			sessionField,
 			...contactFields,
 			...templateFields,
+			...groupFields,
 			...recipientFields,
 			...messageActionFields,
 			...textFields,

@@ -158,7 +158,6 @@ npm run build
 
 ## Resources
 
-- OpenWA API docs: served by your own gateway at `<your-base-url>/api/docs`
 - [n8n community nodes documentation](https://docs.n8n.io/integrations/#community-nodes)
 
 ## License

@@ -64,8 +64,9 @@ export async function executeStatus(
 			return await request('POST', `/send-${kind}`, body);
 		}
 		case 'postVoice': {
-			const media = await readStatusMedia(ctx, i, 'audio');
 			const convert = ctx.getNodeParameter('statusConvertVoice', i, true) as boolean;
+			// With conversion on, any format ffmpeg reads is fine (e.g. video/webm recordings).
+			const media = await readStatusMedia(ctx, i, convert ? undefined : 'audio');
 			return await request('POST', '/send-voice', {
 				audio: convert ? await convertToVoiceNote(ctx, i, sessionId, media) : media,
 				...getPostOptions(ctx, i, operation),
@@ -123,17 +124,17 @@ function getPostOptions(ctx: IExecuteFunctions, i: number, operation: string): I
 	return body;
 }
 
-/** The status media as `{ url }` or `{ base64, mimetype }`; binary must be of the right kind. */
+/** The status media as `{ url }` or `{ base64, mimetype }`; binary must be of `kind` when given. */
 async function readStatusMedia(
 	ctx: IExecuteFunctions,
 	i: number,
-	kind: 'image' | 'video' | 'audio',
+	kind: 'image' | 'video' | 'audio' | undefined,
 ): Promise<IDataObject> {
 	return await readMediaInput(
 		ctx,
 		i,
 		{ source: 'statusMediaSource', url: 'statusMediaUrl', binary: 'statusBinaryField' },
-		{ accept: kind, label: `The ${kind === 'audio' ? 'voice' : kind} status` },
+		{ accept: kind, label: `The ${!kind || kind === 'audio' ? 'voice' : kind} status` },
 	);
 }
 

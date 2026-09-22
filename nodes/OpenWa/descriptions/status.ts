@@ -27,7 +27,7 @@ export const statusOperations: INodeProperties = {
 			name: 'Download Media',
 			value: 'downloadMedia',
 			action: 'Download status media',
-			description: 'Download the image or video of a status as binary data',
+			description: 'Download the image, video or voice note of a status as binary data',
 		},
 		{
 			name: 'Get From Contact',

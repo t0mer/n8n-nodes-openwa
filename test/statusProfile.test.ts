@@ -247,6 +247,25 @@ describe('executeStatus — posting', () => {
 		);
 	});
 
+	it('post voice: any type is fine when converting, audio is required when not', async () => {
+		const webm = {
+			operation: 'postVoice',
+			statusMediaSource: 'binary',
+			statusBinaryField: 'data',
+			binaryMeta: { mimeType: 'video/webm' },
+			binaryData: Buffer.from('webm'),
+		};
+		const converted = { base64: 'T2dnUw==', mimetype: 'audio/ogg; codecs=opus', bytes: 5 };
+		const { calls } = await run(executeStatus, webm, (options: IHttpRequestOptions) =>
+			String(options.url).endsWith('/media/convert/voice') ? converted : { statusId: 's' },
+		);
+		expect(calls[0].body).toEqual({ base64: Buffer.from('webm').toString('base64') });
+
+		await expect(run(executeStatus, { ...webm, statusConvertVoice: false })).rejects.toThrow(
+			'The voice status must be an audio file, but "data" is video/webm',
+		);
+	});
+
 	it('post voice without conversion sends the source as-is', async () => {
 		const { calls } = await run(executeStatus, {
 			operation: 'postVoice',

@@ -15,6 +15,8 @@ import {
 } from '../helpers/media';
 import { openWaApiRequest } from '../transport/request';
 
+const ARTICLE_NOUN = { image: 'an image', video: 'a video', audio: 'an audio file' };
+
 /** Parameter names of a URL-or-binary media source. */
 export interface MediaFields {
 	source: string;
@@ -39,7 +41,7 @@ export async function readMediaInput(
 		if (accept && !binary.mimeType?.startsWith(`${accept}/`)) {
 			throw new NodeOperationError(
 				ctx.getNode(),
-				`${label} must be ${accept === 'image' ? 'an' : 'a'} ${accept}, but "${field}" is ${binary.mimeType || 'of unknown type'}`,
+				`${label} must be ${ARTICLE_NOUN[accept]}, but "${field}" is ${binary.mimeType || 'of unknown type'}`,
 				{ itemIndex: i },
 			);
 		}

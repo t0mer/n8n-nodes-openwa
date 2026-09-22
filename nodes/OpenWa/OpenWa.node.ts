@@ -10,8 +10,10 @@ import {
 	type JsonObject,
 } from 'n8n-workflow';
 import { recipientFields, sessionField } from './descriptions/common';
+import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS, mediaFields } from './descriptions/media';
 import { textFields, textOptions } from './descriptions/text';
 import { normalizeContactId, parseMentions, validateGroupId } from './helpers/chatId';
+import { buildMediaBody, type MediaInput } from './helpers/media';
 import { searchGroups, searchSessions } from './methods/listSearch';
 import { openWaApiRequest } from './transport/request';
 
@@ -48,6 +50,12 @@ export class OpenWa implements INodeType {
 				displayOptions: { show: { resource: ['message'] } },
 				options: [
 					{
+						name: 'Send Image',
+						value: 'sendImage',
+						action: 'Send an image',
+						description: 'Send an image to a contact or group',
+					},
+					{
 						name: 'Send Text',
 						value: 'sendText',
 						action: 'Send a text message',
@@ -59,6 +67,7 @@ export class OpenWa implements INodeType {
 			sessionField,
 			...recipientFields,
 			...textFields,
+			...mediaFields,
 			{
 				displayName: 'Options',
 				name: 'options',
@@ -97,15 +106,16 @@ export class OpenWa implements INodeType {
 
 				let endpoint: string;
 				let body: IDataObject;
-				switch (operation) {
-					case 'sendText':
-						endpoint = 'send-text';
-						body = buildTextBody(this, i, chatId, options);
-						break;
-					default:
-						throw new NodeOperationError(this.getNode(), `Unsupported operation "${operation}"`, {
-							itemIndex: i,
-						});
+				if (operation === 'sendText') {
+					endpoint = 'send-text';
+					body = buildTextBody(this, i, chatId, options);
+				} else if (MEDIA_ENDPOINTS[operation]) {
+					endpoint = MEDIA_ENDPOINTS[operation];
+					body = await buildMediaRequestBody(this, i, operation, chatId);
+				} else {
+					throw new NodeOperationError(this.getNode(), `Unsupported operation "${operation}"`, {
+						itemIndex: i,
+					});
 				}
 
 				const response = (await openWaApiRequest.call(
@@ -162,6 +172,36 @@ function buildTextBody(
 		} catch (error) {
 			throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 		}
+	}
+	return body;
+}
+
+async function buildMediaRequestBody(
+	ctx: IExecuteFunctions,
+	i: number,
+	operation: string,
+	chatId: string,
+): Promise<IDataObject> {
+	let input: MediaInput;
+	if (ctx.getNodeParameter('mediaSource', i) === 'binary') {
+		const field = ctx.getNodeParameter('binaryPropertyName', i) as string;
+		const binary = ctx.helpers.assertBinaryData(i, field);
+		const data = await ctx.helpers.getBinaryDataBuffer(i, field);
+		input = { source: 'binary', data, mimeType: binary.mimeType, fileName: binary.fileName };
+	} else {
+		input = { source: 'url', url: ctx.getNodeParameter('mediaUrl', i) as string };
+	}
+
+	let body: IDataObject;
+	try {
+		body = { chatId, ...buildMediaBody(input) };
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+
+	if (CAPTION_OPERATIONS.includes(operation)) {
+		const caption = ctx.getNodeParameter('caption', i, '') as string;
+		if (caption) body.caption = caption;
 	}
 	return body;
 }

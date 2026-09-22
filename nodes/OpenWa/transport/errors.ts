@@ -11,6 +11,8 @@ export function describeOpenWaError(
 	status: number | undefined,
 	apiMessage: string | undefined,
 	sessionId?: string,
+	/** False when a 409 on this route means something else, e.g. a duplicate template name. */
+	conflictIsSessionState = true,
 ): OpenWaErrorText {
 	const session = sessionId ? `Session "${sessionId}"` : 'The session';
 	switch (status) {
@@ -35,6 +37,7 @@ export function describeOpenWaError(
 					'Check that the Base URL in the credentials points at the OpenWA gateway (without /api).',
 			};
 		case 409:
+			if (!conflictIsSessionState) return { message: apiMessage || 'Conflict (HTTP 409)' };
 			return {
 				message: `${session} is not ready (disconnected, reconnecting or reloading). This is usually transient — retry shortly.`,
 				description: apiMessage,

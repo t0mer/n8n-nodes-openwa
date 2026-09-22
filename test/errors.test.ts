@@ -52,6 +52,17 @@ describe('describeOpenWaError', () => {
 		expect(conflict.message).toMatch(/retry/i);
 	});
 
+	it('surfaces the gateway message for a 409 that is not about session state', () => {
+		const { message } = describeOpenWaError(
+			409,
+			'A template with that name already exists for the session',
+			'main',
+			false,
+		);
+		expect(message).toBe('A template with that name already exists for the session');
+		expect(describeOpenWaError(409, undefined, 'main', false).message).toBe('Conflict (HTTP 409)');
+	});
+
 	it('states the size limits on 413', () => {
 		const { message, description } = describeOpenWaError(413, 'Payload Too Large');
 		expect(message).toBe('Media too large');

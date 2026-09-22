@@ -7,9 +7,9 @@ import {
 	type JsonObject,
 } from 'n8n-workflow';
 import { parseContactList, parseInviteCode, validateGroupId } from '../helpers/chatId';
-import { buildMediaBody, type MediaInput } from '../helpers/media';
 import { fetchPaged } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
+import { readMediaInput } from './media';
 
 /** Group operations that are a single call with no body: method and path under the group. */
 const SIMPLE_OPERATIONS: Record<string, { method: IHttpRequestMethods; path: string }> = {
@@ -148,7 +148,14 @@ export async function executeGroup(
 			return await request('PUT', `${groupPath()}/settings`, { body });
 		}
 		case 'setPicture':
-			return await request('PUT', `${groupPath()}/picture`, { body: await getPicture(ctx, i) });
+			return await request('PUT', `${groupPath()}/picture`, {
+				body: await readMediaInput(
+					ctx,
+					i,
+					{ source: 'pictureSource', url: 'pictureUrl', binary: 'pictureBinaryField' },
+					{ accept: 'image', label: 'The group picture' },
+				),
+			});
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
@@ -185,33 +192,6 @@ function getParticipants(
 function getInviteCode(ctx: IExecuteFunctions, i: number): string {
 	try {
 		return parseInviteCode(ctx.getNodeParameter('inviteCode', i));
-	} catch (error) {
-		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
-	}
-}
-
-/** The image for Set Picture: `{ url }` or `{ base64, mimetype }`. */
-async function getPicture(ctx: IExecuteFunctions, i: number): Promise<IDataObject> {
-	let input: MediaInput;
-	if (ctx.getNodeParameter('pictureSource', i) === 'binary') {
-		const field = ctx.getNodeParameter('pictureBinaryField', i) as string;
-		const binary = ctx.helpers.assertBinaryData(i, field);
-		if (!binary.mimeType?.startsWith('image/')) {
-			throw new NodeOperationError(
-				ctx.getNode(),
-				`The group picture must be an image, but "${field}" is ${binary.mimeType || 'of unknown type'}`,
-				{ itemIndex: i },
-			);
-		}
-		const data = await ctx.helpers.getBinaryDataBuffer(i, field);
-		input = { source: 'binary', data, mimeType: binary.mimeType };
-	} else {
-		input = { source: 'url', url: String(ctx.getNodeParameter('pictureUrl', i) ?? '') };
-	}
-	try {
-		// SetGroupPictureDto has no file name.
-		const { url, base64, mimetype } = buildMediaBody(input);
-		return url ? { url } : { base64, mimetype };
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}

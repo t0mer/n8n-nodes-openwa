@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_BINARY_BYTES, assertBinarySize, buildMediaBody } from '../nodes/OpenWa/helpers/media';
+import {
+	MAX_BINARY_BYTES,
+	assertBinarySize,
+	buildMediaBody,
+	parseContentDispositionFilename,
+} from '../nodes/OpenWa/helpers/media';
 
 describe('buildMediaBody — URL source', () => {
 	it('passes through a trimmed http(s) URL', () => {
@@ -53,5 +58,26 @@ describe('assertBinarySize', () => {
 
 	it('keeps base64 of the limit inside the 25 MB body cap', () => {
 		expect(Math.ceil(MAX_BINARY_BYTES / 3) * 4).toBeLessThan(25 * 1024 * 1024);
+	});
+});
+
+describe('parseContentDispositionFilename', () => {
+	it.each([
+		['attachment; filename="photo.jpg"', 'photo.jpg'],
+		['attachment; filename=report.pdf', 'report.pdf'],
+		['attachment; filename="a \\"quoted\\" name.txt"', 'a "quoted" name.txt'],
+		[
+			'attachment; filename="fallback.ogg"; filename*=UTF-8\'\'%D7%A9%D7%9C%D7%95%D7%9D.ogg',
+			'שלום.ogg',
+		],
+		['attachment; filename*=UTF-8\'\'bad%E0%A4%A.txt; filename="safe.txt"', 'safe.txt'],
+	])('parses %j', (header, expected) => {
+		expect(parseContentDispositionFilename(header)).toBe(expected);
+	});
+
+	it('returns undefined when there is no file name', () => {
+		expect(parseContentDispositionFilename('attachment')).toBeUndefined();
+		expect(parseContentDispositionFilename(undefined)).toBeUndefined();
+		expect(parseContentDispositionFilename('attachment; filename=""')).toBeUndefined();
 	});
 });

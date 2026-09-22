@@ -1,4 +1,10 @@
-import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
+import {
+	NodeOperationError,
+	type IDataObject,
+	type IExecuteFunctions,
+	type IN8nHttpFullResponse,
+	type INodeExecutionData,
+} from 'n8n-workflow';
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS } from '../descriptions/media';
 import { QUOTE_OPERATIONS, SEND_OPERATIONS } from '../descriptions/message';
 import {
@@ -9,7 +15,7 @@ import {
 	validateGroupId,
 } from '../helpers/chatId';
 import { pairsToObject, parseCoordinate, parsePollOptions } from '../helpers/fields';
-import { buildMediaBody, type MediaInput } from '../helpers/media';
+import { buildMediaBody, parseContentDispositionFilename, type MediaInput } from '../helpers/media';
 import { fetchByCursor } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
@@ -59,11 +65,12 @@ export async function executeMessage(
 	ctx: IExecuteFunctions,
 	i: number,
 	sessionId: string,
-): Promise<IDataObject | IDataObject[]> {
+): Promise<IDataObject | IDataObject[] | INodeExecutionData> {
 	const operation = ctx.getNodeParameter('operation', i) as string;
 	if (operation === 'getAll') return await getMessages(ctx, i, sessionId);
 
 	const chatId = getChatId(ctx, i);
+	if (operation === 'downloadMedia') return await downloadMedia(ctx, i, sessionId, chatId);
 	const options = ctx.getNodeParameter('options', i, {}) as IDataObject;
 
 	const spec = OPERATIONS[operation];
@@ -128,6 +135,47 @@ async function getMessages(
 		(message) => (message.id === undefined ? undefined : String(message.id)),
 		max,
 	);
+}
+
+/** A message's media as a binary item, with the file name and type the gateway reports. */
+async function downloadMedia(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+	chatId: string,
+): Promise<INodeExecutionData> {
+	const messageId = getMessageId(ctx, i);
+	const field = String(ctx.getNodeParameter('outputBinaryField', i, 'data') ?? '').trim() || 'data';
+	const response = (await openWaApiRequest.call(
+		ctx,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(chatId)}/${encodeURIComponent(messageId)}/media`,
+		{ sessionId, itemIndex: i, raw: true },
+	)) as IN8nHttpFullResponse;
+
+	const body = response.body as Buffer | ArrayBuffer;
+	const data = Buffer.isBuffer(body) ? body : Buffer.from(body);
+	const header = (name: string) => {
+		const value = response.headers?.[name];
+		return Array.isArray(value) ? value[0] : value;
+	};
+	const mimeType =
+		String(header('content-type') ?? '')
+			.split(';')[0]
+			.trim() || undefined;
+	const fileName = parseContentDispositionFilename(header('content-disposition'));
+
+	const binary = await ctx.helpers.prepareBinaryData(data, fileName, mimeType);
+	return {
+		json: {
+			chatId,
+			messageId,
+			fileName: binary.fileName,
+			mimeType: binary.mimeType,
+			fileSize: data.length,
+		},
+		binary: { [field]: binary },
+	};
 }
 
 /** Resolve and validate the recipient chat ID for an item. */

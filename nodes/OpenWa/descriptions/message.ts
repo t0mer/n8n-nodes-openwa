@@ -37,6 +37,12 @@ export const messageOperations: INodeProperties = {
 			description: 'Delete a message for everyone or only for this account',
 		},
 		{
+			name: 'Download Media',
+			value: 'downloadMedia',
+			action: 'Download message media',
+			description: 'Download the image, video, audio or document of a message as binary data',
+		},
+		{
 			name: 'Edit',
 			value: 'edit',
 			action: 'Edit a message',

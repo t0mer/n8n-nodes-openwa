@@ -12,6 +12,7 @@ export const MESSAGE_ID_OPERATIONS = [
 	'unpin',
 	'star',
 	'unstar',
+	'downloadMedia',
 ];
 
 export const messageActionFields: INodeProperties[] = [
@@ -67,5 +68,14 @@ export const messageActionFields: INodeProperties[] = [
 		default: 86400,
 		displayOptions: { show: { resource: ['message'], operation: ['pin'] } },
 		description: 'How long the message stays pinned',
+	},
+	{
+		displayName: 'Put Output File in Field',
+		name: 'outputBinaryField',
+		type: 'string',
+		default: 'data',
+		required: true,
+		displayOptions: { show: { resource: ['message'], operation: ['downloadMedia'] } },
+		hint: 'The name of the output binary field to put the file in',
 	},
 ];

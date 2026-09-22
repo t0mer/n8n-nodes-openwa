@@ -447,7 +447,11 @@ async function buildMediaRequestBody(
 	if (operation === 'sendAudio') {
 		body.ptt = ctx.getNodeParameter('ptt', i, false) as boolean;
 		if (body.ptt && ctx.getNodeParameter('convertToVoiceNote', i, false)) {
-			return { ...body, ...(await convertToVoiceNote(ctx, i, sessionId, body)) };
+			const voice = await convertToVoiceNote(ctx, i, sessionId, body);
+			// The converted bytes replace the original source and its file name.
+			delete body.url;
+			delete body.filename;
+			return { ...body, ...voice };
 		}
 	}
 	return body;
@@ -455,7 +459,7 @@ async function buildMediaRequestBody(
 
 /**
  * Have the gateway convert the audio in `media` (url or base64) to Ogg/Opus, and return the
- * fields that replace it in the send-audio body.
+ * `base64`/`mimetype` to send instead.
  */
 async function convertToVoiceNote(
 	ctx: IExecuteFunctions,
@@ -478,10 +482,5 @@ async function convertToVoiceNote(
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
-	return {
-		url: undefined,
-		filename: undefined,
-		base64: converted.base64,
-		mimetype: converted.mimetype,
-	};
+	return { base64: converted.base64, mimetype: converted.mimetype };
 }

@@ -11,6 +11,8 @@ import { openWaApiRequest } from '../transport/request';
 /** Group operations that are a single call with no body: method and path under the group. */
 const SIMPLE_OPERATIONS: Record<string, { method: IHttpRequestMethods; path: string }> = {
 	get: { method: 'GET', path: '' },
+	revokeInviteLink: { method: 'POST', path: '/invite-code/revoke' },
+	getInviteLink: { method: 'GET', path: '/invite-code' },
 	getMembershipRequests: { method: 'GET', path: '/membership-requests' },
 };
 

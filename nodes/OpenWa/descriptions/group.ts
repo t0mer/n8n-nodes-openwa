@@ -17,6 +17,8 @@ export const GROUP_ID_OPERATIONS = [
 	'getMembershipRequests',
 	'approveRequests',
 	'rejectRequests',
+	'getInviteLink',
+	'revokeInviteLink',
 ];
 
 /** Operations that take a Participants list. */
@@ -66,6 +68,12 @@ export const groupOperations: INodeProperties = {
 			description: 'Get a group with its settings and participants',
 		},
 		{
+			name: 'Get Invite Link',
+			value: 'getInviteLink',
+			action: 'Get the invite link of a group',
+			description: 'Get the invite code and link of a group (requires admin)',
+		},
+		{
 			name: 'Get Many',
 			value: 'getAll',
 			action: 'Get many groups',
@@ -100,6 +108,13 @@ export const groupOperations: INodeProperties = {
 			value: 'removeParticipants',
 			action: 'Remove participants from a group',
 			description: 'Remove members from a group (requires admin). Changes the group.',
+		},
+		{
+			name: 'Revoke Invite Link',
+			value: 'revokeInviteLink',
+			action: 'Revoke the invite link of a group',
+			description:
+				'Invalidate the current invite link and generate a new one (requires admin). Changes the group.',
 		},
 		{
 			name: 'Update',

@@ -13,6 +13,12 @@ export const messageOperations: INodeProperties = {
 	displayOptions: { show: { resource: ['message'] } },
 	options: [
 		{
+			name: 'Delete',
+			value: 'delete',
+			action: 'Delete a message',
+			description: 'Delete a message for everyone or only for this account',
+		},
+		{
 			name: 'Edit',
 			value: 'edit',
 			action: 'Edit a message',

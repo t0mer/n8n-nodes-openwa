@@ -1,7 +1,7 @@
 import type { INodeProperties } from 'n8n-workflow';
 
 /** Operations that act on an existing message, identified by Message ID. */
-export const MESSAGE_ID_OPERATIONS = ['reply', 'react', 'forward', 'edit'];
+export const MESSAGE_ID_OPERATIONS = ['reply', 'react', 'forward', 'edit', 'delete'];
 
 export const messageActionFields: INodeProperties[] = [
 	{
@@ -34,5 +34,14 @@ export const messageActionFields: INodeProperties[] = [
 		displayOptions: { show: { resource: ['message'], operation: ['forward'] } },
 		description:
 			'The chat that contains the message to forward: a phone number, a contact ID (@c.us / @lid) or a group ID (@g.us). The recipient above is where it is forwarded to.',
+	},
+	{
+		displayName: 'Delete for Everyone',
+		name: 'forEveryone',
+		type: 'boolean',
+		default: true,
+		displayOptions: { show: { resource: ['message'], operation: ['delete'] } },
+		description:
+			'Whether to delete the message for everyone in the chat. When off, it is deleted only on this account.',
 	},
 ];

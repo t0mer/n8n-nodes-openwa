@@ -23,6 +23,7 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	delete: { endpoint: 'delete', build: buildDeleteBody },
 	edit: { endpoint: 'edit', build: buildEditBody },
 	forward: { endpoint: 'forward', build: buildForwardBody },
 	react: { endpoint: 'react', build: buildReactBody },
@@ -152,6 +153,14 @@ function buildEditBody(
 		messageId: getMessageId(ctx, i),
 		body: getText(ctx, i),
 		...getMentions(ctx, i, options),
+	};
+}
+
+function buildDeleteBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	return {
+		chatId,
+		messageId: getMessageId(ctx, i),
+		forEveryone: ctx.getNodeParameter('forEveryone', i, true) as boolean,
 	};
 }
 

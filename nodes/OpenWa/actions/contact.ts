@@ -40,6 +40,10 @@ export async function executeContact(
 			return await request('GET', `/${encodeURIComponent(getContactId(ctx, i))}`);
 		case 'getProfilePicture':
 			return await request('GET', `/${encodeURIComponent(getContactId(ctx, i))}/profile-picture`);
+		case 'block':
+			return await request('POST', `/${encodeURIComponent(getContactId(ctx, i))}/block`);
+		case 'unblock':
+			return await request('DELETE', `/${encodeURIComponent(getContactId(ctx, i))}/block`);
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,

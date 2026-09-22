@@ -10,6 +10,12 @@ export const contactOperations: INodeProperties = {
 	displayOptions: { show: { resource: ['contact'] } },
 	options: [
 		{
+			name: 'Block',
+			value: 'block',
+			action: 'Block a contact',
+			description: 'Block a contact on the session account',
+		},
+		{
 			name: 'Check Number',
 			value: 'checkNumber',
 			action: 'Check a phone number',
@@ -33,12 +39,18 @@ export const contactOperations: INodeProperties = {
 			action: 'Get a profile picture',
 			description: 'Get the profile picture URL of a contact (null when hidden or unset)',
 		},
+		{
+			name: 'Unblock',
+			value: 'unblock',
+			action: 'Unblock a contact',
+			description: 'Unblock a contact on the session account',
+		},
 	],
 	default: 'getAll',
 };
 
 /** Operations that act on a single existing contact. */
-const CONTACT_ID_OPERATIONS = ['get', 'getProfilePicture'];
+const CONTACT_ID_OPERATIONS = ['get', 'getProfilePicture', 'block', 'unblock'];
 
 export const contactFields: INodeProperties[] = [
 	{

@@ -27,12 +27,18 @@ export const contactOperations: INodeProperties = {
 			action: 'Get many contacts',
 			description: 'List the contacts known to the session',
 		},
+		{
+			name: 'Get Profile Picture',
+			value: 'getProfilePicture',
+			action: 'Get a profile picture',
+			description: 'Get the profile picture URL of a contact (null when hidden or unset)',
+		},
 	],
 	default: 'getAll',
 };
 
 /** Operations that act on a single existing contact. */
-const CONTACT_ID_OPERATIONS = ['get'];
+const CONTACT_ID_OPERATIONS = ['get', 'getProfilePicture'];
 
 export const contactFields: INodeProperties[] = [
 	{

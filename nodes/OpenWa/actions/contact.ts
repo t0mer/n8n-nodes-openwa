@@ -38,6 +38,8 @@ export async function executeContact(
 		}
 		case 'get':
 			return await request('GET', `/${encodeURIComponent(getContactId(ctx, i))}`);
+		case 'getProfilePicture':
+			return await request('GET', `/${encodeURIComponent(getContactId(ctx, i))}/profile-picture`);
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,

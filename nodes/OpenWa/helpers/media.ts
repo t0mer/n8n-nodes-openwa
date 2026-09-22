@@ -28,7 +28,7 @@ export function assertBinarySize(bytes: number): void {
 /** Build the media part of a send request from a URL or a binary buffer. */
 export function buildMediaBody(input: MediaInput): MediaBody {
 	if (input.source === 'url') {
-		const url = input.url.trim();
+		const url = String(input.url ?? '').trim();
 		const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(url)?.[1].toLowerCase();
 		if (scheme && scheme !== 'http' && scheme !== 'https') {
 			throw new Error(`Media URL must use http or https, got "${scheme}:"`);

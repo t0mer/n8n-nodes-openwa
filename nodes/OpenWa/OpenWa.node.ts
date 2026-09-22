@@ -12,12 +12,7 @@ import {
 import { recipientFields, sessionField } from './descriptions/common';
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS, mediaFields } from './descriptions/media';
 import { textFields, textOptions } from './descriptions/text';
-import {
-	chatIdUser,
-	normalizeContactId,
-	parseMentions,
-	validateGroupId,
-} from './helpers/chatId';
+import { chatIdUser, normalizeContactId, parseMentions, validateGroupId } from './helpers/chatId';
 import { buildMediaBody, type MediaInput } from './helpers/media';
 import { searchGroups, searchSessions } from './methods/listSearch';
 import { openWaApiRequest } from './transport/request';
@@ -134,8 +129,8 @@ export class OpenWa implements INodeType {
 		for (let i = 0; i < items.length; i++) {
 			try {
 				const operation = this.getNodeParameter('operation', i) as string;
-				const sessionId = (
-					this.getNodeParameter('session', i, '', { extractValue: true }) as string
+				const sessionId = String(
+					this.getNodeParameter('session', i, '', { extractValue: true }) ?? '',
 				).trim();
 				if (!sessionId) {
 					throw new NodeOperationError(this.getNode(), 'Session is required', { itemIndex: i });
@@ -194,9 +189,9 @@ export class OpenWa implements INodeType {
 function getChatId(ctx: IExecuteFunctions, i: number): string {
 	try {
 		if (ctx.getNodeParameter('recipientType', i) === 'group') {
-			return validateGroupId(ctx.getNodeParameter('group', i, '', { extractValue: true }) as string);
+			return validateGroupId(ctx.getNodeParameter('group', i, '', { extractValue: true }));
 		}
-		return normalizeContactId(ctx.getNodeParameter('phoneNumber', i) as string);
+		return normalizeContactId(ctx.getNodeParameter('phoneNumber', i));
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
@@ -229,11 +224,11 @@ function buildTextBody(
 	chatId: string,
 	options: IDataObject,
 ): IDataObject {
-	const body: IDataObject = { chatId, text: ctx.getNodeParameter('text', i) as string };
+	const body: IDataObject = { chatId, text: String(ctx.getNodeParameter('text', i) ?? '') };
 	if (options.linkPreview !== undefined) body.linkPreview = options.linkPreview;
 	if (options.mentions) {
 		try {
-			body.mentions = parseMentions(options.mentions as string);
+			body.mentions = parseMentions(options.mentions);
 		} catch (error) {
 			throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 		}
@@ -254,7 +249,7 @@ async function buildMediaRequestBody(
 		const data = await ctx.helpers.getBinaryDataBuffer(i, field);
 		input = { source: 'binary', data, mimeType: binary.mimeType, fileName: binary.fileName };
 	} else {
-		input = { source: 'url', url: ctx.getNodeParameter('mediaUrl', i) as string };
+		input = { source: 'url', url: String(ctx.getNodeParameter('mediaUrl', i) ?? '') };
 	}
 
 	let body: IDataObject;
@@ -265,11 +260,11 @@ async function buildMediaRequestBody(
 	}
 
 	if (CAPTION_OPERATIONS.includes(operation)) {
-		const caption = ctx.getNodeParameter('caption', i, '') as string;
+		const caption = String(ctx.getNodeParameter('caption', i, '') ?? '');
 		if (caption) body.caption = caption;
 	}
 	if (operation === 'sendDocument') {
-		const fileName = (ctx.getNodeParameter('fileName', i, '') as string).trim();
+		const fileName = String(ctx.getNodeParameter('fileName', i, '') ?? '').trim();
 		if (fileName) body.filename = fileName;
 	}
 	if (operation === 'sendAudio') {

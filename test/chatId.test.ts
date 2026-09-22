@@ -72,3 +72,16 @@ describe('chatIdUser', () => {
 		expect(chatIdUser('972501234567@c.us')).toBe('972501234567');
 	});
 });
+
+describe('non-string expression values', () => {
+	it('accepts numbers from expressions', () => {
+		expect(normalizeContactId(972501234567)).toBe('972501234567@c.us');
+		expect(parseMentions(972501234567)).toEqual(['972501234567@c.us']);
+	});
+
+	it('treats null/undefined as empty', () => {
+		expect(() => normalizeContactId(undefined)).toThrow('required');
+		expect(parseMentions(null)).toEqual([]);
+		expect(() => validateGroupId(undefined)).toThrow('not a valid group ID');
+	});
+});

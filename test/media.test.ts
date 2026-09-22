@@ -14,7 +14,9 @@ describe('buildMediaBody — URL source', () => {
 	it('rejects invalid URLs and non-http protocols', () => {
 		expect(() => buildMediaBody({ source: 'url', url: 'not a url' })).toThrow('not a valid URL');
 		expect(() => buildMediaBody({ source: 'url', url: '' })).toThrow('not a valid URL');
-		expect(() => buildMediaBody({ source: 'url', url: 'file:///etc/passwd' })).toThrow('http or https');
+		expect(() => buildMediaBody({ source: 'url', url: 'file:///etc/passwd' })).toThrow(
+			'http or https',
+		);
 	});
 });
 

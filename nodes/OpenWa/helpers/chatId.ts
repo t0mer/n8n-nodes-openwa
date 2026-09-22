@@ -4,8 +4,8 @@ const CONTACT_SUFFIXES = ['@c.us', '@lid'];
  * Normalize a contact into a WhatsApp chat ID.
  * Accepts a phone number in any common format (`+972 50-123 4567`) or a full `@c.us` / `@lid` JID.
  */
-export function normalizeContactId(input: string): string {
-	const value = input.trim();
+export function normalizeContactId(input: unknown): string {
+	const value = String(input ?? '').trim();
 	if (!value) throw new Error('Phone number is required');
 
 	if (value.includes('@')) {
@@ -20,14 +20,16 @@ export function normalizeContactId(input: string): string {
 
 	const digits = value.replace(/[+\s\-().]/g, '');
 	if (!/^\d+$/.test(digits)) {
-		throw new Error(`"${value}" is not a valid phone number — use international format, e.g. 972501234567`);
+		throw new Error(
+			`"${value}" is not a valid phone number — use international format, e.g. 972501234567`,
+		);
 	}
 	return `${digits}@c.us`;
 }
 
 /** Validate a group chat ID (`<id>@g.us`). */
-export function validateGroupId(input: string): string {
-	const value = input.trim();
+export function validateGroupId(input: unknown): string {
+	const value = String(input ?? '').trim();
 	if (!/^[^@\s]+@g\.us$/.test(value)) {
 		throw new Error(`"${value}" is not a valid group ID (expected <id>@g.us)`);
 	}
@@ -35,8 +37,8 @@ export function validateGroupId(input: string): string {
 }
 
 /** Parse a comma-separated list of numbers into `@c.us` mention IDs. */
-export function parseMentions(input: string): string[] {
-	return input
+export function parseMentions(input: unknown): string[] {
+	return String(input ?? '')
 		.split(',')
 		.map((entry) => entry.trim())
 		.filter((entry) => entry.length > 0)

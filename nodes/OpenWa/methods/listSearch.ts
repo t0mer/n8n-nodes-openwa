@@ -18,6 +18,11 @@ interface Contact {
 	pushName?: string;
 }
 
+interface Template {
+	id: string;
+	name: string;
+}
+
 interface Session {
 	id: string;
 	name: string;
@@ -102,5 +107,24 @@ export async function searchContacts(
 			})
 			.sort((a, b) => a.name.localeCompare(b.name)),
 		paginationToken: contacts.length === PAGE_SIZE ? String(offset + PAGE_SIZE) : undefined,
+	};
+}
+
+export async function searchTemplates(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'templates');
+	const templates = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/templates`,
+		{ sessionId },
+	)) as Template[];
+	return {
+		results: templates
+			.filter((template) => matches(filter, template.name, template.id))
+			.sort((a, b) => a.name.localeCompare(b.name))
+			.map((template) => ({ name: template.name, value: template.id })),
 	};
 }

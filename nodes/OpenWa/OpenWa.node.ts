@@ -2,6 +2,7 @@ import {
 	NodeApiError,
 	NodeConnectionTypes,
 	NodeOperationError,
+	type IDataObject,
 	type IExecuteFunctions,
 	type INodeExecutionData,
 	type INodeType,
@@ -11,14 +12,33 @@ import {
 import { recipientFields, sessionField } from './descriptions/common';
 import { executeContact } from './actions/contact';
 import { executeMessage } from './actions/message';
+import { executeTemplate } from './actions/template';
 import { messageActionFields } from './descriptions/actions';
 import { contactFields, contactOperations } from './descriptions/contact';
 import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
 import { pollFields } from './descriptions/poll';
 import { messageOperations, messageOptions } from './descriptions/message';
+import { templateFields, templateOperations } from './descriptions/template';
 import { textFields } from './descriptions/text';
-import { searchContacts, searchGroups, searchSessions } from './methods/listSearch';
+import {
+	searchContacts,
+	searchGroups,
+	searchSessions,
+	searchTemplates,
+} from './methods/listSearch';
+
+type Executor = (
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+) => Promise<IDataObject | IDataObject[]>;
+
+const EXECUTORS: Record<string, Executor> = {
+	contact: executeContact,
+	message: executeMessage,
+	template: executeTemplate,
+};
 
 export class OpenWa implements INodeType {
 	description: INodeTypeDescription = {
@@ -45,13 +65,16 @@ export class OpenWa implements INodeType {
 				options: [
 					{ name: 'Contact', value: 'contact' },
 					{ name: 'Message', value: 'message' },
+					{ name: 'Template', value: 'template' },
 				],
 				default: 'message',
 			},
 			messageOperations,
 			contactOperations,
+			templateOperations,
 			sessionField,
 			...contactFields,
+			...templateFields,
 			...recipientFields,
 			...messageActionFields,
 			...textFields,
@@ -67,6 +90,7 @@ export class OpenWa implements INodeType {
 			searchSessions,
 			searchGroups,
 			searchContacts,
+			searchTemplates,
 		},
 	};
 
@@ -84,10 +108,13 @@ export class OpenWa implements INodeType {
 				}
 
 				const resource = this.getNodeParameter('resource', i) as string;
-				const response =
-					resource === 'contact'
-						? await executeContact(this, i, sessionId)
-						: await executeMessage(this, i, sessionId);
+				const executor = EXECUTORS[resource];
+				if (!executor) {
+					throw new NodeOperationError(this.getNode(), `Unsupported resource "${resource}"`, {
+						itemIndex: i,
+					});
+				}
+				const response = await executor(this, i, sessionId);
 
 				for (const json of Array.isArray(response) ? response : [response]) {
 					returnData.push({ json, pairedItem: { item: i } });

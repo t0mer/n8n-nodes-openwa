@@ -6,7 +6,7 @@ const showFor = (operation: string[]): IDisplayOptions => ({
 });
 
 /** Group operations that act on one existing group. */
-export const GROUP_ID_OPERATIONS = ['get'];
+export const GROUP_ID_OPERATIONS = ['get', 'getParticipants'];
 
 export const groupOperations: INodeProperties = {
 	displayName: 'Operation',
@@ -26,6 +26,12 @@ export const groupOperations: INodeProperties = {
 			value: 'getAll',
 			action: 'Get many groups',
 			description: 'List the groups the session account is in',
+		},
+		{
+			name: 'Get Participants',
+			value: 'getParticipants',
+			action: 'Get group participants',
+			description: 'List the members of a group, one item per participant',
 		},
 	],
 	default: 'getAll',

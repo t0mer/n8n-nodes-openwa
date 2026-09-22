@@ -47,6 +47,10 @@ export async function executeGroup(
 				max,
 			);
 		}
+		case 'getParticipants': {
+			const group = (await request('GET', groupPath())) as { participants?: IDataObject[] };
+			return group.participants ?? [];
+		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,

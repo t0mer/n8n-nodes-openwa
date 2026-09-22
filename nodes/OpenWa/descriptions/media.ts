@@ -6,6 +6,7 @@ export const MEDIA_ENDPOINTS: Record<string, string> = {
 	sendVideo: 'send-video',
 	sendAudio: 'send-audio',
 	sendDocument: 'send-document',
+	sendSticker: 'send-sticker',
 };
 
 /** Operations whose DTO renders a caption. */

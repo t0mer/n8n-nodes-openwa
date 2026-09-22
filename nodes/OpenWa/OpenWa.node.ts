@@ -68,6 +68,12 @@ export class OpenWa implements INodeType {
 						description: 'Send an image to a contact or group',
 					},
 					{
+						name: 'Send Sticker',
+						value: 'sendSticker',
+						action: 'Send a sticker',
+						description: 'Send a sticker to a contact or group',
+					},
+					{
 						name: 'Send Text',
 						value: 'sendText',
 						action: 'Send a text message',

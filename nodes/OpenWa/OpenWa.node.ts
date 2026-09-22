@@ -13,6 +13,7 @@ import { recipientFields, sessionField } from './descriptions/common';
 import { executeContact } from './actions/contact';
 import { executeGroup } from './actions/group';
 import { executeMessage } from './actions/message';
+import { executeProfile } from './actions/profile';
 import { executeTemplate } from './actions/template';
 import { messageActionFields } from './descriptions/actions';
 import { contactFields, contactOperations } from './descriptions/contact';
@@ -22,6 +23,7 @@ import { historyFields } from './descriptions/history';
 import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
 import { pollFields } from './descriptions/poll';
+import { profileFields, profileOperations } from './descriptions/profile';
 import { messageOperations, messageOptions } from './descriptions/message';
 import { sendTemplateFields, templateFields, templateOperations } from './descriptions/template';
 import { textFields } from './descriptions/text';
@@ -48,6 +50,7 @@ const EXECUTORS: Record<string, Executor> = {
 	contact: executeContact,
 	group: executeGroup,
 	message: executeMessage,
+	profile: executeProfile,
 	template: executeTemplate,
 };
 
@@ -77,6 +80,7 @@ export class OpenWa implements INodeType {
 					{ name: 'Contact', value: 'contact' },
 					{ name: 'Group', value: 'group' },
 					{ name: 'Message', value: 'message' },
+					{ name: 'Profile', value: 'profile' },
 					{ name: 'Template', value: 'template' },
 				],
 				default: 'message',
@@ -85,10 +89,12 @@ export class OpenWa implements INodeType {
 			contactOperations,
 			templateOperations,
 			groupOperations,
+			profileOperations,
 			sessionField,
 			...contactFields,
 			...templateFields,
 			...groupFields,
+			...profileFields,
 			...recipientFields,
 			...messageActionFields,
 			...textFields,

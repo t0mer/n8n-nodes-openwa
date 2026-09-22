@@ -55,8 +55,17 @@ export async function executeContact(
 
 /** The selected contact as a normalized chat ID (phone numbers get @c.us appended). */
 function getContactId(ctx: IExecuteFunctions, i: number): string {
+	const value = String(ctx.getNodeParameter('contact', i, '', { extractValue: true }) ?? '').trim();
+	if (!value) {
+		throw new NodeOperationError(ctx.getNode(), 'Contact is required', { itemIndex: i });
+	}
+	if (value.endsWith('@g.us')) {
+		throw new NodeOperationError(ctx.getNode(), `"${value}" is a group ID, not a contact`, {
+			itemIndex: i,
+		});
+	}
 	try {
-		return normalizeContactId(ctx.getNodeParameter('contact', i, '', { extractValue: true }));
+		return normalizeContactId(value);
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}

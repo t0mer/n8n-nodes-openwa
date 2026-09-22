@@ -11,8 +11,8 @@ import {
 } from 'n8n-workflow';
 import { recipientFields, sessionField } from './descriptions/common';
 import { textFields, textOptions } from './descriptions/text';
-import { normalizeContactId, parseMentions } from './helpers/chatId';
-import { searchSessions } from './methods/listSearch';
+import { normalizeContactId, parseMentions, validateGroupId } from './helpers/chatId';
+import { searchGroups, searchSessions } from './methods/listSearch';
 import { openWaApiRequest } from './transport/request';
 
 export class OpenWa implements INodeType {
@@ -74,6 +74,7 @@ export class OpenWa implements INodeType {
 	methods = {
 		listSearch: {
 			searchSessions,
+			searchGroups,
 		},
 	};
 
@@ -138,6 +139,9 @@ export class OpenWa implements INodeType {
 /** Resolve and validate the recipient chat ID for an item. */
 function getChatId(ctx: IExecuteFunctions, i: number): string {
 	try {
+		if (ctx.getNodeParameter('recipientType', i) === 'group') {
+			return validateGroupId(ctx.getNodeParameter('group', i, '', { extractValue: true }) as string);
+		}
 		return normalizeContactId(ctx.getNodeParameter('phoneNumber', i) as string);
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });

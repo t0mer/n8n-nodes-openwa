@@ -14,6 +14,9 @@ export const GROUP_ID_OPERATIONS = [
 	'removeParticipants',
 	'promoteParticipants',
 	'demoteParticipants',
+	'getMembershipRequests',
+	'approveRequests',
+	'rejectRequests',
 ];
 
 /** Operations that take a Participants list. */
@@ -37,6 +40,12 @@ export const groupOperations: INodeProperties = {
 			value: 'addParticipants',
 			action: 'Add participants to a group',
 			description: 'Add members to a group (requires admin)',
+		},
+		{
+			name: 'Approve Requests',
+			value: 'approveRequests',
+			action: 'Approve join requests',
+			description: 'Approve pending requests to join a group (requires admin)',
 		},
 		{
 			name: 'Create',
@@ -63,6 +72,12 @@ export const groupOperations: INodeProperties = {
 			description: 'List the groups the session account is in',
 		},
 		{
+			name: 'Get Membership Requests',
+			value: 'getMembershipRequests',
+			action: 'Get pending join requests',
+			description: 'List pending requests to join a group, one item per request',
+		},
+		{
 			name: 'Get Participants',
 			value: 'getParticipants',
 			action: 'Get group participants',
@@ -73,6 +88,12 @@ export const groupOperations: INodeProperties = {
 			value: 'promoteParticipants',
 			action: 'Promote participants to admin',
 			description: 'Make members group admins (requires admin)',
+		},
+		{
+			name: 'Reject Requests',
+			value: 'rejectRequests',
+			action: 'Reject join requests',
+			description: 'Reject pending requests to join a group (requires admin)',
 		},
 		{
 			name: 'Remove Participants',
@@ -153,5 +174,15 @@ export const groupFields: INodeProperties[] = [
 				description: 'New group name (subject)',
 			},
 		],
+	},
+	{
+		displayName: 'Requesters',
+		name: 'requesters',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. 972501234567, 972509876543',
+		displayOptions: showFor(['approveRequests', 'rejectRequests']),
+		description:
+			'Comma-separated phone numbers or contact IDs of the requests to act on. Leave empty to act on every pending request.',
 	},
 ];

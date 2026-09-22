@@ -11,6 +11,7 @@ import { openWaApiRequest } from '../transport/request';
 /** Group operations that are a single call with no body: method and path under the group. */
 const SIMPLE_OPERATIONS: Record<string, { method: IHttpRequestMethods; path: string }> = {
 	get: { method: 'GET', path: '' },
+	getMembershipRequests: { method: 'GET', path: '/membership-requests' },
 };
 
 /** Operations that post a participants list: method and path under the group. */
@@ -95,6 +96,15 @@ export async function executeGroup(
 			}
 			return { success: true, groupId: getGroupId(ctx, i), updated };
 		}
+		case 'approveRequests':
+		case 'rejectRequests': {
+			const requesters = getParticipants(ctx, i, { field: 'requesters', optional: true });
+			const verb = operation === 'approveRequests' ? 'approve' : 'reject';
+			// No requesters means every pending request, which the API expresses by omitting the list.
+			return await request('POST', `${groupPath()}/membership-requests/${verb}`, {
+				body: requesters.length ? { participants: requesters } : {},
+			});
+		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
@@ -110,11 +120,15 @@ function getGroupId(ctx: IExecuteFunctions, i: number): string {
 	}
 }
 
-/** The Participants field as normalized contact IDs; empty is an error unless `optional`. */
-function getParticipants(ctx: IExecuteFunctions, i: number, optional = false): string[] {
+/** A contact-list field as normalized contact IDs; empty is an error unless `optional`. */
+function getParticipants(
+	ctx: IExecuteFunctions,
+	i: number,
+	{ field = 'participants', optional = false } = {},
+): string[] {
 	let participants: string[];
 	try {
-		participants = parseContactList(ctx.getNodeParameter('participants', i, ''));
+		participants = parseContactList(ctx.getNodeParameter(field, i, ''));
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}

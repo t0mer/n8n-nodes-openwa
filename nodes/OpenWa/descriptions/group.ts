@@ -248,14 +248,32 @@ export const groupFields: INodeProperties[] = [
 		],
 	},
 	{
+		displayName: 'Requests',
+		name: 'requestTarget',
+		type: 'options',
+		options: [
+			{ name: 'Specific Requesters', value: 'specific' },
+			{ name: 'All Pending Requests', value: 'all' },
+		],
+		default: 'specific',
+		displayOptions: showFor(['approveRequests', 'rejectRequests']),
+		description: 'Whether to act on the listed requesters only, or on every pending request',
+	},
+	{
 		displayName: 'Requesters',
 		name: 'requesters',
 		type: 'string',
 		default: '',
+		required: true,
 		placeholder: 'e.g. 972501234567, 972509876543',
-		displayOptions: showFor(['approveRequests', 'rejectRequests']),
-		description:
-			'Comma-separated phone numbers or contact IDs of the requests to act on. Leave empty to act on every pending request.',
+		displayOptions: {
+			show: {
+				resource: ['group'],
+				operation: ['approveRequests', 'rejectRequests'],
+				requestTarget: ['specific'],
+			},
+		},
+		description: 'Comma-separated phone numbers or contact IDs of the requests to act on',
 	},
 	{
 		displayName: 'Invite Link',

@@ -103,9 +103,16 @@ describe('executeGroup — bodies', () => {
 		]);
 	});
 
-	it('approve and reject send the requesters, or nothing to act on all pending', async () => {
+	it('approve and reject send the requesters, or nothing only when All Pending is chosen', async () => {
 		expect(
-			(await call({ operation: 'approveRequests', group, requesters: '972501234567' })).calls,
+			(
+				await call({
+					operation: 'approveRequests',
+					group,
+					requestTarget: 'specific',
+					requesters: '972501234567',
+				})
+			).calls,
 		).toEqual([
 			{
 				method: 'POST',
@@ -114,9 +121,22 @@ describe('executeGroup — bodies', () => {
 				qs: undefined,
 			},
 		]);
-		expect((await call({ operation: 'rejectRequests', group })).calls).toEqual([
+		expect(
+			(await call({ operation: 'rejectRequests', group, requestTarget: 'all' })).calls,
+		).toEqual([
 			{ method: 'POST', url: `${groupUrl}/membership-requests/reject`, body: {}, qs: undefined },
 		]);
+	});
+
+	it('refuses an empty requester list instead of acting on every pending request', async () => {
+		const { ctx, calls } = fakeContext({
+			operation: 'rejectRequests',
+			group,
+			requestTarget: 'specific',
+			requesters: '',
+		});
+		await expect(executeGroup(ctx, 0, 's1')).rejects.toThrow('Add at least one requester');
+		expect(calls).toHaveLength(0);
 	});
 
 	it('get join info and join accept a full invite link', async () => {

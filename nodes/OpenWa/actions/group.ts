@@ -105,11 +105,14 @@ export async function executeGroup(
 		}
 		case 'approveRequests':
 		case 'rejectRequests': {
-			const requesters = getParticipants(ctx, i, { field: 'requesters', optional: true });
 			const verb = operation === 'approveRequests' ? 'approve' : 'reject';
-			// No requesters means every pending request, which the API expresses by omitting the list.
+			// Acting on every pending request must be chosen explicitly: the API does that when the
+			// list is omitted, so an empty Requesters value (e.g. a missing expression field) must not.
+			const all = ctx.getNodeParameter('requestTarget', i, 'specific') === 'all';
 			return await request('POST', `${groupPath()}/membership-requests/${verb}`, {
-				body: requesters.length ? { participants: requesters } : {},
+				body: all
+					? {}
+					: { participants: getParticipants(ctx, i, { field: 'requesters', label: 'requester' }) },
 			});
 		}
 		case 'getJoinInfo':
@@ -146,11 +149,11 @@ function getGroupId(ctx: IExecuteFunctions, i: number): string {
 	}
 }
 
-/** A contact-list field as normalized contact IDs; empty is an error unless `optional`. */
+/** A contact-list field as normalized contact IDs; an empty list is an error. */
 function getParticipants(
 	ctx: IExecuteFunctions,
 	i: number,
-	{ field = 'participants', optional = false } = {},
+	{ field = 'participants', label = 'participant' } = {},
 ): string[] {
 	let participants: string[];
 	try {
@@ -158,8 +161,8 @@ function getParticipants(
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
-	if (!optional && participants.length === 0) {
-		throw new NodeOperationError(ctx.getNode(), 'Add at least one participant', { itemIndex: i });
+	if (participants.length === 0) {
+		throw new NodeOperationError(ctx.getNode(), `Add at least one ${label}`, { itemIndex: i });
 	}
 	return participants;
 }

@@ -21,6 +21,9 @@ export const GROUP_ID_OPERATIONS = [
 	'revokeInviteLink',
 	'getSettings',
 	'updateSettings',
+	'getPicture',
+	'setPicture',
+	'removePicture',
 ];
 
 /** Operations that take a Participants list. */
@@ -100,6 +103,12 @@ export const groupOperations: INodeProperties = {
 			description: 'List the members of a group, one item per participant',
 		},
 		{
+			name: 'Get Picture',
+			value: 'getPicture',
+			action: 'Get the picture of a group',
+			description: 'Get the URL of the group picture (null when it has none)',
+		},
+		{
 			name: 'Get Settings',
 			value: 'getSettings',
 			action: 'Get group settings',
@@ -131,11 +140,24 @@ export const groupOperations: INodeProperties = {
 			description: 'Remove members from a group (requires admin). Changes the group.',
 		},
 		{
+			name: 'Remove Picture',
+			value: 'removePicture',
+			action: 'Remove the picture of a group',
+			description: 'Remove the group picture. Changes the group.',
+		},
+		{
 			name: 'Revoke Invite Link',
 			value: 'revokeInviteLink',
 			action: 'Revoke the invite link of a group',
 			description:
 				'Invalidate the current invite link and generate a new one (requires admin). Changes the group.',
+		},
+		{
+			name: 'Set Picture',
+			value: 'setPicture',
+			action: 'Set the picture of a group',
+			description:
+				'Set the group picture from a URL or binary image (requires admin when info is locked)',
 		},
 		{
 			name: 'Update',
@@ -284,5 +306,43 @@ export const groupFields: INodeProperties[] = [
 				default: 'admins',
 			},
 		],
+	},
+	{
+		displayName: 'Picture Source',
+		name: 'pictureSource',
+		type: 'options',
+		options: [
+			{ name: 'URL', value: 'url', description: 'The gateway downloads the image from a URL' },
+			{
+				name: 'Binary Data',
+				value: 'binary',
+				description: 'Upload an image from a previous node (up to 18 MB)',
+			},
+		],
+		default: 'url',
+		displayOptions: showFor(['setPicture']),
+	},
+	{
+		displayName: 'Picture URL',
+		name: 'pictureUrl',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. https://example.com/logo.jpg',
+		displayOptions: {
+			show: { resource: ['group'], operation: ['setPicture'], pictureSource: ['url'] },
+		},
+		description: 'Public http(s) URL of the image. The OpenWA gateway must be able to reach it.',
+	},
+	{
+		displayName: 'Input Binary Field',
+		name: 'pictureBinaryField',
+		type: 'string',
+		default: 'data',
+		required: true,
+		displayOptions: {
+			show: { resource: ['group'], operation: ['setPicture'], pictureSource: ['binary'] },
+		},
+		hint: 'The name of the input binary field containing the image',
 	},
 ];

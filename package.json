@@ -1,5 +1,5 @@
 {
-  "name": "n8n-nodes-openwa",
+  "name": "@t0mer/n8n-nodes-openwa",
   "version": "2026.9.0",
   "description": "n8n community node for sending WhatsApp messages through a self-hosted OpenWA gateway",
   "license": "MIT",

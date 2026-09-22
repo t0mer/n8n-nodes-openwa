@@ -1,7 +1,7 @@
 import type { INodeProperties } from 'n8n-workflow';
 import { locationOptions } from './location';
 import { MEDIA_ENDPOINTS } from './media';
-import { textOptions } from './text';
+import { LINK_PREVIEW_OPERATIONS, MENTION_OPERATIONS, textOptions } from './text';
 
 /** Operations that send a new message (these can pre-check the recipient's number). */
 export const SEND_OPERATIONS = [
@@ -154,13 +154,23 @@ export const messageOperations: INodeProperties = {
 	default: 'sendText',
 };
 
+/** Operations that have at least one entry in the Options collection. */
+const OPTION_OPERATIONS = [
+	...new Set([
+		...SEND_OPERATIONS,
+		...QUOTE_OPERATIONS,
+		...MENTION_OPERATIONS,
+		...LINK_PREVIEW_OPERATIONS,
+	]),
+];
+
 export const messageOptions: INodeProperties = {
 	displayName: 'Options',
 	name: 'options',
 	type: 'collection',
 	placeholder: 'Add Option',
 	default: {},
-	displayOptions: { show: { resource: ['message'] } },
+	displayOptions: { show: { resource: ['message'], operation: OPTION_OPERATIONS } },
 	options: [
 		{
 			displayName: 'Check Number Exists',

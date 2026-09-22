@@ -7,6 +7,10 @@
   "bugs": {
     "url": "https://github.com/t0mer/n8n-nodes-openwa/issues"
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "keywords": [
     "n8n-community-node-package",
     "n8n",

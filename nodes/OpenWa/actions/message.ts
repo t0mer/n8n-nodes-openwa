@@ -165,10 +165,13 @@ async function downloadMedia(
 		const value = response.headers?.[name];
 		return Array.isArray(value) ? value[0] : value;
 	};
+	// The gateway may label every file application/octet-stream; drop that so n8n infers the
+	// real type from the file name.
+	const contentType = String(header('content-type') ?? '')
+		.split(';')[0]
+		.trim();
 	const mimeType =
-		String(header('content-type') ?? '')
-			.split(';')[0]
-			.trim() || undefined;
+		contentType && contentType !== 'application/octet-stream' ? contentType : undefined;
 	const fileName = parseContentDispositionFilename(header('content-disposition'));
 
 	const binary = await ctx.helpers.prepareBinaryData(data, fileName, mimeType);

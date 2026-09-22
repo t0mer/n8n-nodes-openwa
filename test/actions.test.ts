@@ -372,6 +372,31 @@ describe('executeMessage — download media', () => {
 	});
 });
 
+describe('executeMessage — download media type detection', () => {
+	async function download(headers: Record<string, string>) {
+		const { ctx } = fakeContext(
+			{ ...contact, operation: 'downloadMedia', messageId: 'm1' },
+			{ body: Buffer.from('x'), headers, statusCode: 200 },
+		);
+		return (await executeMessage(ctx, 0, 's1')) as {
+			binary: Record<string, { fileName?: string; mimeType?: string }>;
+		};
+	}
+
+	it('leaves a generic octet-stream type for n8n to infer from the file name', async () => {
+		const item = await download({
+			'content-type': 'application/octet-stream',
+			'content-disposition': 'attachment; filename="x.jpg"',
+		});
+		expect(item.binary.data).toMatchObject({ fileName: 'x.jpg', mimeType: undefined });
+	});
+
+	it('copes with no headers at all', async () => {
+		const item = await download({});
+		expect(item.binary.data).toMatchObject({ fileName: undefined, mimeType: undefined });
+	});
+});
+
 describe('executeMessage — convert to voice note', () => {
 	const converted = { base64: 'T2dnUw==', mimetype: 'audio/ogg; codecs=opus', bytes: 5 };
 	const responder = (options: IHttpRequestOptions) =>

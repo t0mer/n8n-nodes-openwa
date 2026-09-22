@@ -100,7 +100,7 @@ Common fields:
 - **Media Source** (media operations):
   - `URL`: the gateway downloads the file itself.
   - `Binary Data`: sends the file from a binary field of the input item (default field `data`), e.g. from an HTTP Request or Read/Write Files from Disk node. The mimetype and file name come from the binary metadata.
-- **Message ID** (Reply, React, Forward, Edit, Delete, Vote Poll): the `messageId` returned when the message was sent, or from a trigger. The recipient must be the chat that contains the message. You can only edit messages sent by this account.
+- **Message ID** (Reply, React, Forward, Edit, Delete, Vote Poll, Pin, Star, Download Media): the `messageId` returned when the message was sent, or `waMessageId` (not `id`) from Get Many. The recipient must be the chat that contains the message. You can only edit messages sent by this account.
 - **Options → Check Number Exists** (contacts only, operations that send a new message): looks the number up with `GET /contacts/check/{number}` before sending and fails the item if it is not on WhatsApp. OpenWA otherwise accepts sends to unregistered numbers without error.
 - **Options → Reply To Message ID** (Send Text, media, Location, Poll, Contact Card): quote a message in the same chat, turning the send into a reply.
 - **Send Audio → Convert to Voice Note** (shown when Send as Voice Note is on): the gateway converts the audio (MP3, M4A, WAV, …) to Ogg/Opus before sending, so it plays as a voice note. Needs media conversion (ffmpeg) enabled on the gateway; otherwise the node fails with a retryable 503.

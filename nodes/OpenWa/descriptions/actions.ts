@@ -25,7 +25,7 @@ export const messageActionFields: INodeProperties[] = [
 		placeholder: 'e.g. true_972501234567@c.us_3EB0ABCD',
 		displayOptions: { show: { resource: ['message'], operation: MESSAGE_ID_OPERATIONS } },
 		description:
-			'ID of the existing message, as returned by a send operation (messageId) or a trigger. The chat above must be the chat that contains it.',
+			'ID of the existing message: messageId from a send operation, or waMessageId from Get Many (not its internal row ID). The chat above must be the chat that contains it.',
 	},
 	{
 		displayName: 'Emoji',

@@ -16,7 +16,7 @@ import {
 } from '../helpers/chatId';
 import { pairsToObject, parseCoordinate, parsePollOptions } from '../helpers/fields';
 import {
-	assertBinarySize,
+	MAX_BINARY_BYTES,
 	buildMediaBody,
 	parseContentDispositionFilename,
 	type MediaInput,
@@ -479,11 +479,15 @@ async function convertToVoiceNote(
 			sessionId,
 			itemIndex: i,
 		},
-	)) as { base64: string; mimetype: string; bytes?: number };
-	try {
-		assertBinarySize(converted.bytes ?? Math.floor((converted.base64.length * 3) / 4));
-	} catch (error) {
-		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	)) as { base64: string; mimetype: string; bytes: number };
+	// The converted audio is always sent inline, so sending by URL can't get around the limit.
+	if (converted.bytes > MAX_BINARY_BYTES) {
+		const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
+		throw new NodeOperationError(
+			ctx.getNode(),
+			`The converted voice note is ${mb(converted.bytes)} MB, above the ${mb(MAX_BINARY_BYTES)} MB inline limit. Shorten the audio, or send it without Convert to Voice Note.`,
+			{ itemIndex: i },
+		);
 	}
 	return { base64: converted.base64, mimetype: converted.mimetype };
 }

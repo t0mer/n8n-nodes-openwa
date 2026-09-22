@@ -446,6 +446,24 @@ describe('executeMessage — convert to voice note', () => {
 		]);
 	});
 
+	it('rejects a converted voice note above the inline limit with conversion-specific advice', async () => {
+		const { ctx, calls } = fakeContext(
+			{
+				...contact,
+				operation: 'sendAudio',
+				mediaSource: 'url',
+				mediaUrl: 'https://example.com/long.mp3',
+				ptt: true,
+				convertToVoiceNote: true,
+			},
+			{ base64: 'AAAA', mimetype: 'audio/ogg', bytes: 19 * 1024 * 1024 },
+		);
+		await expect(executeMessage(ctx, 0, 's1')).rejects.toThrow(
+			'The converted voice note is 19.0 MB, above the 18.0 MB inline limit. Shorten the audio',
+		);
+		expect(calls).toHaveLength(1);
+	});
+
 	it('does not convert when voice note is off', async () => {
 		const { ctx, calls } = fakeContext(
 			{

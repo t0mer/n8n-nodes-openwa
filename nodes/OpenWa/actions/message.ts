@@ -15,7 +15,12 @@ import {
 	validateGroupId,
 } from '../helpers/chatId';
 import { pairsToObject, parseCoordinate, parsePollOptions } from '../helpers/fields';
-import { buildMediaBody, parseContentDispositionFilename, type MediaInput } from '../helpers/media';
+import {
+	assertBinarySize,
+	buildMediaBody,
+	parseContentDispositionFilename,
+	type MediaInput,
+} from '../helpers/media';
 import { fetchByCursor } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
@@ -27,6 +32,7 @@ type BodyBuilder = (
 	chatId: string,
 	options: IDataObject,
 	operation: string,
+	sessionId: string,
 ) => IDataObject | Promise<IDataObject>;
 
 /** Each Message operation: the endpoint it posts to and how its request body is built. */
@@ -88,7 +94,7 @@ export async function executeMessage(
 		await assertNumberExists(ctx, i, sessionId, chatId);
 	}
 
-	const body = await spec.build(ctx, i, chatId, options, operation);
+	const body = await spec.build(ctx, i, chatId, options, operation, sessionId);
 	const quotedMessageId = String(options.quotedMessageId ?? '').trim();
 	if (quotedMessageId && QUOTE_OPERATIONS.includes(operation))
 		body.quotedMessageId = quotedMessageId;
@@ -411,6 +417,7 @@ async function buildMediaRequestBody(
 	chatId: string,
 	_options: IDataObject,
 	operation: string,
+	sessionId: string,
 ): Promise<IDataObject> {
 	let input: MediaInput;
 	if (ctx.getNodeParameter('mediaSource', i) === 'binary') {
@@ -439,6 +446,42 @@ async function buildMediaRequestBody(
 	}
 	if (operation === 'sendAudio') {
 		body.ptt = ctx.getNodeParameter('ptt', i, false) as boolean;
+		if (body.ptt && ctx.getNodeParameter('convertToVoiceNote', i, false)) {
+			return { ...body, ...(await convertToVoiceNote(ctx, i, sessionId, body)) };
+		}
 	}
 	return body;
+}
+
+/**
+ * Have the gateway convert the audio in `media` (url or base64) to Ogg/Opus, and return the
+ * fields that replace it in the send-audio body.
+ */
+async function convertToVoiceNote(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+	media: IDataObject,
+): Promise<IDataObject> {
+	const converted = (await openWaApiRequest.call(
+		ctx,
+		'POST',
+		`/api/sessions/${encodeURIComponent(sessionId)}/media/convert/voice`,
+		{
+			body: media.base64 ? { base64: media.base64 } : { url: media.url },
+			sessionId,
+			itemIndex: i,
+		},
+	)) as { base64: string; mimetype: string; bytes?: number };
+	try {
+		assertBinarySize(converted.bytes ?? Math.floor((converted.base64.length * 3) / 4));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	return {
+		url: undefined,
+		filename: undefined,
+		base64: converted.base64,
+		mimetype: converted.mimetype,
+	};
 }

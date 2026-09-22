@@ -10,6 +10,12 @@ export const contactOperations: INodeProperties = {
 	displayOptions: { show: { resource: ['contact'] } },
 	options: [
 		{
+			name: 'Check Number',
+			value: 'checkNumber',
+			action: 'Check a phone number',
+			description: 'Check whether a phone number is registered on WhatsApp',
+		},
+		{
 			name: 'Get',
 			value: 'get',
 			action: 'Get a contact',
@@ -29,6 +35,17 @@ export const contactOperations: INodeProperties = {
 const CONTACT_ID_OPERATIONS = ['get'];
 
 export const contactFields: INodeProperties[] = [
+	{
+		displayName: 'Phone Number',
+		name: 'number',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. 972501234567',
+		displayOptions: showFor(['checkNumber']),
+		description:
+			'Phone number in international format. Spaces, dashes, parentheses and a leading + are removed.',
+	},
 	{
 		displayName: 'Contact',
 		name: 'contact',

@@ -1,5 +1,5 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
-import { normalizeContactId } from '../helpers/chatId';
+import { chatIdUser, normalizeContactId } from '../helpers/chatId';
 import { fetchPaged } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 
@@ -27,6 +27,15 @@ export async function executeContact(
 				max,
 			);
 		}
+		case 'checkNumber': {
+			let chatId: string;
+			try {
+				chatId = normalizeContactId(ctx.getNodeParameter('number', i));
+			} catch (error) {
+				throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+			}
+			return (await checkNumber(ctx, i, sessionId, chatId)) as unknown as IDataObject;
+		}
 		case 'get':
 			return await request('GET', `/${encodeURIComponent(getContactId(ctx, i))}`);
 		default:
@@ -43,4 +52,36 @@ function getContactId(ctx: IExecuteFunctions, i: number): string {
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
+}
+
+export interface NumberCheck {
+	number: string;
+	exists: boolean;
+	whatsappId: string;
+}
+
+/** Ask OpenWA whether a phone number is registered on WhatsApp. `@lid` IDs cannot be checked. */
+export async function checkNumber(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+	chatId: string,
+): Promise<NumberCheck> {
+	if (chatId.endsWith('@lid')) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			'Checking a number needs a phone number, not an @lid ID',
+			{
+				itemIndex: i,
+				description: 'Enter the phone number in international format instead.',
+			},
+		);
+	}
+	const number = chatIdUser(chatId);
+	return (await openWaApiRequest.call(
+		ctx,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/contacts/check/${encodeURIComponent(number)}`,
+		{ sessionId, itemIndex: i },
+	)) as NumberCheck;
 }

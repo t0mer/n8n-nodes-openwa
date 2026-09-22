@@ -1,8 +1,9 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS } from '../descriptions/media';
-import { chatIdUser, normalizeContactId, parseMentions, validateGroupId } from '../helpers/chatId';
+import { normalizeContactId, parseMentions, validateGroupId } from '../helpers/chatId';
 import { buildMediaBody, type MediaInput } from '../helpers/media';
 import { openWaApiRequest } from '../transport/request';
+import { checkNumber } from './contact';
 
 /** Run one Message operation for item `i` and return the API response. */
 export async function executeMessage(
@@ -58,25 +59,9 @@ async function assertNumberExists(
 	sessionId: string,
 	chatId: string,
 ): Promise<void> {
-	if (chatId.endsWith('@lid')) {
-		throw new NodeOperationError(
-			ctx.getNode(),
-			'Check Number Exists needs a phone number, not an @lid ID',
-			{
-				itemIndex: i,
-				description: 'Enter the phone number instead, or turn off "Check Number Exists".',
-			},
-		);
-	}
-	const number = chatIdUser(chatId);
-	const result = (await openWaApiRequest.call(
-		ctx,
-		'GET',
-		`/api/sessions/${encodeURIComponent(sessionId)}/contacts/check/${encodeURIComponent(number)}`,
-		{ sessionId, itemIndex: i },
-	)) as { exists?: boolean };
+	const result = await checkNumber(ctx, i, sessionId, chatId);
 	if (!result.exists) {
-		throw new NodeOperationError(ctx.getNode(), `The number ${number} is not on WhatsApp`, {
+		throw new NodeOperationError(ctx.getNode(), `The number ${result.number} is not on WhatsApp`, {
 			itemIndex: i,
 			description: 'The message was not sent. Check the number, or turn off "Check Number Exists".',
 		});

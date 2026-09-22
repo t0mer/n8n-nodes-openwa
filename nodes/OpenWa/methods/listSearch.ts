@@ -3,11 +3,19 @@ import {
 	type ILoadOptionsFunctions,
 	type INodeListSearchResult,
 } from 'n8n-workflow';
+import { fetchPaged } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 
 interface Group {
 	id: string;
 	name: string;
+}
+
+interface Contact {
+	id: string;
+	number?: string;
+	name?: string;
+	pushName?: string;
 }
 
 interface Session {
@@ -21,6 +29,17 @@ function matches(filter: string | undefined, ...values: Array<string | undefined
 	if (!filter) return true;
 	const needle = filter.toLowerCase();
 	return values.some((value) => value?.toLowerCase().includes(needle));
+}
+
+/** The session chosen in the node, required by list searches scoped to a session. */
+function getSelectedSessionId(ctx: ILoadOptionsFunctions, what: string): string {
+	const sessionId = String(
+		ctx.getCurrentNodeParameter('session', { extractValue: true }) ?? '',
+	).trim();
+	if (!sessionId) {
+		throw new NodeOperationError(ctx.getNode(), `Select a session first to list its ${what}`);
+	}
+	return sessionId;
 }
 
 export async function searchSessions(
@@ -42,12 +61,7 @@ export async function searchGroups(
 	this: ILoadOptionsFunctions,
 	filter?: string,
 ): Promise<INodeListSearchResult> {
-	const sessionId = String(
-		this.getCurrentNodeParameter('session', { extractValue: true }) ?? '',
-	).trim();
-	if (!sessionId) {
-		throw new NodeOperationError(this.getNode(), 'Select a session first to list its groups');
-	}
+	const sessionId = getSelectedSessionId(this, 'groups');
 	const groups = (await openWaApiRequest.call(
 		this,
 		'GET',
@@ -59,5 +73,33 @@ export async function searchGroups(
 			.filter((group) => matches(filter, group.name, group.id))
 			.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
 			.map((group) => ({ name: group.name || group.id, value: group.id })),
+	};
+}
+
+export async function searchContacts(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'contacts');
+	const contacts = await fetchPaged(
+		async (limit, offset) =>
+			(await openWaApiRequest.call(
+				this,
+				'GET',
+				`/api/sessions/${encodeURIComponent(sessionId)}/contacts`,
+				{ qs: { limit, offset }, sessionId },
+			)) as Contact[],
+	);
+	return {
+		results: contacts
+			.filter((contact) =>
+				matches(filter, contact.name, contact.pushName, contact.number, contact.id),
+			)
+			.map((contact) => {
+				const label = contact.name || contact.pushName;
+				const number = contact.number || contact.id;
+				return { name: label ? `${label} (${number})` : number, value: contact.id };
+			})
+			.sort((a, b) => a.name.localeCompare(b.name)),
 	};
 }

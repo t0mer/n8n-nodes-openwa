@@ -1,4 +1,5 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
+import { normalizeContactId } from '../helpers/chatId';
 import { fetchPaged } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 
@@ -26,9 +27,20 @@ export async function executeContact(
 				max,
 			);
 		}
+		case 'get':
+			return await request('GET', `/${encodeURIComponent(getContactId(ctx, i))}`);
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
 			});
+	}
+}
+
+/** The selected contact as a normalized chat ID (phone numbers get @c.us appended). */
+function getContactId(ctx: IExecuteFunctions, i: number): string {
+	try {
+		return normalizeContactId(ctx.getNodeParameter('contact', i, '', { extractValue: true }));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
 }

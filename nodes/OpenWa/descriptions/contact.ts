@@ -10,6 +10,12 @@ export const contactOperations: INodeProperties = {
 	displayOptions: { show: { resource: ['contact'] } },
 	options: [
 		{
+			name: 'Get',
+			value: 'get',
+			action: 'Get a contact',
+			description: 'Get a single contact',
+		},
+		{
 			name: 'Get Many',
 			value: 'getAll',
 			action: 'Get many contacts',
@@ -19,7 +25,37 @@ export const contactOperations: INodeProperties = {
 	default: 'getAll',
 };
 
+/** Operations that act on a single existing contact. */
+const CONTACT_ID_OPERATIONS = ['get'];
+
 export const contactFields: INodeProperties[] = [
+	{
+		displayName: 'Contact',
+		name: 'contact',
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
+		required: true,
+		displayOptions: showFor(CONTACT_ID_OPERATIONS),
+		description: 'The contact to act on',
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				typeOptions: {
+					searchListMethod: 'searchContacts',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 972501234567 or 123456789012345@lid',
+				hint: 'A phone number in international format, or a chat ID ending in @c.us or @lid',
+			},
+		],
+	},
 	{
 		displayName: 'Return All',
 		name: 'returnAll',

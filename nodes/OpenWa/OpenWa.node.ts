@@ -14,7 +14,7 @@ import { executeMessage } from './actions/message';
 import { contactFields, contactOperations } from './descriptions/contact';
 import { mediaFields } from './descriptions/media';
 import { textFields, textOptions } from './descriptions/text';
-import { searchGroups, searchSessions } from './methods/listSearch';
+import { searchContacts, searchGroups, searchSessions } from './methods/listSearch';
 
 export class OpenWa implements INodeType {
 	description: INodeTypeDescription = {
@@ -123,6 +123,7 @@ export class OpenWa implements INodeType {
 		listSearch: {
 			searchSessions,
 			searchGroups,
+			searchContacts,
 		},
 	};
 

@@ -58,6 +58,28 @@ export async function executeGroup(
 			}
 			return await request('POST', '', { body: { name, participants: getParticipants(ctx, i) } });
 		}
+		case 'update': {
+			const path = groupPath();
+			const fields = ctx.getNodeParameter('groupUpdateFields', i, {}) as IDataObject;
+			const name = String(fields.name ?? '').trim();
+			const updated: string[] = [];
+			if (name) {
+				await request('PUT', `${path}/subject`, { body: { subject: name } });
+				updated.push('name');
+			}
+			if (fields.description !== undefined) {
+				await request('PUT', `${path}/description`, {
+					body: { description: String(fields.description) },
+				});
+				updated.push('description');
+			}
+			if (updated.length === 0) {
+				throw new NodeOperationError(ctx.getNode(), 'Add a Name or a Description to update', {
+					itemIndex: i,
+				});
+			}
+			return { success: true, groupId: getGroupId(ctx, i), updated };
+		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,

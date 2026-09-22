@@ -6,7 +6,7 @@ const showFor = (operation: string[]): IDisplayOptions => ({
 });
 
 /** Group operations that act on one existing group. */
-export const GROUP_ID_OPERATIONS = ['get', 'getParticipants'];
+export const GROUP_ID_OPERATIONS = ['get', 'getParticipants', 'update'];
 
 /** Operations that take a Participants list. */
 export const PARTICIPANT_OPERATIONS = ['create'];
@@ -41,6 +41,12 @@ export const groupOperations: INodeProperties = {
 			value: 'getParticipants',
 			action: 'Get group participants',
 			description: 'List the members of a group, one item per participant',
+		},
+		{
+			name: 'Update',
+			value: 'update',
+			action: 'Update a group',
+			description: 'Change the name or description of a group',
 		},
 	],
 	default: 'getAll',
@@ -84,5 +90,30 @@ export const groupFields: INodeProperties[] = [
 		displayOptions: showFor(PARTICIPANT_OPERATIONS),
 		description:
 			'Comma-separated phone numbers (international format) or contact IDs ending in @c.us or @lid',
+	},
+	{
+		displayName: 'Update Fields',
+		name: 'groupUpdateFields',
+		type: 'collection',
+		placeholder: 'Add Field',
+		default: {},
+		displayOptions: showFor(['update']),
+		options: [
+			{
+				displayName: 'Description',
+				name: 'description',
+				type: 'string',
+				typeOptions: { rows: 3 },
+				default: '',
+				description: 'New group description. Leave empty to clear it.',
+			},
+			{
+				displayName: 'Name',
+				name: 'name',
+				type: 'string',
+				default: '',
+				description: 'New group name (subject)',
+			},
+		],
 	},
 ];

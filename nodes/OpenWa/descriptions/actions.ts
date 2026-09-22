@@ -1,7 +1,16 @@
 import type { INodeProperties } from 'n8n-workflow';
 
 /** Operations that act on an existing message, identified by Message ID. */
-export const MESSAGE_ID_OPERATIONS = ['reply', 'react', 'forward', 'edit', 'delete', 'votePoll'];
+export const MESSAGE_ID_OPERATIONS = [
+	'reply',
+	'react',
+	'forward',
+	'edit',
+	'delete',
+	'votePoll',
+	'pin',
+	'unpin',
+];
 
 export const messageActionFields: INodeProperties[] = [
 	{
@@ -43,5 +52,18 @@ export const messageActionFields: INodeProperties[] = [
 		displayOptions: { show: { resource: ['message'], operation: ['delete'] } },
 		description:
 			'Whether to delete the message for everyone in the chat. When off, it is deleted only on this account.',
+	},
+	{
+		displayName: 'Pin Duration',
+		name: 'pinDuration',
+		type: 'options',
+		options: [
+			{ name: '24 Hours', value: 86400 },
+			{ name: '7 Days', value: 604800 },
+			{ name: '30 Days', value: 2592000 },
+		],
+		default: 86400,
+		displayOptions: { show: { resource: ['message'], operation: ['pin'] } },
+		description: 'How long the message stays pinned',
 	},
 ];

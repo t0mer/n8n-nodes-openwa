@@ -49,6 +49,12 @@ export const messageOperations: INodeProperties = {
 			description: 'Forward a message from one chat to a contact or group',
 		},
 		{
+			name: 'Pin',
+			value: 'pin',
+			action: 'Pin a message',
+			description: 'Pin a message at the top of its chat',
+		},
+		{
 			name: 'React',
 			value: 'react',
 			action: 'React to a message',
@@ -119,6 +125,12 @@ export const messageOperations: INodeProperties = {
 			value: 'sendVideo',
 			action: 'Send a video',
 			description: 'Send a video to a contact or group',
+		},
+		{
+			name: 'Unpin',
+			value: 'unpin',
+			action: 'Unpin a message',
+			description: 'Remove a message pin',
 		},
 		{
 			name: 'Vote Poll',

@@ -26,6 +26,8 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	pin: { endpoint: 'pin', build: buildPinBody },
+	unpin: { endpoint: 'unpin', build: buildMessageRefBody },
 	sendContact: { endpoint: 'send-contact', build: buildContactCardBody },
 	sendTemplate: { endpoint: 'send-template', build: buildTemplateBody },
 	votePoll: { endpoint: 'vote-poll', build: buildVotePollBody },
@@ -272,6 +274,18 @@ function buildContactCardBody(ctx: IExecuteFunctions, i: number, chatId: string)
 		);
 	}
 	return { chatId, contactName, contactNumber: chatIdUser(contactId) };
+}
+
+function buildPinBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	return {
+		...buildMessageRefBody(ctx, i, chatId),
+		durationSeconds: Number(ctx.getNodeParameter('pinDuration', i, 86400)),
+	};
+}
+
+/** `{ chatId, messageId }`: the whole body for operations that only point at a message. */
+function buildMessageRefBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	return { chatId, messageId: getMessageId(ctx, i) };
 }
 
 function getText(ctx: IExecuteFunctions, i: number): string {

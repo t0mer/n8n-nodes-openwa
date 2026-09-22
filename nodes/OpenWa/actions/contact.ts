@@ -44,6 +44,8 @@ export async function executeContact(
 			return await request('POST', `/${encodeURIComponent(getContactId(ctx, i))}/block`);
 		case 'unblock':
 			return await request('DELETE', `/${encodeURIComponent(getContactId(ctx, i))}/block`);
+		case 'getPhone':
+			return await request('GET', `/${encodeURIComponent(getContactId(ctx, i))}/phone`);
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,

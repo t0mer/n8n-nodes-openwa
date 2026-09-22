@@ -34,6 +34,13 @@ export const contactOperations: INodeProperties = {
 			description: 'List the contacts known to the session',
 		},
 		{
+			name: 'Get Phone Number',
+			value: 'getPhone',
+			action: 'Get the phone number of a contact',
+			description:
+				'Resolve a contact ID, such as an @lid, to its phone number (best-effort, null when unknown)',
+		},
+		{
 			name: 'Get Profile Picture',
 			value: 'getProfilePicture',
 			action: 'Get a profile picture',
@@ -50,7 +57,7 @@ export const contactOperations: INodeProperties = {
 };
 
 /** Operations that act on a single existing contact. */
-const CONTACT_ID_OPERATIONS = ['get', 'getProfilePicture', 'block', 'unblock'];
+const CONTACT_ID_OPERATIONS = ['get', 'getProfilePicture', 'block', 'unblock', 'getPhone'];
 
 export const contactFields: INodeProperties[] = [
 	{

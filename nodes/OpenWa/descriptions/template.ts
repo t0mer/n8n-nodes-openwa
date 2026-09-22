@@ -141,14 +141,14 @@ export const templateFields: INodeProperties[] = [
 				name: 'footer',
 				type: 'string',
 				default: '',
-				description: 'Text appended after the rendered body',
+				description: 'Text appended after the rendered body. Leave empty to remove it.',
 			},
 			{
 				displayName: 'Header',
 				name: 'header',
 				type: 'string',
 				default: '',
-				description: 'Text prepended before the rendered body',
+				description: 'Text prepended before the rendered body. Leave empty to remove it.',
 			},
 			{
 				displayName: 'Name',

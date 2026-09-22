@@ -36,7 +36,11 @@ export async function executeTemplate(
 		case 'update': {
 			const id = getTemplateId(ctx, i);
 			const fields = ctx.getNodeParameter('updateFields', i, {}) as IDataObject;
-			const body = pickText(fields, ['name', 'body', 'header', 'footer']);
+			// Name and body can't be blank; header and footer can be set to '' to clear them.
+			const body = pickText(fields, ['header', 'footer']);
+			for (const key of ['name', 'body']) {
+				if (String(fields[key] ?? '').trim()) body[key] = String(fields[key]);
+			}
 			if (Object.keys(body).length === 0) {
 				throw new NodeOperationError(ctx.getNode(), 'Add at least one field to update', {
 					itemIndex: i,

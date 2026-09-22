@@ -37,11 +37,9 @@
     "n8nNodesApiVersion": 1,
     "strict": true,
     "credentials": [
-      "dist/credentials/OpenwaApi.credentials.js"
+      "dist/credentials/OpenWaApi.credentials.js"
     ],
-    "nodes": [
-      "dist/nodes/Openwa/Openwa.node.js"
-    ]
+    "nodes": []
   },
   "devDependencies": {
     "@n8n/node-cli": "*",

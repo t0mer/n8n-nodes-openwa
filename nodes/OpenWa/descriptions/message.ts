@@ -3,7 +3,7 @@ import { MEDIA_ENDPOINTS } from './media';
 import { textOptions } from './text';
 
 /** Operations that send a new message (these can pre-check the recipient's number). */
-export const SEND_OPERATIONS = ['sendText', ...Object.keys(MEDIA_ENDPOINTS)];
+export const SEND_OPERATIONS = ['sendText', ...Object.keys(MEDIA_ENDPOINTS), 'forward'];
 
 export const messageOperations: INodeProperties = {
 	displayName: 'Operation',
@@ -12,6 +12,12 @@ export const messageOperations: INodeProperties = {
 	noDataExpression: true,
 	displayOptions: { show: { resource: ['message'] } },
 	options: [
+		{
+			name: 'Forward',
+			value: 'forward',
+			action: 'Forward a message',
+			description: 'Forward a message from one chat to a contact or group',
+		},
 		{
 			name: 'React',
 			value: 'react',

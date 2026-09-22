@@ -1,7 +1,7 @@
 import type { INodeProperties } from 'n8n-workflow';
 
 /** Operations that act on an existing message, identified by Message ID. */
-export const MESSAGE_ID_OPERATIONS = ['reply', 'react'];
+export const MESSAGE_ID_OPERATIONS = ['reply', 'react', 'forward'];
 
 export const messageActionFields: INodeProperties[] = [
 	{
@@ -23,5 +23,16 @@ export const messageActionFields: INodeProperties[] = [
 		placeholder: 'e.g. 👍',
 		displayOptions: { show: { resource: ['message'], operation: ['react'] } },
 		description: 'The emoji to react with. Leave empty to remove your reaction.',
+	},
+	{
+		displayName: 'Source Chat',
+		name: 'sourceChat',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. 972501234567 or 120363012345678901@g.us',
+		displayOptions: { show: { resource: ['message'], operation: ['forward'] } },
+		description:
+			'The chat that contains the message to forward: a phone number, a contact ID (@c.us / @lid) or a group ID (@g.us). The recipient above is where it is forwarded to.',
 	},
 ];

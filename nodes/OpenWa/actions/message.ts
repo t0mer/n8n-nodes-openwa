@@ -1,7 +1,12 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS } from '../descriptions/media';
 import { SEND_OPERATIONS } from '../descriptions/message';
-import { normalizeContactId, parseMentions, validateGroupId } from '../helpers/chatId';
+import {
+	normalizeChatId,
+	normalizeContactId,
+	parseMentions,
+	validateGroupId,
+} from '../helpers/chatId';
 import { buildMediaBody, type MediaInput } from '../helpers/media';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
@@ -18,6 +23,7 @@ type BodyBuilder = (
 const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	sendText: { endpoint: 'send-text', build: buildTextBody },
 	reply: { endpoint: 'reply', build: buildReplyBody },
+	forward: { endpoint: 'forward', build: buildForwardBody },
 	react: { endpoint: 'react', build: buildReactBody },
 	...Object.fromEntries(
 		Object.entries(MEDIA_ENDPOINTS).map(([operation, endpoint]) => [
@@ -122,6 +128,16 @@ function buildReactBody(ctx: IExecuteFunctions, i: number, chatId: string): IDat
 		messageId: getMessageId(ctx, i),
 		emoji: String(ctx.getNodeParameter('emoji', i, '') ?? '').trim(),
 	};
+}
+
+function buildForwardBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	let fromChatId: string;
+	try {
+		fromChatId = normalizeChatId(ctx.getNodeParameter('sourceChat', i));
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
+	return { fromChatId, toChatId: chatId, messageId: getMessageId(ctx, i) };
 }
 
 function getText(ctx: IExecuteFunctions, i: number): string {

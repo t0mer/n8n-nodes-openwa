@@ -59,7 +59,10 @@ async function assertNumberExists(
 	sessionId: string,
 	chatId: string,
 ): Promise<void> {
-	const result = await checkNumber(ctx, i, sessionId, chatId);
+	const result = await checkNumber(ctx, i, sessionId, chatId, {
+		message: 'Check Number Exists needs a phone number, not an @lid ID',
+		description: 'Enter the phone number instead, or turn off "Check Number Exists".',
+	});
 	if (!result.exists) {
 		throw new NodeOperationError(ctx.getNode(), `The number ${result.number} is not on WhatsApp`, {
 			itemIndex: i,

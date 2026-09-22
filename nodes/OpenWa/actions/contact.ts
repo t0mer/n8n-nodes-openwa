@@ -68,22 +68,24 @@ export interface NumberCheck {
 	whatsappId: string;
 }
 
+const LID_NOT_CHECKABLE = {
+	message: 'Checking a number needs a phone number, not an @lid ID',
+	description: 'Enter the phone number in international format instead.',
+};
+
 /** Ask OpenWA whether a phone number is registered on WhatsApp. `@lid` IDs cannot be checked. */
 export async function checkNumber(
 	ctx: IExecuteFunctions,
 	i: number,
 	sessionId: string,
 	chatId: string,
+	lidError: { message: string; description: string } = LID_NOT_CHECKABLE,
 ): Promise<NumberCheck> {
 	if (chatId.endsWith('@lid')) {
-		throw new NodeOperationError(
-			ctx.getNode(),
-			'Checking a number needs a phone number, not an @lid ID',
-			{
-				itemIndex: i,
-				description: 'Enter the phone number in international format instead.',
-			},
-		);
+		throw new NodeOperationError(ctx.getNode(), lidError.message, {
+			itemIndex: i,
+			description: lidError.description,
+		});
 	}
 	const number = chatIdUser(chatId);
 	return (await openWaApiRequest.call(

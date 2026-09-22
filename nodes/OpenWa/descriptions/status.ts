@@ -5,10 +5,10 @@ const showFor = (operation: string[]): IDisplayOptions => ({
 });
 
 /** Operations that post a new status. */
-export const POST_OPERATIONS = ['postText', 'postImage', 'postVideo'];
+export const POST_OPERATIONS = ['postText', 'postImage', 'postVideo', 'postVoice'];
 
 /** Post operations that take a media file. */
-export const MEDIA_POST_OPERATIONS = ['postImage', 'postVideo'];
+export const MEDIA_POST_OPERATIONS = ['postImage', 'postVideo', 'postVoice'];
 
 export const statusOperations: INodeProperties = {
 	displayName: 'Operation',
@@ -46,6 +46,12 @@ export const statusOperations: INodeProperties = {
 			value: 'postVideo',
 			action: 'Post a video status',
 			description: 'Post a video status update, visible for 24 hours',
+		},
+		{
+			name: 'Post Voice',
+			value: 'postVoice',
+			action: 'Post a voice status',
+			description: 'Post an audio status as a voice note, visible for 24 hours',
 		},
 	],
 	default: 'getAll',
@@ -128,6 +134,15 @@ export const statusFields: INodeProperties[] = [
 		description: 'Text shown with the image or video (up to 1024 characters)',
 	},
 	{
+		displayName: 'Convert to Voice Note',
+		name: 'statusConvertVoice',
+		type: 'boolean',
+		default: true,
+		displayOptions: showFor(['postVoice']),
+		description:
+			'Whether to have the gateway convert the audio to Ogg/Opus first. WhatsApp only plays a voice status in that format. Requires media conversion (ffmpeg) on the gateway; turn off if the audio is already Ogg/Opus.',
+	},
+	{
 		displayName: 'Options',
 		name: 'statusOptions',
 		type: 'collection',
@@ -140,8 +155,9 @@ export const statusFields: INodeProperties[] = [
 				name: 'backgroundColor',
 				type: 'color',
 				default: '#25D366',
-				displayOptions: { show: { '/operation': ['postText'] } },
-				description: 'Background color behind the status, as #RRGGBB',
+				displayOptions: { show: { '/operation': ['postText', 'postVoice'] } },
+				description:
+					'Background color behind the status, as #RRGGBB. For voice statuses only the Baileys engine uses it.',
 			},
 			{
 				displayName: 'Font',

@@ -1,12 +1,12 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
 import { normalizeContactId, parseContactList } from '../helpers/chatId';
 import { openWaApiRequest } from '../transport/request';
-import { readMediaInput } from './media';
+import { convertToVoiceNote, readMediaInput } from './media';
 
 /** The gateway accepts at most this many recipients per status. */
 const MAX_RECIPIENTS = 256;
 /** Post operations that accept a background color. */
-const BACKGROUND_OPERATIONS = ['postText'];
+const BACKGROUND_OPERATIONS = ['postText', 'postVoice'];
 
 /** Run one Status (Stories) operation for item `i`. List operations return one object per status. */
 export async function executeStatus(
@@ -57,6 +57,14 @@ export async function executeStatus(
 			const caption = String(ctx.getNodeParameter('statusCaption', i, '') ?? '');
 			if (caption) body.caption = caption;
 			return await request('POST', `/send-${kind}`, body);
+		}
+		case 'postVoice': {
+			const media = await readStatusMedia(ctx, i, 'audio');
+			const convert = ctx.getNodeParameter('statusConvertVoice', i, true) as boolean;
+			return await request('POST', '/send-voice', {
+				audio: convert ? await convertToVoiceNote(ctx, i, sessionId, media) : media,
+				...getPostOptions(ctx, i, operation),
+			});
 		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {

@@ -135,13 +135,13 @@ describe('automationRule', () => {
 		expect(disabled.body).toEqual({ enabled: false });
 	});
 
-	it('update clears the conditions with an empty object', async () => {
+	it('update clears the conditions with null', async () => {
 		const call = await one({
 			operation: 'update',
 			automationRule,
 			ruleUpdateFields: { clearConditions: true, ruleConditions: '' },
 		});
-		expect(call.body).toEqual({ conditions: {} });
+		expect(call.body).toEqual({ conditions: null });
 	});
 
 	it('update rejects an empty change and conflicting conditions', async () => {

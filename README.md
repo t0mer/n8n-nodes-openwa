@@ -391,7 +391,7 @@ Server-side auto-replies. The gateway itself answers inbound messages that match
     {"field": "isGroup", "operator": "is", "value": false}
   ]}
   ```
-- Leave Conditions empty to reply to every inbound message. On Update, turn on **Clear Conditions** to go back to matching every message (sent as `conditions: {}`).
+- Leave Conditions empty to reply to every inbound message. On Update, turn on **Clear Conditions** to go back to matching every message (sent as `conditions: null`).
 - **Cooldown (Seconds)**: after a rule replies in a chat, it stays silent in that chat for this long (default 60, 0–86400; 0 disables). This keeps two auto-repliers from answering each other forever, so disable it knowingly.
 - **Enabled** defaults to true. Turn it off to keep a rule without it replying.
 

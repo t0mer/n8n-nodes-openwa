@@ -80,8 +80,9 @@ function buildUpdate(ctx: IExecuteFunctions, i: number): IDataObject {
 	const conditions = getConditions(fields.ruleConditions);
 	if (fields.clearConditions === true) {
 		if (conditions) throw new Error('Set either Conditions or Clear Conditions, not both');
-		// An empty object is the gateway's "no conditions": the rule matches every inbound message.
-		body.conditions = {};
+		// null removes the conditions (the gateway rejects an empty object): the rule then matches
+		// every inbound message.
+		body.conditions = null;
 	} else if (conditions) {
 		body.conditions = conditions;
 	}

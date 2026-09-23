@@ -271,7 +271,7 @@ Each session can have up to 16 webhooks. Every active trigger uses one, and so d
 
 **Options:**
 - **Verify Signature** (on by default): each delivery's `X-OpenWA-Signature` (HMAC-SHA256 of the raw body) is checked against the trigger's secret. Mismatches get `401` and don't run the workflow.
-  - The secret is derived from your API key and the webhook URL, so nothing secret is stored in the workflow.
+  - The secret is derived from your API key and the trigger node (workflow and node ID), so nothing secret is stored in the workflow, and test and production listens share it.
   - Rotating the API key re-registers the webhook on the next activation.
 - **Ignore Duplicate Deliveries** (on by default): OpenWA delivers *at least once* and retries failures, so the same event can arrive twice. The trigger drops repeats of an idempotency key it has seen recently.
   - This is best effort: a retry that arrives while the first run is still in progress, or that lands on another n8n worker in queue mode, can still get through.

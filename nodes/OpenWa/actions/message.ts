@@ -191,7 +191,12 @@ async function readChat(
 		);
 	}
 	return (await openWaApiRequest.call(ctx, 'GET', `${chatPath}/history`, {
-		qs: { limit, includeMedia: ctx.getNodeParameter('includeMedia', i, false) as boolean, deep },
+		// Deep reads are metadata-only on the gateway, so media is never requested with them.
+		qs: {
+			limit,
+			includeMedia: !deep && (ctx.getNodeParameter('includeMedia', i, false) as boolean),
+			deep,
+		},
 		sessionId,
 		itemIndex: i,
 	})) as IDataObject[];

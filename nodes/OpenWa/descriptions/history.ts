@@ -61,7 +61,9 @@ export const historyFields: INodeProperties[] = [
 		type: 'number',
 		typeOptions: { minValue: 1, maxValue: 2000 },
 		default: 50,
-		displayOptions: { show: { resource: ['message'], operation: ['getHistory'] } },
+		displayOptions: {
+			show: { resource: ['message'], operation: ['getHistory'], deep: [false] },
+		},
 		description: 'Max number of messages to return. Up to 100, or up to 2000 with Deep turned on.',
 	},
 	{

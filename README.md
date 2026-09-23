@@ -147,6 +147,19 @@ List operations output one item per entry, and **no items** when the list is emp
 | Reject | `POST /calls/{callId}/reject` | Call ID, e.g. `{{ $json.data.callId }}` from the OpenWA Call Trigger |
 | Create Link | `POST /calls/link` | Call Type (voice or video), Start Time (empty means now, read in the workflow's timezone). Outputs `{ link }`. |
 
+### Catalog
+
+Reads the WhatsApp Business catalog of the session account. **Baileys only**: whatsapp-web.js answers HTTP 501. On these routes a session that isn't started answers HTTP 404, not 400.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Get | `GET /catalog` | Catalog summary (`id`, `name`, `description`, `productCount`, `url`) |
+| Get Products | `GET /catalog/products` | Return All, or Limit (default 50). Pages through `page`/`limit`. One item per product (`id`, `name`, `price`, `currency`, `priceFormatted`, `imageUrl`, `url`, `isAvailable`, `retailerId`, …). |
+| Get Product | `GET /catalog/products/{productId}` | Product ID |
+
+- **Get** outputs `{ catalog: null }` when the gateway has no collection to describe (the account has no catalog, or no collection in it). Get Products can still return products then.
+- **Get Product** fails with `Product "<id>" not found` when no product carries that ID.
+
 ### Contact
 
 | Operation | OpenWA endpoint | Output |

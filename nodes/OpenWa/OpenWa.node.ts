@@ -11,6 +11,7 @@ import {
 } from 'n8n-workflow';
 import { isSessionless, recipientFields, sessionFields } from './descriptions/common';
 import { executeCall } from './actions/call';
+import { executeCatalog } from './actions/catalog';
 import { executeChannel } from './actions/channel';
 import { executeChat } from './actions/chat';
 import { executeContact } from './actions/contact';
@@ -23,6 +24,7 @@ import { executeStatus } from './actions/status';
 import { executeTemplate } from './actions/template';
 import { messageActionFields } from './descriptions/actions';
 import { callFields, callOperations } from './descriptions/call';
+import { catalogFields, catalogOperations } from './descriptions/catalog';
 import { channelFields, channelOperations } from './descriptions/channel';
 import { chatFields, chatOperations } from './descriptions/chat';
 import { contactFields, contactOperations } from './descriptions/contact';
@@ -62,6 +64,7 @@ function isExecutionData(value: unknown): value is INodeExecutionData {
 
 const EXECUTORS: Record<string, Executor> = {
 	call: executeCall,
+	catalog: executeCatalog,
 	channel: executeChannel,
 	chat: executeChat,
 	contact: executeContact,
@@ -98,6 +101,7 @@ export class OpenWa implements INodeType {
 				noDataExpression: true,
 				options: [
 					{ name: 'Call', value: 'call' },
+					{ name: 'Catalog', value: 'catalog' },
 					{ name: 'Channel', value: 'channel' },
 					{ name: 'Chat', value: 'chat' },
 					{ name: 'Contact', value: 'contact' },
@@ -113,6 +117,7 @@ export class OpenWa implements INodeType {
 			},
 			messageOperations,
 			callOperations,
+			catalogOperations,
 			channelOperations,
 			chatOperations,
 			contactOperations,
@@ -124,6 +129,7 @@ export class OpenWa implements INodeType {
 			statusOperations,
 			...sessionFields(),
 			...callFields,
+			...catalogFields,
 			...channelFields,
 			...chatFields,
 			...contactFields,

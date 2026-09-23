@@ -49,11 +49,14 @@ describe('describeOpenWaError', () => {
 		);
 	});
 
-	it('keeps the gateway message on 403 and explains roles', () => {
+	it('keeps the gateway message on 403 and names both key and WhatsApp causes', () => {
 		const error = describeOpenWaError(403, 'Insufficient permissions');
 		expect(error.message).toBe('Insufficient permissions');
 		expect(error.description).toMatch(/only admin keys can manage API keys/);
-		expect(describeOpenWaError(403, undefined).message).toMatch(/not allowed.*403/);
+		expect(error.description).toMatch(/or WhatsApp refused the action.*admin or owner/);
+		expect(describeOpenWaError(403, undefined).message).toBe(
+			'OpenWA refused the request (HTTP 403)',
+		);
 	});
 
 	it('names the session on 404 only when the gateway blames the session', () => {

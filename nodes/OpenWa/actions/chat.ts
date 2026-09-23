@@ -38,6 +38,18 @@ export async function executeChat(
 				max,
 			);
 		}
+		case 'markRead': {
+			const messageIds = splitList(ctx.getNodeParameter('messageIds', i, ''));
+			return await request('POST', '/chats/read', {
+				body: { chatId: getChatId(ctx, i), ...(messageIds.length ? { messageIds } : {}) },
+			});
+		}
+		case 'markUnread':
+			return await request('POST', '/chats/unread', { body: { chatId: getChatId(ctx, i) } });
+		case 'sendChatState':
+			return await request('POST', '/chats/typing', {
+				body: { chatId: getChatId(ctx, i), state: ctx.getNodeParameter('chatState', i) as string },
+			});
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
@@ -52,4 +64,10 @@ export function getChatId(ctx: IExecuteFunctions, i: number): string {
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
+}
+
+/** A comma-separated string or an array, trimmed, without empty entries. */
+function splitList(input: unknown): string[] {
+	const entries = Array.isArray(input) ? input : String(input ?? '').split(',');
+	return entries.map((entry) => String(entry ?? '').trim()).filter((entry) => entry.length > 0);
 }

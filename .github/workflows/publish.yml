@@ -114,3 +114,17 @@ jobs:
           npm run release
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Scan published package
+        # Runs the same static analysis the n8n Creator Portal uses for verification.
+        # Retries while the new version propagates through the npm registry.
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          PACKAGE="$(node -p "require('./package.json').name")@${TAG#v}"
+          for attempt in 1 2 3 4 5; do
+            npx --yes @n8n/scan-community-package "$PACKAGE" && exit 0
+            echo "Scan attempt $attempt failed; retrying in 30s"
+            sleep 30
+          done
+          exit 1

@@ -25,6 +25,7 @@ import { executeMessage } from './actions/message';
 import { executeProfile } from './actions/profile';
 import { executeSession } from './actions/session';
 import { executeStatus } from './actions/status';
+import { executeSystem } from './actions/system';
 import { executeTemplate } from './actions/template';
 import { executeWebhook } from './actions/webhook';
 import { messageActionFields } from './descriptions/actions';
@@ -48,6 +49,7 @@ import { productMessageFields } from './descriptions/product';
 import { profileFields, profileOperations } from './descriptions/profile';
 import { sessionOperations, sessionResourceFields } from './descriptions/session';
 import { statusFields, statusOperations } from './descriptions/status';
+import { systemFields, systemOperations } from './descriptions/system';
 import { messageOperations, messageOptions } from './descriptions/message';
 import { sendTemplateFields, templateFields, templateOperations } from './descriptions/template';
 import { textFields } from './descriptions/text';
@@ -91,6 +93,7 @@ const EXECUTORS: Record<string, Executor> = {
 	profile: executeProfile,
 	session: executeSession,
 	status: executeStatus,
+	system: executeSystem,
 	template: executeTemplate,
 	webhook: executeWebhook,
 };
@@ -132,6 +135,7 @@ export class OpenWa implements INodeType {
 					{ name: 'Profile', value: 'profile' },
 					{ name: 'Session', value: 'session' },
 					{ name: 'Status', value: 'status' },
+					{ name: 'System', value: 'system' },
 					{ name: 'Template', value: 'template' },
 					{ name: 'Webhook', value: 'webhook' },
 				],
@@ -152,6 +156,7 @@ export class OpenWa implements INodeType {
 			profileOperations,
 			sessionOperations,
 			statusOperations,
+			systemOperations,
 			webhookOperations,
 			...sessionFields(),
 			...apiKeyFields,
@@ -168,6 +173,7 @@ export class OpenWa implements INodeType {
 			...profileFields,
 			...sessionResourceFields,
 			...statusFields,
+			...systemFields,
 			...webhookFields,
 			...recipientFields,
 			...messageActionFields,

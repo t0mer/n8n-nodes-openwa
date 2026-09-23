@@ -418,6 +418,27 @@ Server-side auto-replies. The gateway itself answers inbound messages that match
 - **Cooldown (Seconds)**: after a rule replies in a chat, it stays silent in that chat for this long (default 60, 0–86400; 0 disables). This keeps two auto-repliers from answering each other forever, so disable it knowingly.
 - **Enabled** defaults to true. Turn it off to keep a rule without it replying.
 
+### System
+
+Gateway-wide statistics, settings, audit log, message search and health checks. None of these operations need a Session.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Get Overview | `GET /api/stats/overview` | Session and message totals across all sessions (`sessions`, `messages`) |
+| Get Message Stats | `GET /api/stats/messages` | Period (Last 24 Hours, Last 7 Days, Last 30 Days; default 24 hours). Outputs `timeSeries`, `byType`, `bySession` and `topChats`. |
+| Get Session Stats | `GET /api/stats/sessions/{id}` | Session (from the list or by ID). Outputs `session`, `messages`, `topChats` and `hourlyActivity`. |
+| Get Settings | `GET /api/settings` | The gateway settings (`general`, `api`, `notifications`), read only |
+| Get Audit Log | `GET /api/audit` | Return All, or Limit (default 50); filters: Action, Severity (Info, Warning, Error), Session ID, API Key ID. One item per entry. |
+| Search Messages | `GET /api/search` | Query; Return All, or Limit (default 50); filters: Session ID, Chat, Sender, Direction (Incoming, Outgoing), Type, Date From, Date To. One item per hit. |
+| Get Health | `GET /api/health` | `{ status, timestamp, version }` |
+| Get Liveness | `GET /api/health/live` | `{ status }` |
+| Get Readiness | `GET /api/health/ready` | `{ status, details }`, with one entry per database in `details` |
+
+- **Get Readiness** does not fail when a database is down: the gateway answers 503 with the same shape, and the node outputs it (`status: "error"`, with the failing dependency in `details`). Use an If node on `status` to act on it.
+- **Search Messages** needs a search provider on the gateway; without one it fails with "No search provider is configured on the OpenWA server" (HTTP 501). **Chat** and **Sender** take a phone number or a full ID and are normalized like recipients. **Date From** and **Date To** are read in the workflow timezone unless the value has its own offset. The gateway pages up to an offset of 100000, so Return All stops there.
+- In each hit, `snippet` marks the matches with `<mark>` tags and `timestamp` is in Unix seconds.
+- **Session ID** filters take the session's ID (the UUID), not its name.
+
 ## Triggers
 
 Trigger nodes start a workflow when OpenWA reports an event. On activation, a trigger registers a webhook for its session on the gateway, with a secret it generates. On deactivation, it deletes the webhook. There's one trigger per event family, plus a general one:

@@ -10,6 +10,7 @@ export const CHATLESS_OPERATIONS = ['getAll', 'getBatchStatus', 'cancelBatch'];
 export const SESSIONLESS: Record<string, string[] | '*'> = {
 	apiKey: '*',
 	session: ['create', 'getAll', 'getStats'],
+	system: '*',
 	webhook: ['getAllSessions', 'getDeliveryFailures'],
 };
 

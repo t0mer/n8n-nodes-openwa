@@ -146,7 +146,7 @@ export function triggerProperties(
 					typeOptions: { password: true },
 					default: '',
 					description:
-						'The secret OpenWA signs deliveries with, 16–255 characters. Set it when another system must verify the same deliveries, or to rotate the secret (the webhook is re-registered). Leave empty to derive it from the API key and this node.',
+						'The secret OpenWA signs deliveries with, 16–255 characters. Set it when another system must verify the same deliveries, or to rotate the secret (the webhook is re-registered). Stored in plain text in the workflow, so anyone who can open or export the workflow can read it. Leave empty to derive it from the API key and this node, which stores no secret.',
 				},
 			],
 		},

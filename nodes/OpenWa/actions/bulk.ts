@@ -14,6 +14,8 @@ import { getChatId, getMentions, getText, readMessageMedia } from './message';
 export const MAX_BATCH_MESSAGES = 100;
 /** OpenWA's default request body limit (`BODY_SIZE_LIMIT`, 25 MB), which one batch must fit. */
 export const MAX_BATCH_BODY_BYTES = 25 * 1024 * 1024;
+/** Room kept in each batch for everything but the messages (options, Batch ID). */
+const ENVELOPE_BYTES = 4096;
 
 interface Entry {
 	item: number;
@@ -24,7 +26,7 @@ const toMb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
 
 /**
  * Send Bulk: every input item becomes one message, grouped by session into batches of up to
- * 100, each posted once. Every batch is built and checked before the first is posted. Outputs
+ * 100 messages and 25 MB, each posted once. Every batch is built and checked before the first is posted. Outputs
  * one item per batch, paired with all its input items. An item that can't be built (or a batch
  * that fails) becomes an error item with Continue On Fail.
  */
@@ -61,10 +63,7 @@ export async function sendBulk(
 		body: IDataObject;
 	}> = [];
 	for (const [sessionId, entries] of bySession) {
-		const batches: Entry[][] = [];
-		for (let start = 0; start < entries.length; start += MAX_BATCH_MESSAGES) {
-			batches.push(entries.slice(start, start + MAX_BATCH_MESSAGES));
-		}
+		const batches = splitBatches(entries);
 		for (const [n, batch] of batches.entries()) {
 			const first = batch[0].item;
 			const pairedItem = batch.map(({ item }) => ({ item }));
@@ -93,6 +92,31 @@ export async function sendBulk(
 		}
 	}
 	return output;
+}
+
+/**
+ * Greedily splits a session's messages into batches of at most 100 that fit the request limit
+ * (leaving room for the options and Batch ID). A message too large on its own gets its own
+ * batch, which buildBatchBody then refuses.
+ */
+function splitBatches(entries: Entry[]): Entry[][] {
+	const batches: Entry[][] = [];
+	let batch: Entry[] = [];
+	let bytes = 0;
+	for (const entry of entries) {
+		const size = Buffer.byteLength(JSON.stringify(entry.message)) + 1;
+		const full =
+			batch.length === MAX_BATCH_MESSAGES || bytes + size > MAX_BATCH_BODY_BYTES - ENVELOPE_BYTES;
+		if (batch.length && full) {
+			batches.push(batch);
+			batch = [];
+			bytes = 0;
+		}
+		batch.push(entry);
+		bytes += size;
+	}
+	if (batch.length) batches.push(batch);
+	return batches;
 }
 
 /** The send-bulk request for one batch; options come from the batch's first item. */
@@ -126,7 +150,7 @@ function buildBatchBody(
 	if (bytes > MAX_BATCH_BODY_BYTES) {
 		throw new NodeOperationError(
 			ctx.getNode(),
-			`A batch of ${batch.length} messages is ${toMb(bytes)} MB, above OpenWA's ${toMb(MAX_BATCH_BODY_BYTES)} MB request limit`,
+			`${batch.length === 1 ? 'A message' : `A batch of ${batch.length} messages`} is ${toMb(bytes)} MB, above OpenWA's ${toMb(MAX_BATCH_BODY_BYTES)} MB request limit`,
 			{
 				itemIndex: first,
 				description:

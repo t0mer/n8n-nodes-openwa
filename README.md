@@ -293,7 +293,7 @@ List operations output one item per entry, and **no items** when the list is emp
 Send Bulk works differently from the other operations: instead of one request per input item, **each input item becomes one message** and the node posts them together as gateway-side batches. The gateway then sends them in the background, waiting **Delay Between Messages** (1000–60000 ms, default 3000, plus a random 0–2 s with **Randomize Delay**) between messages.
 
 - Recipient, type, text, media, caption and mentions are read per item, so expressions like `{{ $json.phone }}` give each item its own message. Check Number Exists is not available for bulk sends, and audio must already be Ogg/Opus for voice notes (no Convert to Voice Note). Stickers can't be sent in bulk.
-- A batch holds up to **100 messages**. 150 input items become two batches (100 + 50). The batch options (Batch ID, delay, Randomize Delay, Stop On Error) are taken from the first item of each batch. With a custom **Batch ID** and more than one batch, the batches get the IDs `<id>-1`, `<id>-2`, and so on. Items with a different session go into separate batches.
+- A batch holds up to **100 messages** and must fit OpenWA's **25 MB** request limit. 150 text items become two batches (100 + 50); Binary Data and Base64 media travel inside the request, so large files start a new batch sooner (three 8 MB files become two batches). The batch options (Batch ID, delay, Randomize Delay, Stop On Error) are taken from the first item of each batch. With a custom **Batch ID** and more than one batch, the batches get the IDs `<id>-1`, `<id>-2`, and so on. Items with a different session go into separate batches.
 - The node outputs **one item per batch**, paired with all its input items:
 
   ```json
@@ -302,7 +302,7 @@ Send Bulk works differently from the other operations: instead of one request pe
 
   `202`-accepted means queued, not sent. Exact duplicate messages are collapsed by the gateway, so `totalMessages` can be lower than the item count. Use **Get Batch Status** with the `batchId` to follow progress and see per-recipient results, and **Cancel Batch** to stop it.
 - An item that can't be turned into a message (e.g. an invalid phone number or text over 4096 characters) fails the node, or with **Continue On Fail** outputs an error item for that input item and is left out of the batch. Every batch is built and checked (delay, size) before the first one is posted, so without Continue On Fail a bad batch stops the run before anything is sent.
-- One batch request must fit OpenWA's 25 MB request limit. Binary and Base64 media travel inside the request, so a batch with several large files is refused before sending. Send media by **URL** instead: the gateway downloads each file itself (up to 50 MiB).
+- More batches mean more requests and separate delays per batch. Sending media by **URL** keeps batches small: the gateway downloads each file itself (up to 50 MiB).
 - API keys restricted with `allowedChats` can't use Get Batch Status or Cancel Batch (HTTP 403).
 
 ### Profile
@@ -536,7 +536,7 @@ You can enter a phone number (normalized for you), or a full `@c.us` / `@lid` ID
 
 To send files larger than 18 MB, host them somewhere the gateway can reach and use the URL source.
 
-**Send Bulk** puts a whole batch (up to 100 messages) in one request, so the 25 MB body limit applies to the batch, not to each file: several Binary Data or Base64 files that are fine alone can together be refused. Use the URL source for media in bulk sends; see [Bulk send](#bulk-send).
+**Send Bulk** puts a whole batch in one request, so the node splits the batches to keep each under the 25 MB body limit; each Binary Data or Base64 file still has the 18 MB limit. Use the URL source to keep bulk batches small; see [Bulk send](#bulk-send).
 
 ## Error handling
 

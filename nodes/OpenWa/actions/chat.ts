@@ -1,10 +1,8 @@
 import {
-	NodeApiError,
 	NodeOperationError,
 	type IDataObject,
 	type IExecuteFunctions,
 	type IHttpRequestMethods,
-	type JsonObject,
 } from 'n8n-workflow';
 import { normalizeChatId } from '../helpers/chatId';
 import { parseDateInTimezone } from '../helpers/fields';
@@ -79,27 +77,11 @@ export async function executeChat(
 			return await request('POST', '/presence/subscribe', { body: { chatId: getChatId(ctx, i) } });
 		case 'getPresence': {
 			const chatId = getChatId(ctx, i);
-			const nothingYet = {
-				message: `No presence reported yet for ${chatId}`,
-				description:
-					'Run Subscribe to Presence for this chat first, then wait for the contact to come online or type.',
-			};
-			let presence: IDataObject | IDataObject[];
-			try {
-				presence = await request('GET', `/presence/${encodeURIComponent(chatId)}`);
-			} catch (error) {
-				if (error instanceof NodeApiError && error.httpCode === '404')
-					Object.assign(error, nothingYet);
-				throw new NodeApiError(ctx.getNode(), error as JsonObject, { itemIndex: i });
-			}
-			// The gateway may also answer 200 with an empty body when it has seen nothing.
-			if (!presence || typeof presence !== 'object') {
-				throw new NodeOperationError(ctx.getNode(), nothingYet.message, {
-					itemIndex: i,
-					description: nothingYet.description,
-				});
-			}
-			return presence;
+			const presence = await request('GET', `/presence/${encodeURIComponent(chatId)}`);
+			// An empty 200 means nothing has been reported for this chat yet: a normal state.
+			return presence && typeof presence === 'object'
+				? presence
+				: { chatId, participants: [], observedAt: null };
 		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {

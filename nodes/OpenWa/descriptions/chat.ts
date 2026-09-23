@@ -57,7 +57,8 @@ export const chatOperations: INodeProperties = {
 			name: 'Get Presence',
 			value: 'getPresence',
 			action: 'Get the presence of a chat',
-			description: 'Get the last reported online/typing state of a chat you subscribed to',
+			description:
+				'Get the last reported online/typing state of a chat you subscribed to (empty participants when nothing was reported yet)',
 		},
 		{
 			name: 'Mark as Read',

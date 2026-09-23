@@ -142,14 +142,14 @@ describe('chat', () => {
 		});
 	});
 
-	it('get presence, and a clear hint when nothing was reported yet', async () => {
+	it('get presence, keeping a session 404 as the session error', async () => {
 		expect(await one(executeChat, { operation: 'getPresence', chatId: contact })).toMatchObject({
 			method: 'GET',
 			url: `${base}/presence/${encodeURIComponent(contact)}`,
 		});
 		const notFound = Object.assign(new Error('Request failed with status code 404'), {
 			httpCode: '404',
-			cause: { response: { status: 404, data: { message: 'No presence recorded' } } },
+			cause: { response: { status: 404, data: { message: 'Session not found' } } },
 		});
 		const error = await run(
 			executeChat,
@@ -157,14 +157,18 @@ describe('chat', () => {
 			() => notFound,
 		).catch((e: NodeApiError) => e);
 		expect(error).toBeInstanceOf(NodeApiError);
-		expect((error as NodeApiError).message).toBe(`No presence reported yet for ${contact}`);
-		expect((error as NodeApiError).description).toMatch(/Subscribe to Presence/);
+		expect((error as NodeApiError).message).toBe(
+			'Session "s1" was not found on the OpenWA gateway',
+		);
 	});
 
-	it('treats an empty 200 response as no presence yet', async () => {
-		await expect(
-			run(executeChat, { operation: 'getPresence', chatId: contact }, () => undefined),
-		).rejects.toThrow(`No presence reported yet for ${contact}`);
+	it('returns an empty presence when nothing was reported yet (empty 200)', async () => {
+		const { result } = await run(
+			executeChat,
+			{ operation: 'getPresence', chatId: contact },
+			() => undefined,
+		);
+		expect(result).toEqual({ chatId: contact, participants: [], observedAt: null });
 	});
 
 	it('requires a valid chat', async () => {

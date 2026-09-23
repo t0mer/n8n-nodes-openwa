@@ -1,4 +1,6 @@
+import type { IDataObject } from 'n8n-workflow';
 import { describe, expect, it } from 'vitest';
+import { OpenWa } from '../nodes/OpenWa/OpenWa.node';
 import { executeGroup } from '../nodes/OpenWa/actions/group';
 import { executeMessage } from '../nodes/OpenWa/actions/message';
 import { executeProfile } from '../nodes/OpenWa/actions/profile';
@@ -109,6 +111,42 @@ describe('Base64 media source per operation', () => {
 		expect(calls).toHaveLength(1);
 		expect(calls[0].url).toBe(`${base}/messages/${path}`);
 		expect(calls[0].body).toEqual({ chatId, base64: png, mimetype: 'image/png', ...extra });
+	});
+
+	it('message and bulk document sends name unnamed Base64 after its MIME type', async () => {
+		const pdf = {
+			...contact,
+			operation: 'sendDocument',
+			mediaSource: 'base64',
+			mediaBase64: `data:application/pdf;base64,${png}`,
+		};
+		const { ctx, calls } = fakeContext(pdf);
+		await executeMessage(ctx, 0, 's1');
+		expect(calls[0].body).toEqual({
+			chatId,
+			base64: png,
+			mimetype: 'application/pdf',
+			filename: 'file.pdf',
+		});
+
+		const bulk = fakeContext(
+			{
+				...pdf,
+				resource: 'message',
+				operation: 'sendBulk',
+				session: { mode: 'id', value: 's1' },
+				bulkType: 'document',
+			},
+			{ batchId: 'b' },
+		);
+		await new OpenWa().execute.call(bulk.ctx);
+		expect((bulk.calls[0].body as IDataObject).messages).toEqual([
+			{
+				chatId,
+				type: 'document',
+				content: { document: { base64: png, mimetype: 'application/pdf', filename: 'file.pdf' } },
+			},
+		]);
 	});
 
 	it('message send rejects invalid base64 before calling the API', async () => {

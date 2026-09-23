@@ -14,7 +14,12 @@ import {
 	validateGroupId,
 } from '../helpers/chatId';
 import { pairsToObject, parseCoordinate, parsePollOptions } from '../helpers/fields';
-import { buildMediaBody, type MediaBody, type MediaInput } from '../helpers/media';
+import {
+	buildMediaBody,
+	documentFileName,
+	type MediaBody,
+	type MediaInput,
+} from '../helpers/media';
 import { fetchByCursor } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 import { executeBatch } from './bulk';
@@ -463,7 +468,10 @@ async function buildMediaRequestBody(
 		if (caption) body.caption = caption;
 	}
 	if (operation === 'sendDocument') {
-		const fileName = String(ctx.getNodeParameter('fileName', i, '') ?? '').trim();
+		const fileName = documentFileName(
+			String(ctx.getNodeParameter('fileName', i, '') ?? '').trim(),
+			body as MediaBody,
+		);
 		if (fileName) body.filename = fileName;
 	}
 	if (operation === 'sendAudio') {

@@ -7,6 +7,7 @@ import {
 	type IPairedItemData,
 } from 'n8n-workflow';
 import { BULK_CAPTION_TYPES, BULK_TYPES } from '../descriptions/bulk';
+import { documentFileName, type MediaBody } from '../helpers/media';
 import { openWaApiRequest } from '../transport/request';
 import { getChatId, getMentions, getText, readMessageMedia } from './message';
 
@@ -185,7 +186,10 @@ async function buildBulkMessage(ctx: IExecuteFunctions, i: number): Promise<IDat
 	} else {
 		const media: IDataObject = { ...(await readMessageMedia(ctx, i)) };
 		if (type === 'document') {
-			const fileName = String(ctx.getNodeParameter('fileName', i, '') ?? '').trim();
+			const fileName = documentFileName(
+				String(ctx.getNodeParameter('fileName', i, '') ?? '').trim(),
+				media as MediaBody,
+			);
 			if (fileName) media.filename = fileName;
 		} else {
 			// The gateway only uses a file name for documents.

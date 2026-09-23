@@ -95,6 +95,43 @@ export function buildMediaBody(
 	return body;
 }
 
+/** Extensions for MIME types whose subtype isn't the usual extension. */
+const EXTENSIONS: Record<string, string> = {
+	'image/jpeg': 'jpg',
+	'image/svg+xml': 'svg',
+	'audio/mpeg': 'mp3',
+	'audio/mp4': 'm4a',
+	'video/quicktime': 'mov',
+	'text/plain': 'txt',
+	'text/markdown': 'md',
+	'application/msword': 'doc',
+	'application/vnd.ms-excel': 'xls',
+	'application/vnd.ms-powerpoint': 'ppt',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+	'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+	'application/vnd.oasis.opendocument.text': 'odt',
+	'application/vnd.oasis.opendocument.spreadsheet': 'ods',
+	'application/x-7z-compressed': '7z',
+	'application/x-rar-compressed': 'rar',
+	'application/vnd.rar': 'rar',
+	'application/gzip': 'gz',
+	'application/x-tar': 'tar',
+};
+
+/**
+ * The file name to send with a document: `explicit` if set, else the media's own name, else
+ * `file.<ext>` from the MIME type of inline data (OpenWA would otherwise name it just "file").
+ */
+export function documentFileName(explicit: string, media: MediaBody): string | undefined {
+	if (explicit) return explicit;
+	if (media.filename || !media.base64 || !media.mimetype) return media.filename;
+	const mime = media.mimetype.split(';')[0].trim().toLowerCase();
+	const subtype = mime.split('/')[1] ?? '';
+	const extension = EXTENSIONS[mime] ?? (/^[a-z0-9]{1,5}$/.test(subtype) ? subtype : undefined);
+	return extension && mime !== 'application/octet-stream' ? `file.${extension}` : undefined;
+}
+
 /** File name from a Content-Disposition header; `filename*=UTF-8''…` wins over `filename=`. */
 export function parseContentDispositionFilename(header: unknown): string | undefined {
 	if (typeof header !== 'string') return undefined;

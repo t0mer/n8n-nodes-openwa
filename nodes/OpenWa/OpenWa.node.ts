@@ -9,7 +9,7 @@ import {
 	type INodeTypeDescription,
 	type JsonObject,
 } from 'n8n-workflow';
-import { recipientFields, sessionField } from './descriptions/common';
+import { isSessionless, recipientFields, sessionFields } from './descriptions/common';
 import { executeCall } from './actions/call';
 import { executeChat } from './actions/chat';
 import { executeContact } from './actions/contact';
@@ -105,7 +105,7 @@ export class OpenWa implements INodeType {
 			groupOperations,
 			profileOperations,
 			statusOperations,
-			sessionField,
+			...sessionFields(),
 			...callFields,
 			...chatFields,
 			...contactFields,
@@ -141,14 +141,18 @@ export class OpenWa implements INodeType {
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				const sessionId = String(
-					this.getNodeParameter('session', i, '', { extractValue: true }) ?? '',
-				).trim();
-				if (!sessionId) {
-					throw new NodeOperationError(this.getNode(), 'Session is required', { itemIndex: i });
+				const resource = this.getNodeParameter('resource', i) as string;
+				const operation = this.getNodeParameter('operation', i) as string;
+				let sessionId = '';
+				if (!isSessionless(resource, operation)) {
+					sessionId = String(
+						this.getNodeParameter('session', i, '', { extractValue: true }) ?? '',
+					).trim();
+					if (!sessionId) {
+						throw new NodeOperationError(this.getNode(), 'Session is required', { itemIndex: i });
+					}
 				}
 
-				const resource = this.getNodeParameter('resource', i) as string;
 				const executor = EXECUTORS[resource];
 				if (!executor) {
 					throw new NodeOperationError(this.getNode(), `Unsupported resource "${resource}"`, {

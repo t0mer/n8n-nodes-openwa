@@ -3,6 +3,21 @@ import type { IDisplayOptions, INodeProperties } from 'n8n-workflow';
 /** Message operations that don't target one chat, so they have no recipient. */
 export const CHATLESS_OPERATIONS = ['getAll'];
 
+/**
+ * Operations that need no session, by resource: a list of operation values, or '*' for the
+ * whole resource. The Session field is hidden for them and the router passes `''`.
+ */
+export const SESSIONLESS: Record<string, string[] | '*'> = {};
+
+export function isSessionless(
+	resource: string,
+	operation: string,
+	sessionless: Record<string, string[] | '*'> = SESSIONLESS,
+): boolean {
+	const entry = sessionless[resource];
+	return entry === '*' || (entry?.includes(operation) ?? false);
+}
+
 export const sessionField: INodeProperties = {
 	displayName: 'Session',
 	name: 'session',
@@ -28,6 +43,31 @@ export const sessionField: INodeProperties = {
 		},
 	],
 };
+
+/**
+ * The Session field, hidden for sessionless operations. n8n ORs `hide` keys, so one field
+ * can't say "resource X and operation Y" (and values like `getAll` repeat across resources).
+ * Instead there is one copy for every resource without a sessionless entry, plus one copy per
+ * partly sessionless resource that hides only its own operations. The copies share the name
+ * and are mutually exclusive by resource, so exactly one is shown.
+ */
+export function sessionFields(
+	sessionless: Record<string, string[] | '*'> = SESSIONLESS,
+): INodeProperties[] {
+	const resources = Object.keys(sessionless);
+	if (resources.length === 0) return [sessionField];
+	const partial = resources.filter((resource) => sessionless[resource] !== '*');
+	return [
+		{ ...sessionField, displayOptions: { hide: { resource: resources } } },
+		...partial.map((resource) => ({
+			...sessionField,
+			displayOptions: {
+				show: { resource: [resource] },
+				hide: { operation: sessionless[resource] as string[] },
+			},
+		})),
+	];
+}
 
 export const recipientFields: INodeProperties[] = [
 	{

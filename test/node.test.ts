@@ -71,6 +71,24 @@ describe('OpenWa.execute', () => {
 		expect(output[0].binary?.data).toMatchObject({ mimeType: 'image/png' });
 	});
 
+	it('routes the chat and call resources', async () => {
+		const { ctx: chat, calls } = fakeContext(
+			{ resource: 'chat', operation: 'pin', session, chatId: '972501234567' },
+			{ success: true },
+		);
+		expect(await run(chat)).toEqual([[{ json: { success: true }, pairedItem: { item: 0 } }]]);
+		expect(calls[0]).toMatchObject({ url: 'https://wa.example.com/api/sessions/s1/chats/pin' });
+
+		const { ctx: call, calls: callCalls } = fakeContext(
+			{ resource: 'call', operation: 'reject', session, callId: 'C1' },
+			{ success: true },
+		);
+		await run(call);
+		expect(callCalls[0]).toMatchObject({
+			url: 'https://wa.example.com/api/sessions/s1/calls/C1/reject',
+		});
+	});
+
 	it('maps an error whose body arrived as bytes on a raw request', async () => {
 		const { ctx } = fakeContext(
 			{ resource: 'message', operation: 'downloadMedia', session, ...recipient, messageId: 'm1' },

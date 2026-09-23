@@ -13,6 +13,7 @@ export const MESSAGE_ID_OPERATIONS = [
 	'star',
 	'unstar',
 	'downloadMedia',
+	'getReactions',
 ];
 
 export const messageActionFields: INodeProperties[] = [

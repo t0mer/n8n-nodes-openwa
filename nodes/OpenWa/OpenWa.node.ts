@@ -24,6 +24,7 @@ import { executeProfile } from './actions/profile';
 import { executeSession } from './actions/session';
 import { executeStatus } from './actions/status';
 import { executeTemplate } from './actions/template';
+import { executeWebhook } from './actions/webhook';
 import { messageActionFields } from './descriptions/actions';
 import { bulkFields } from './descriptions/bulk';
 import { callFields, callOperations } from './descriptions/call';
@@ -46,6 +47,7 @@ import { statusFields, statusOperations } from './descriptions/status';
 import { messageOperations, messageOptions } from './descriptions/message';
 import { sendTemplateFields, templateFields, templateOperations } from './descriptions/template';
 import { textFields } from './descriptions/text';
+import { webhookFields, webhookOperations } from './descriptions/webhook';
 import {
 	searchChannels,
 	searchContacts,
@@ -53,6 +55,7 @@ import {
 	searchLabels,
 	searchSessions,
 	searchTemplates,
+	searchWebhooks,
 } from './methods/listSearch';
 
 type Executor = (
@@ -81,6 +84,7 @@ const EXECUTORS: Record<string, Executor> = {
 	session: executeSession,
 	status: executeStatus,
 	template: executeTemplate,
+	webhook: executeWebhook,
 };
 
 export class OpenWa implements INodeType {
@@ -119,6 +123,7 @@ export class OpenWa implements INodeType {
 					{ name: 'Session', value: 'session' },
 					{ name: 'Status', value: 'status' },
 					{ name: 'Template', value: 'template' },
+					{ name: 'Webhook', value: 'webhook' },
 				],
 				default: 'message',
 			},
@@ -135,6 +140,7 @@ export class OpenWa implements INodeType {
 			profileOperations,
 			sessionOperations,
 			statusOperations,
+			webhookOperations,
 			...sessionFields(),
 			...callFields,
 			...catalogFields,
@@ -148,6 +154,7 @@ export class OpenWa implements INodeType {
 			...profileFields,
 			...sessionResourceFields,
 			...statusFields,
+			...webhookFields,
 			...recipientFields,
 			...messageActionFields,
 			...textFields,
@@ -171,6 +178,7 @@ export class OpenWa implements INodeType {
 			searchTemplates,
 			searchLabels,
 			searchChannels,
+			searchWebhooks,
 		},
 	};
 

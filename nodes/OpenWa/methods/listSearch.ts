@@ -33,6 +33,12 @@ interface Channel {
 	name: string;
 }
 
+interface Webhook {
+	id: string;
+	url: string;
+	events?: string[];
+}
+
 interface Session {
 	id: string;
 	name: string;
@@ -174,5 +180,26 @@ export async function searchChannels(
 			.filter((channel) => matches(filter, channel.name, channel.id))
 			.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
 			.map((channel) => ({ name: channel.name || channel.id, value: channel.id })),
+	};
+}
+
+export async function searchWebhooks(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'webhooks');
+	const webhooks = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/webhooks`,
+		{ sessionId },
+	)) as Webhook[];
+	return {
+		results: webhooks
+			.filter((webhook) => matches(filter, webhook.url, webhook.id, ...(webhook.events ?? [])))
+			.map((webhook) => ({
+				name: `${webhook.url} (${(webhook.events ?? []).join(', ')})`,
+				value: webhook.id,
+			})),
 	};
 }

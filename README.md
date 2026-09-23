@@ -351,6 +351,28 @@ Text templates are stored on the gateway per session. Placeholders in double cur
 - **Template**: pick one from the list, or enter its ID.
 - Template names are unique per session. Creating or renaming to a name that exists fails with the gateway's message.
 
+### Webhook
+
+Webhooks the gateway calls with session events. Get Many (All Sessions) and Get Delivery Failures don't need a Session; the other operations act on the selected one.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Create | `POST /api/sessions/{id}/webhooks` | URL, Events (any of the trigger events, or All Events `*`); options: Secret (16–255 characters), Headers, Retry Count (0–5 total attempts), Filters (JSON) |
+| Get Many | `GET /api/sessions/{id}/webhooks` | Return All, or Limit (default 50). One item per webhook of the session. |
+| Get Many (All Sessions) | `GET /api/webhooks` | Return All, or Limit. Every webhook the API key can see. |
+| Get | `GET /api/sessions/{id}/webhooks/{webhookId}` | Webhook |
+| Update | `PUT /api/sessions/{id}/webhooks/{webhookId}` | Webhook; Update Fields: URL, Events, Active, Retry Count, Secret, Clear Secret, Headers, Filters (JSON), Clear Filters |
+| Delete | `DELETE /api/sessions/{id}/webhooks/{webhookId}` | Webhook. Outputs `{ success, webhookId }`. |
+| Test | `POST /api/sessions/{id}/webhooks/{webhookId}/test` | Sends a test payload. Outputs `{ success, statusCode, error, webhookId }`. |
+| Get Delivery Failures | `GET /api/webhooks/delivery-failures` | Session ID (optional filter), Return All, or Limit. Events that failed after every retry, newest first. |
+
+- **Webhook**: pick one from the list (shown as URL and events), or enter its ID.
+- The gateway never returns a webhook's secret or headers.
+- **Secret** signs each delivery with an `X-OpenWA-Signature: sha256=<hex>` header (HMAC-SHA256 of the body). On Update, turn on **Clear Secret** to remove it.
+- **Headers** on Update replace all stored headers; add the field with no headers to remove them.
+- **Filters (JSON)**: every condition must match for the event to be delivered. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. Example: `[{"field": "body", "operator": "contains", "value": "invoice"}]`. On Update, turn on **Clear Filters** to deliver every subscribed event again.
+- The OpenWA trigger nodes register and delete their own webhooks. Don't update or delete those here; deactivate the workflow instead.
+
 ## Triggers
 
 Trigger nodes start a workflow when OpenWA reports an event. On activation, a trigger registers a webhook for its session on the gateway, with a secret it generates. On deactivation, it deletes the webhook. There's one trigger per event family, plus a general one:

@@ -9,6 +9,7 @@ export const CHATLESS_OPERATIONS = ['getAll', 'getBatchStatus', 'cancelBatch'];
  */
 export const SESSIONLESS: Record<string, string[] | '*'> = {
 	session: ['create', 'getAll', 'getStats'],
+	webhook: ['getAllSessions', 'getDeliveryFailures'],
 };
 
 export function isSessionless(

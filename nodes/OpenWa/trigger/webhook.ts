@@ -1,0 +1,82 @@
+import { createHmac, timingSafeEqual } from 'crypto';
+import { normalizeChatId, parseContactList } from '../helpers/chatId';
+
+/**
+ * Check an `X-OpenWA-Signature: sha256=<hex>` header: HMAC-SHA256 of the raw request body with
+ * the webhook secret, compared in constant time.
+ */
+export function verifySignature(
+	rawBody: Buffer | string | undefined,
+	header: unknown,
+	secret: string,
+): boolean {
+	if (!rawBody || typeof header !== 'string' || !secret) return false;
+	const expected = Buffer.from(
+		`sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`,
+	);
+	const received = Buffer.from(header.trim());
+	return received.length === expected.length && timingSafeEqual(received, expected);
+}
+
+export interface MessageFilterOptions {
+	onlyFrom?: unknown;
+	onlyInChat?: unknown;
+	bodyContains?: unknown;
+	chatType?: unknown;
+	ignoreFromMe?: unknown;
+}
+
+export interface FilterCondition {
+	field: string;
+	operator: 'is' | 'isNot' | 'contains' | 'equals';
+	value: string | string[] | boolean;
+}
+
+/**
+ * Message events whose payload has no sender, body, chat or flags, so any server-side filter
+ * would silently drop them.
+ */
+export const UNFILTERABLE_MESSAGE_EVENTS = ['message.ack', 'message.failed', 'message.reaction'];
+
+/** Turn the trigger's filter options into the gateway's `filters` object, or undefined for none. */
+export function buildMessageFilters(
+	options: MessageFilterOptions,
+): { conditions: FilterCondition[] } | undefined {
+	const conditions: FilterCondition[] = [];
+
+	const senders = parseContactList(options.onlyFrom);
+	if (senders.length) conditions.push({ field: 'sender', operator: 'is', value: senders });
+
+	const chatEntries = Array.isArray(options.onlyInChat)
+		? options.onlyInChat
+		: String(options.onlyInChat ?? '').split(',');
+	const chats = chatEntries
+		.map((entry) => String(entry ?? '').trim())
+		.filter((entry) => entry.length > 0)
+		.map(normalizeChatId);
+	if (chats.length) conditions.push({ field: 'chatId', operator: 'is', value: chats });
+
+	const body = String(options.bodyContains ?? '').trim();
+	if (body) conditions.push({ field: 'body', operator: 'contains', value: body });
+
+	if (options.chatType === 'group' || options.chatType === 'direct') {
+		conditions.push({ field: 'isGroup', operator: 'equals', value: options.chatType === 'group' });
+	}
+	if (options.ignoreFromMe === true) {
+		conditions.push({ field: 'fromMe', operator: 'equals', value: false });
+	}
+
+	return conditions.length ? { conditions } : undefined;
+}
+
+/**
+ * Remember a delivery's idempotency key. Returns true when it was already seen (a duplicate);
+ * otherwise records it, keeping at most `max` recent keys.
+ */
+export function rememberDelivery(keys: string[], key: string | undefined, max = 200): boolean {
+	if (!key) return false;
+	if (keys.includes(key)) return true;
+	keys.push(key);
+	if (keys.length > max) keys.splice(0, keys.length - max);
+	return false;
+}

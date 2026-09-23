@@ -1,4 +1,5 @@
 import { NodeOperationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
+import { parseDateInTimezone } from '../helpers/fields';
 import { openWaApiRequest } from '../transport/request';
 
 /** Run one Call operation for item `i`. */
@@ -41,9 +42,9 @@ export async function executeCall(
 
 /** The scheduled start as epoch milliseconds; empty means now. */
 function getStartTime(ctx: IExecuteFunctions, i: number): number {
-	const value = String(ctx.getNodeParameter('startTime', i, '') ?? '').trim();
-	if (!value) return Date.now();
-	const time = new Date(value).getTime();
+	const value = ctx.getNodeParameter('startTime', i, '');
+	if (value === '' || value === null || value === undefined) return Date.now();
+	const time = parseDateInTimezone(value, ctx.getTimezone());
 	if (!Number.isFinite(time)) {
 		throw new NodeOperationError(ctx.getNode(), `Start Time is not a valid date: "${value}"`, {
 			itemIndex: i,

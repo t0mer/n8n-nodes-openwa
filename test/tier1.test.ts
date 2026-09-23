@@ -98,6 +98,29 @@ describe('chat', () => {
 		).toMatchObject({ muteUntil: Date.UTC(2026, 9, 1) });
 	});
 
+	it('reads a picked date in the workflow timezone', async () => {
+		expect(
+			(
+				await one(executeChat, {
+					operation: 'mute',
+					chatId: group,
+					muteFor: 'until',
+					muteUntil: '2026-10-01T09:00:00',
+					__timezone: 'Asia/Jerusalem',
+				})
+			).body,
+		).toMatchObject({ muteUntil: Date.UTC(2026, 9, 1, 6) });
+		expect(
+			(
+				await one(executeCall, {
+					operation: 'createLink',
+					startTime: '2026-09-24T09:30:00',
+					__timezone: 'Asia/Jerusalem',
+				})
+			).body,
+		).toMatchObject({ startTime: Date.UTC(2026, 8, 24, 6, 30) });
+	});
+
 	it('mute rejects past and invalid dates', async () => {
 		await expect(
 			run(executeChat, {

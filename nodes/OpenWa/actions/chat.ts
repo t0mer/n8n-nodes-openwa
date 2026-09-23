@@ -7,6 +7,7 @@ import {
 	type JsonObject,
 } from 'n8n-workflow';
 import { normalizeChatId } from '../helpers/chatId';
+import { parseDateInTimezone } from '../helpers/fields';
 import { fetchPaged } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 
@@ -131,8 +132,8 @@ const MUTE_DURATIONS: Record<string, number> = {
 function getMuteUntil(ctx: IExecuteFunctions, i: number): number {
 	const muteFor = ctx.getNodeParameter('muteFor', i, '8h') as string;
 	if (MUTE_DURATIONS[muteFor]) return Date.now() + MUTE_DURATIONS[muteFor];
-	const value = ctx.getNodeParameter('muteUntil', i, '') as string;
-	const until = new Date(String(value ?? '')).getTime();
+	const value = ctx.getNodeParameter('muteUntil', i, '');
+	const until = parseDateInTimezone(value, ctx.getTimezone());
 	if (!Number.isFinite(until)) {
 		throw new NodeOperationError(ctx.getNode(), `Mute Until is not a valid date: "${value}"`, {
 			itemIndex: i,

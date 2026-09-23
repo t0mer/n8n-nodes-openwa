@@ -30,6 +30,7 @@ export function fakeContext(
 			}
 			return value;
 		},
+		getTimezone: () => (params.__timezone as string | undefined) ?? 'UTC',
 		getNode: () => ({
 			id: '1',
 			name: 'OpenWA',

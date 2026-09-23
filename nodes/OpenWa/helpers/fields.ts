@@ -47,3 +47,51 @@ export function pairsToObject(
 	}
 	return result;
 }
+
+/** The offset of `timeZone` from UTC at `epoch`, in milliseconds. */
+function zoneOffset(epoch: number, timeZone: string): number {
+	const parts = Object.fromEntries(
+		new Intl.DateTimeFormat('en-US', {
+			timeZone,
+			hourCycle: 'h23',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+		})
+			.formatToParts(new Date(epoch))
+			.map((part) => [part.type, Number(part.value)]),
+	);
+	const wallClock = Date.UTC(
+		parts.year,
+		parts.month - 1,
+		parts.day,
+		parts.hour,
+		parts.minute,
+		parts.second,
+	);
+	return wallClock - Math.floor(epoch / 1000) * 1000;
+}
+
+/**
+ * Parse a date as n8n's date picker gives it: an ISO string that usually has no offset and
+ * means the workflow's timezone. A value with its own offset (or `Z`), or epoch milliseconds,
+ * is kept as is. Returns epoch milliseconds, or NaN when it can't be parsed.
+ */
+export function parseDateInTimezone(value: unknown, timeZone: string): number {
+	if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+	const text = String(value ?? '').trim();
+	if (/(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(text)) return Date.parse(text);
+	const match =
+		/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3})\d*)?)?)?$/.exec(text);
+	if (!match) return NaN;
+	const [, y, mo, d, h = '0', mi = '0', s = '0', ms = '0'] = match;
+	const wallClock = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s, +ms.padEnd(3, '0'));
+	// Take the zone's offset at that moment, then re-check once so a DST change in between is honoured.
+	let epoch = wallClock - zoneOffset(wallClock, timeZone);
+	const corrected = wallClock - zoneOffset(epoch, timeZone);
+	if (corrected !== epoch) epoch = corrected;
+	return epoch;
+}

@@ -39,6 +39,12 @@ interface Webhook {
 	events?: string[];
 }
 
+interface AutomationRule {
+	id: string;
+	name: string;
+	enabled?: boolean;
+}
+
 interface ApiKey {
 	id: string;
 	name: string;
@@ -208,6 +214,27 @@ export async function searchWebhooks(
 			.map((webhook) => ({
 				name: `${webhook.url} (${(webhook.events ?? []).join(', ')})`,
 				value: webhook.id,
+			})),
+	};
+}
+
+export async function searchAutomationRules(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'automation rules');
+	const rules = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/automation-rules`,
+		{ sessionId },
+	)) as AutomationRule[];
+	return {
+		results: rules
+			.filter((rule) => matches(filter, rule.name, rule.id))
+			.map((rule) => ({
+				name: `${rule.name} (${rule.enabled === false ? 'disabled' : 'enabled'})`,
+				value: rule.id,
 			})),
 	};
 }

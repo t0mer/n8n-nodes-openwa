@@ -11,6 +11,7 @@ import {
 } from 'n8n-workflow';
 import { isSessionless, recipientFields, sessionFields } from './descriptions/common';
 import { executeApiKey } from './actions/apiKey';
+import { executeAutomationRule } from './actions/automationRule';
 import { sendBulk } from './actions/bulk';
 import { executeCall } from './actions/call';
 import { executeCatalog } from './actions/catalog';
@@ -28,6 +29,7 @@ import { executeTemplate } from './actions/template';
 import { executeWebhook } from './actions/webhook';
 import { messageActionFields } from './descriptions/actions';
 import { apiKeyFields, apiKeyOperations } from './descriptions/apiKey';
+import { automationRuleFields, automationRuleOperations } from './descriptions/automationRule';
 import { bulkFields } from './descriptions/bulk';
 import { callFields, callOperations } from './descriptions/call';
 import { catalogFields, catalogOperations } from './descriptions/catalog';
@@ -52,6 +54,7 @@ import { textFields } from './descriptions/text';
 import { webhookFields, webhookOperations } from './descriptions/webhook';
 import {
 	searchApiKeys,
+	searchAutomationRules,
 	searchChannels,
 	searchContacts,
 	searchGroups,
@@ -75,6 +78,7 @@ function isExecutionData(value: unknown): value is INodeExecutionData {
 
 const EXECUTORS: Record<string, Executor> = {
 	apiKey: executeApiKey,
+	automationRule: executeAutomationRule,
 	call: executeCall,
 	catalog: executeCatalog,
 	channel: executeChannel,
@@ -115,6 +119,7 @@ export class OpenWa implements INodeType {
 				noDataExpression: true,
 				options: [
 					{ name: 'API Key', value: 'apiKey' },
+					{ name: 'Automation Rule', value: 'automationRule' },
 					{ name: 'Call', value: 'call' },
 					{ name: 'Catalog', value: 'catalog' },
 					{ name: 'Channel', value: 'channel' },
@@ -134,6 +139,7 @@ export class OpenWa implements INodeType {
 			},
 			messageOperations,
 			apiKeyOperations,
+			automationRuleOperations,
 			callOperations,
 			catalogOperations,
 			channelOperations,
@@ -149,6 +155,7 @@ export class OpenWa implements INodeType {
 			webhookOperations,
 			...sessionFields(),
 			...apiKeyFields,
+			...automationRuleFields,
 			...callFields,
 			...catalogFields,
 			...channelFields,
@@ -187,6 +194,7 @@ export class OpenWa implements INodeType {
 			searchChannels,
 			searchWebhooks,
 			searchApiKeys,
+			searchAutomationRules,
 		},
 	};
 

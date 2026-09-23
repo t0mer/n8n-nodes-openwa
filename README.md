@@ -394,6 +394,30 @@ Manage the gateway's API keys. None of these operations need a Session. Every op
 - **Expires At** is read in the workflow timezone unless the value has its own offset.
 - Update, Revoke and Delete fail with 409 when the change would leave the gateway without a usable admin key.
 
+### Automation Rule
+
+Server-side auto-replies. The gateway itself answers inbound messages that match a rule, with no workflow running. Every operation acts on the selected Session.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Create | `POST /api/sessions/{id}/automation-rules` | Name (up to 100 characters), Reply Text (up to 4096 characters); options: Conditions (JSON), Cooldown (Seconds), Enabled |
+| Get Many | `GET /api/sessions/{id}/automation-rules` | Return All, or Limit (default 50). One item per rule, in evaluation order (oldest first). |
+| Get | `GET /api/sessions/{id}/automation-rules/{ruleId}` | Rule |
+| Update | `PUT /api/sessions/{id}/automation-rules/{ruleId}` | Rule; Update Fields: Name, Reply Text, Conditions (JSON), Clear Conditions, Cooldown (Seconds), Enabled |
+| Delete | `DELETE /api/sessions/{id}/automation-rules/{ruleId}` | Rule. Outputs `{ success, ruleId }`. |
+
+- **Rule**: pick one from the list (shown as name and enabled/disabled), or enter its ID.
+- **Conditions (JSON)** use the webhook filter format on the message fields `sender`, `recipient`, `chatId`, `body`, `type`, `isGroup`, `kind`, `fromMe`, `hasMedia` and `mentions`. Every condition must match. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals`. Example: reply to private messages that ask about prices:
+  ```json
+  {"conditions": [
+    {"field": "body", "operator": "contains", "value": "price"},
+    {"field": "isGroup", "operator": "is", "value": false}
+  ]}
+  ```
+- Leave Conditions empty to reply to every inbound message. On Update, turn on **Clear Conditions** to go back to matching every message (sent as `conditions: {}`).
+- **Cooldown (Seconds)**: after a rule replies in a chat, it stays silent in that chat for this long (default 60, 0–86400; 0 disables). This keeps two auto-repliers from answering each other forever, so disable it knowingly.
+- **Enabled** defaults to true. Turn it off to keep a rule without it replying.
+
 ## Triggers
 
 Trigger nodes start a workflow when OpenWA reports an event. On activation, a trigger registers a webhook for its session on the gateway, with a secret it generates. On deactivation, it deletes the webhook. There's one trigger per event family, plus a general one:

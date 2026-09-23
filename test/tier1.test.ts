@@ -307,10 +307,10 @@ describe('message additions', () => {
 			(
 				await one(
 					executeMessage,
-					{ ...to, operation: 'getHistory', historyLimit: 500, deep: true },
+					{ ...to, operation: 'getHistory', historyLimit: 500, deep: true, includeMedia: true },
 					[],
 				)
 			).qs,
-		).toMatchObject({ limit: 500, deep: true });
+		).toEqual({ limit: 500, deep: true, includeMedia: false });
 	});
 });

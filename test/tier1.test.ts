@@ -138,6 +138,12 @@ describe('chat', () => {
 		expect((error as NodeApiError).description).toMatch(/Subscribe to Presence/);
 	});
 
+	it('treats an empty 200 response as no presence yet', async () => {
+		await expect(
+			run(executeChat, { operation: 'getPresence', chatId: contact }, () => undefined),
+		).rejects.toThrow(`No presence reported yet for ${contact}`);
+	});
+
 	it('requires a valid chat', async () => {
 		await expect(run(executeChat, { operation: 'pin', chatId: '' })).rejects.toThrow('required');
 	});

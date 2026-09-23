@@ -9,7 +9,11 @@ export type Responder = (options: IHttpRequestOptions) => unknown;
 export function fakeContext(
 	params: Record<string, unknown>,
 	response: unknown = { ok: true },
-	{ items = 1, continueOnFail = false }: { items?: number; continueOnFail?: boolean } = {},
+	{
+		items = 1,
+		continueOnFail = false,
+		typeVersion = 1.1,
+	}: { items?: number; continueOnFail?: boolean; typeVersion?: number } = {},
 ) {
 	const calls: IHttpRequestOptions[] = [];
 	const ctx = {
@@ -35,7 +39,7 @@ export function fakeContext(
 			id: '1',
 			name: 'OpenWA',
 			type: 'openWa',
-			typeVersion: 1,
+			typeVersion,
 			position: [0, 0],
 			parameters: {},
 		}),

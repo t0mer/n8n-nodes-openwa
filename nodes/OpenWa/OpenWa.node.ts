@@ -104,7 +104,10 @@ export class OpenWa implements INodeType {
 		name: 'openWa',
 		icon: { light: 'file:openwa.svg', dark: 'file:openwa.dark.svg' },
 		group: ['output'],
-		version: 1,
+		// Light versioning: gate output changes on `atLeast(ctx, <version>)` so saved workflows keep
+		// the output of the version they were built with.
+		version: [1, 1.1],
+		defaultVersion: 1.1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Send WhatsApp messages through a self-hosted OpenWA gateway',
 		defaults: {

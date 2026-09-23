@@ -531,6 +531,15 @@ To send files larger than 18 MB, host them somewhere the gateway can reach and u
 
 With **Settings → On Error → Continue**, a failed item outputs `{ "error": "<message>" }` and the rest of the items are still sent.
 
+## Node versions
+
+The OpenWA node uses n8n node versioning. A workflow keeps the node version it was built with, so its output never changes after an update. New nodes are added at the latest version.
+
+| Version | Changes |
+|---|---|
+| 1 | Initial release. List operations output one item per entry. |
+| 1.1 | No output changes; same output as version 1. Future output changes will ship behind a new version. |
+
 ## Example workflows
 
 **Alert a group when a form is submitted**

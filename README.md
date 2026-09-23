@@ -248,7 +248,7 @@ Trigger nodes start a workflow when OpenWA reports an event. On activation, a tr
 | **OpenWA Group Trigger** | `group.join`, `group.leave`, `group.update`, `group.join_request` |
 | **OpenWA Call Trigger** | `call.received`, `call.accepted`, `call.rejected`, `call.missed` (only `call.received` on whatsapp-web.js) |
 | **OpenWA Status & Presence Trigger** | `status.received`, `presence.update` (only for chats you subscribed to presence for) |
-| **OpenWA Trigger** | Any of the above, or **All Events** (`*`) |
+| **OpenWA Events Trigger** | Any of the above, or **All Events** (`*`) |
 
 Each run outputs one item with the OpenWA delivery:
 
@@ -277,7 +277,7 @@ Each session can have up to 16 webhooks. Every active trigger uses one, and so d
   - This is best effort: a retry that arrives while the first run is still in progress, or that lands on another n8n worker in queue mode, can still get through.
   - For strict once-only processing, dedupe on `idempotencyKey` in your own storage.
 - **Retry Count**: delivery attempts per event, 0–5 (default 3).
-- **Message filters** (Message Trigger and OpenWA Trigger): Only From, Only In Chats, Body Contains, Chat Type (direct or groups) and Ignore Messages From Me. OpenWA applies them on the gateway, so filtered-out events never reach n8n.
+- **Message filters** (Message Trigger and OpenWA Events Trigger): Only From, Only In Chats, Body Contains, Chat Type (direct or groups) and Ignore Messages From Me. OpenWA applies them on the gateway, so filtered-out events never reach n8n.
   - They only work with `message.received`, `message.sent`, `message.edited` and `message.revoked`. Other events carry no sender or text, so the gateway would silently drop them.
   - The node refuses filters combined with any other event, including All Events.
 

@@ -13,7 +13,7 @@ import { deriveWebhookSecret } from '../nodes/OpenWa/trigger/webhook';
 const node = {
 	id: '1',
 	name: 'OpenWA Trigger',
-	type: 'openWaTrigger',
+	type: 'openWaEventTrigger',
 	typeVersion: 1,
 	position: [0, 0],
 	parameters: {},

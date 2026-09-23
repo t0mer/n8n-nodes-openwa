@@ -1,5 +1,5 @@
 {
-	"node": "@t0mer/n8n-nodes-openwa.openWaTrigger",
+	"node": "@t0mer/n8n-nodes-openwa.openWaEventTrigger",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": ["Communication"],

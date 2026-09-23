@@ -47,7 +47,11 @@
     "nodes": [
       "dist/nodes/OpenWa/OpenWa.node.js",
       "dist/nodes/OpenWaTrigger/OpenWaTrigger.node.js",
-      "dist/nodes/OpenWaMessageTrigger/OpenWaMessageTrigger.node.js"
+      "dist/nodes/OpenWaMessageTrigger/OpenWaMessageTrigger.node.js",
+      "dist/nodes/OpenWaSessionTrigger/OpenWaSessionTrigger.node.js",
+      "dist/nodes/OpenWaGroupTrigger/OpenWaGroupTrigger.node.js",
+      "dist/nodes/OpenWaCallTrigger/OpenWaCallTrigger.node.js",
+      "dist/nodes/OpenWaStatusTrigger/OpenWaStatusTrigger.node.js"
     ]
   },
   "devDependencies": {

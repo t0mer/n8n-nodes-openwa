@@ -2,7 +2,6 @@ import {
 	NodeOperationError,
 	type IDataObject,
 	type IExecuteFunctions,
-	type IN8nHttpFullResponse,
 	type INodeExecutionData,
 } from 'n8n-workflow';
 import { CAPTION_OPERATIONS, MEDIA_ENDPOINTS } from '../descriptions/media';
@@ -15,15 +14,11 @@ import {
 	validateGroupId,
 } from '../helpers/chatId';
 import { pairsToObject, parseCoordinate, parsePollOptions } from '../helpers/fields';
-import {
-	MAX_BINARY_BYTES,
-	buildMediaBody,
-	parseContentDispositionFilename,
-	type MediaInput,
-} from '../helpers/media';
+import { buildMediaBody, type MediaInput } from '../helpers/media';
 import { fetchByCursor } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
 import { checkNumber } from './contact';
+import { convertToVoiceNote, downloadBinary } from './media';
 import { getTemplateId } from './template';
 
 type BodyBuilder = (
@@ -152,37 +147,14 @@ async function downloadMedia(
 ): Promise<INodeExecutionData> {
 	const messageId = getMessageId(ctx, i);
 	const field = String(ctx.getNodeParameter('outputBinaryField', i, 'data') ?? '').trim() || 'data';
-	const response = (await openWaApiRequest.call(
+	const { binary, fileSize } = await downloadBinary(
 		ctx,
-		'GET',
-		`/api/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(chatId)}/${encodeURIComponent(messageId)}/media`,
-		{ sessionId, itemIndex: i, raw: true },
-	)) as IN8nHttpFullResponse;
-
-	const body = response.body as Buffer | ArrayBuffer;
-	const data = Buffer.isBuffer(body) ? body : Buffer.from(body);
-	const header = (name: string) => {
-		const value = response.headers?.[name];
-		return Array.isArray(value) ? value[0] : value;
-	};
-	// The gateway may label every file application/octet-stream; drop that so n8n infers the
-	// real type from the file name.
-	const contentType = String(header('content-type') ?? '')
-		.split(';')[0]
-		.trim();
-	const mimeType =
-		contentType && contentType !== 'application/octet-stream' ? contentType : undefined;
-	const fileName = parseContentDispositionFilename(header('content-disposition'));
-
-	const binary = await ctx.helpers.prepareBinaryData(data, fileName, mimeType);
+		i,
+		sessionId,
+		`/messages/${encodeURIComponent(chatId)}/${encodeURIComponent(messageId)}/media`,
+	);
 	return {
-		json: {
-			chatId,
-			messageId,
-			fileName: binary.fileName,
-			mimeType: binary.mimeType,
-			fileSize: data.length,
-		},
+		json: { chatId, messageId, fileName: binary.fileName, mimeType: binary.mimeType, fileSize },
 		binary: { [field]: binary },
 	};
 }
@@ -462,36 +434,4 @@ async function buildMediaRequestBody(
 		}
 	}
 	return body;
-}
-
-/**
- * Have the gateway convert the audio in `media` (url or base64) to Ogg/Opus, and return the
- * `base64`/`mimetype` to send instead.
- */
-async function convertToVoiceNote(
-	ctx: IExecuteFunctions,
-	i: number,
-	sessionId: string,
-	media: IDataObject,
-): Promise<IDataObject> {
-	const converted = (await openWaApiRequest.call(
-		ctx,
-		'POST',
-		`/api/sessions/${encodeURIComponent(sessionId)}/media/convert/voice`,
-		{
-			body: media.base64 ? { base64: media.base64 } : { url: media.url },
-			sessionId,
-			itemIndex: i,
-		},
-	)) as { base64: string; mimetype: string; bytes: number };
-	// The converted audio is always sent inline, so sending by URL can't get around the limit.
-	if (converted.bytes > MAX_BINARY_BYTES) {
-		const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
-		throw new NodeOperationError(
-			ctx.getNode(),
-			`The converted voice note is ${mb(converted.bytes)} MB, above the ${mb(MAX_BINARY_BYTES)} MB inline limit. Shorten the audio, or send it without Convert to Voice Note.`,
-			{ itemIndex: i },
-		);
-	}
-	return { base64: converted.base64, mimetype: converted.mimetype };
 }

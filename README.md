@@ -2,7 +2,7 @@
 
 An [n8n](https://n8n.io/) community node that sends WhatsApp messages through a self-hosted OpenWA gateway.
 
-It sends text, media, locations, polls, contact cards and templates to **contacts** and **groups**; replies to, reacts to, forwards, edits, deletes, pins and stars messages; reads message history and downloads media; manages text templates and groups (create, participants, admins, join requests, invite links, settings, picture), and looks up and manages contacts (list, get, check a number, profile picture, block/unblock, resolve a phone number). It can also be used as a tool by n8n AI Agents.
+It sends text, media, locations, polls, contact cards and templates to **contacts** and **groups**; replies to, reacts to, forwards, edits, deletes, pins and stars messages; reads message history and downloads media; manages text templates and groups (create, participants, admins, join requests, invite links, settings, picture); posts and reads status updates (stories); updates the account profile; and looks up and manages contacts (list, get, check a number, profile picture, block/unblock, resolve a phone number). It can also be used as a tool by n8n AI Agents.
 
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -157,6 +157,35 @@ A `messageId` means the gateway accepted the message. It does not confirm delive
 - **Participants / Requesters**: comma-separated phone numbers or contact IDs (`@c.us`, `@lid`), or an array from an expression.
 - Most changes need the session account to be a group admin. WhatsApp's refusal comes back as a 403 with the gateway's message.
 - Leave, Remove Participants, Revoke Invite Link, Remove Picture, and Approve/Reject with All Pending Requests change the group and can't be undone from the node. Keep that in mind when giving the node to an AI Agent.
+
+### Status
+
+Status updates (stories) last 24 hours.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Get Many | `GET /status` | One item per status visible to the session, newest first |
+| Get From Contact | `GET /status/{contactId}` | Contact (phone number or contact ID). One item per status. |
+| Post Text | `POST /status/send-text` | Text; options: Background Color, Font, Recipients |
+| Post Image / Post Video | `POST /status/send-image`, `/send-video` | Media Source (URL, or binary up to 18 MB of the matching type), Caption; option: Recipients |
+| Post Voice | `POST /status/send-voice` | Media Source, Convert to Voice Note (on by default); options: Background Color, Recipients |
+| Delete | `DELETE /status/{statusId}` | Status ID (one of your own) |
+| Download Media | `GET /status/{statusId}/media` | Status ID, Put Output File in Field. Outputs the file as binary data. |
+
+- Post operations output `{ statusId, timestamp, expiresAt }`.
+- **Recipients** (up to 256 phone numbers or contact IDs): the Baileys engine posts **only** to this list, so it's effectively required there. whatsapp-web.js ignores it and uses the account's status privacy settings.
+- **Post Voice → Convert to Voice Note**: WhatsApp plays a voice status only as Ogg/Opus and the gateway doesn't transcode on its own, so the node converts it first by default. This needs media conversion (ffmpeg) on the gateway. Turn it off if your audio is already Ogg/Opus.
+
+### Profile
+
+Changes the session's own WhatsApp account.
+
+| Operation | OpenWA endpoint | Fields |
+|---|---|---|
+| Set Name | `PUT /profile/name` | Name (up to 25 characters) |
+| Set About | `PUT /profile/status` | About (up to 139 characters; empty clears it) |
+| Set Picture | `PUT /profile/picture` | Picture Source (URL, or a binary image up to 18 MB) |
+| Remove Picture | `DELETE /profile/picture` | — |
 
 ### Template
 

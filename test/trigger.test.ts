@@ -521,3 +521,90 @@ describe('custom webhook secret', () => {
 		expect(await exists(await registered(withSecret(customSecret)), base)).toBe(false);
 	});
 });
+
+describe('raw filter conditions', () => {
+	const hasMedia = { field: 'hasMedia', operator: 'equals', value: true };
+	const groupKind = { field: 'kind', operator: 'is', value: ['group'] };
+	const withRaw = (filterConditions: unknown, extra: IDataObject = {}, events?: string[]) => ({
+		...base,
+		...(events ? { events } : {}),
+		options: { ...extra, filterConditions },
+	});
+
+	it('sends the raw conditions after the form conditions', async () => {
+		const { ctx, calls } = hookContext(
+			withRaw(JSON.stringify({ conditions: [hasMedia, groupKind] }), { bodyContains: 'hi' }),
+		);
+		await webhookMethods.default.create.call(ctx);
+		expect((calls[0].body as IDataObject).filters).toEqual({
+			conditions: [{ field: 'body', operator: 'contains', value: 'hi' }, hasMedia, groupKind],
+		});
+	});
+
+	it.each([[''], ['  \n '], [undefined]])('sends no filters for %j', async (value) => {
+		const { ctx, calls } = hookContext(withRaw(value));
+		await webhookMethods.default.create.call(ctx);
+		expect(calls[0].body).not.toHaveProperty('filters');
+	});
+
+	it('allows raw conditions with events of any family', async () => {
+		const status = { field: 'status', operator: 'is', value: 'failed' };
+		const { ctx, calls } = hookContext(
+			withRaw(JSON.stringify([status]), {}, ['session.status', '*']),
+		);
+		await webhookMethods.default.create.call(ctx);
+		expect((calls[0].body as IDataObject).filters).toEqual({ conditions: [status] });
+	});
+
+	it('still refuses form filters with other events, even alongside raw conditions', async () => {
+		const { ctx, calls } = hookContext(
+			withRaw(JSON.stringify([hasMedia]), { bodyContains: 'hi' }, ['session.status']),
+		);
+		await expect(webhookMethods.default.create.call(ctx)).rejects.toThrow(
+			"Message filters can't be combined with session.status",
+		);
+		expect(calls).toHaveLength(0);
+	});
+
+	it.each([
+		['{not json', 'Filter Conditions (JSON): Filter conditions are not valid JSON'],
+		[
+			JSON.stringify([{ field: 'body', operator: 'startsWith', value: 'x' }]),
+			'Filter Conditions (JSON): Filter condition 1: "operator" must be one of',
+		],
+		['[]', 'Filter Conditions (JSON): Filter conditions must have 1–20 entries'],
+	])('refuses %s before calling the gateway', async (value, message) => {
+		const { ctx, calls } = hookContext(withRaw(value));
+		await expect(webhookMethods.default.create.call(ctx)).rejects.toThrow(message);
+		expect(calls).toHaveLength(0);
+	});
+
+	it('refuses more than 20 conditions in total, counting the form filters', async () => {
+		const twenty = JSON.stringify(Array(20).fill(hasMedia));
+		const { ctx: ok } = hookContext(withRaw(twenty));
+		await expect(webhookMethods.default.create.call(ok)).resolves.toBe(true);
+
+		const { ctx, calls } = hookContext(withRaw(twenty, { bodyContains: 'hi' }));
+		const error = await webhookMethods.default.create
+			.call(ctx)
+			.catch((e: Error & { description?: string }) => e);
+		expect(error.message).toBe('Too many filter conditions: 21 (the most is 20)');
+		expect(error.description).toMatch(/1 come from the filter options and 20 from/);
+		expect(calls).toHaveLength(0);
+	});
+
+	it('re-registers when the raw conditions change', async () => {
+		const exists = (staticData: TriggerStaticData, params: Record<string, unknown>) =>
+			webhookMethods.default.checkExists.call(
+				hookContext(params, {
+					respond: (o) => (o.method === 'GET' ? { id: 'wh1', active: true } : { success: true }),
+					staticData,
+				}).ctx,
+			);
+		const one = withRaw(JSON.stringify([hasMedia]));
+		expect(await exists(await registered(one), one)).toBe(true);
+		expect(await exists(await registered(one), withRaw(JSON.stringify([groupKind])))).toBe(false);
+		expect(await exists(await registered(one), base)).toBe(false);
+		expect(await exists(await registered(base), one)).toBe(false);
+	});
+});

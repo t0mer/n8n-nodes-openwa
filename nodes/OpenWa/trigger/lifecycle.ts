@@ -9,7 +9,9 @@ import {
 import { openWaApiRequest } from '../transport/request';
 import {
 	FILTERABLE_EVENTS,
+	MAX_FILTER_CONDITIONS,
 	buildMessageFilters,
+	parseFilterConditions,
 	deriveWebhookSecret,
 	secretTag,
 	type FilterCondition,
@@ -119,6 +121,32 @@ async function readRegistration(ctx: IHookFunctions): Promise<Registration> {
 				},
 			);
 		}
+	}
+
+	// Raw conditions may test any field, so they are allowed with any event: choosing fields that
+	// exist on the selected events' payloads is up to the user.
+	const raw = options.filterConditions;
+	if (raw !== undefined && raw !== null && !(typeof raw === 'string' && !raw.trim())) {
+		let rawConditions: FilterCondition[];
+		try {
+			rawConditions = parseFilterConditions(raw);
+		} catch (error) {
+			throw new NodeOperationError(
+				ctx.getNode(),
+				`Filter Conditions (JSON): ${(error as Error).message}`,
+			);
+		}
+		const conditions = [...(filters?.conditions ?? []), ...rawConditions];
+		if (conditions.length > MAX_FILTER_CONDITIONS) {
+			throw new NodeOperationError(
+				ctx.getNode(),
+				`Too many filter conditions: ${conditions.length} (the most is ${MAX_FILTER_CONDITIONS})`,
+				{
+					description: `${conditions.length - rawConditions.length} come from the filter options and ${rawConditions.length} from Filter Conditions (JSON). Remove some.`,
+				},
+			);
+		}
+		filters = { conditions };
 	}
 
 	const retryCount = Number(options.retryCount ?? 3);

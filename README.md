@@ -482,6 +482,17 @@ Each session can have up to 16 webhooks. Every active trigger uses one, and so d
 - **Message filters** (Message Trigger and OpenWA Events Trigger): Only From, Only In Chats, Body Contains, Chat Type (direct or groups) and Ignore Messages From Me. OpenWA applies them on the gateway, so filtered-out events never reach n8n.
   - They only work with `message.received`, `message.sent`, `message.edited` and `message.revoked`. Other events carry no sender or text, so the gateway would silently drop them.
   - The node refuses filters combined with any other event, including All Events.
+- **Filter Conditions (JSON)** (every trigger): extra conditions in the gateway's filter format, checked on the gateway like the message filters. Give `{"conditions": [...]}` or a bare array of conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. Every condition must match. For example, only group messages with media:
+  ```json
+  [
+    { "field": "hasMedia", "operator": "equals", "value": true },
+    { "field": "kind", "operator": "is", "value": ["group"] }
+  ]
+  ```
+  - Message events have the fields `sender`, `recipient`, `chatId`, `body`, `type`, `isGroup`, `kind`, `fromMe`, `hasMedia` and `mentions`. Other event families have their own fields.
+  - They're added after the message filters, up to 20 conditions in total.
+  - Unlike the message filters, they're allowed with any event. Only use fields that exist on every selected event: the gateway drops events that lack a field a condition tests.
+  - Changing them re-registers the webhook on the next activation.
 
 To try a trigger, click **Listen for test event** (n8n registers a temporary webhook), then send a WhatsApp message to the session's number, or from it.
 

@@ -161,7 +161,7 @@ describe('Message → Send Bulk', () => {
 		expect((message.content as IDataObject).image).not.toHaveProperty('filename');
 	});
 
-	it('skips a bad item with an error item under continueOnFail, and throws without it', async () => {
+	it('skips a bad item with an error item in input order under continueOnFail, and throws without it', async () => {
 		const params = { ...base, bulkType: 'text', text: 'Hi' };
 		const phone = (i: number) => (i === 1 ? 'not a number' : '972501234567');
 
@@ -169,8 +169,8 @@ describe('Message → Send Bulk', () => {
 		perItem(ctx, 'phoneNumber', phone);
 		const [output] = await run(ctx);
 		expect(output).toEqual([
-			{ json: { error: expect.any(String) }, pairedItem: { item: 1 } },
 			{ json: accepted, pairedItem: [{ item: 0 }, { item: 2 }] },
+			{ json: { error: expect.any(String) }, pairedItem: { item: 1 } },
 		]);
 		expect((calls[0].body as IDataObject).messages).toHaveLength(2);
 
@@ -233,8 +233,8 @@ describe('Message → Send Bulk', () => {
 		const [output] = await run(cof.ctx);
 		expect(cof.calls).toHaveLength(1);
 		expect(output.map((item) => item.json)).toEqual([
-			{ error: expect.stringMatching(/got 500/) },
 			accepted,
+			{ error: expect.stringMatching(/got 500/) },
 		]);
 	});
 

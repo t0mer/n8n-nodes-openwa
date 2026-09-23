@@ -294,7 +294,7 @@ Send Bulk works differently from the other operations: instead of one request pe
 
 - Recipient, type, text, media, caption and mentions are read per item, so expressions like `{{ $json.phone }}` give each item its own message. Check Number Exists is not available for bulk sends, and audio must already be Ogg/Opus for voice notes (no Convert to Voice Note). Stickers can't be sent in bulk.
 - A batch holds up to **100 messages** and must fit OpenWA's **25 MB** request limit. 150 text items become two batches (100 + 50); Binary Data and Base64 media travel inside the request, so large files start a new batch sooner (three 8 MB files become two batches). The batch options (Batch ID, delay, Randomize Delay, Stop On Error) are taken from the first item of each batch. With a custom **Batch ID** and more than one batch, the batches get the IDs `<id>-1`, `<id>-2`, and so on. Items with a different session go into separate batches.
-- The node outputs **one item per batch**, paired with all its input items:
+- The node outputs **one item per batch**, paired with all its input items, plus any error items (see below), all ordered by their first input item:
 
   ```json
   { "batchId": "batch_abc123", "status": "processing", "totalMessages": 100, "statusUrl": "/api/sessions/…/messages/batch/batch_abc123" }

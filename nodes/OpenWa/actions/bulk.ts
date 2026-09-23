@@ -28,12 +28,15 @@ const toMb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
  * Send Bulk: every input item becomes one message, grouped by session into batches of up to
  * 100 messages and 25 MB, each posted once. Every batch is built and checked before the first is posted. Outputs
  * one item per batch, paired with all its input items. An item that can't be built (or a batch
- * that fails) becomes an error item with Continue On Fail.
+ * that fails) becomes an error item with Continue On Fail. Outputs are ordered by their first
+ * input item.
  */
 export async function sendBulk(
 	ctx: IExecuteFunctions,
 	itemCount: number,
 ): Promise<INodeExecutionData[]> {
+	// Indexed by each output's first input item (unique: an item is in one batch or errors
+	// alone), so the output follows input order.
 	const output: INodeExecutionData[] = [];
 	const bySession = new Map<string, Entry[]>();
 
@@ -51,7 +54,7 @@ export async function sendBulk(
 			bySession.set(sessionId, entries);
 		} catch (error) {
 			if (!ctx.continueOnFail()) throw toNodeError(ctx, error, i);
-			output.push({ json: { error: (error as Error).message }, pairedItem: { item: i } });
+			output[i] = { json: { error: (error as Error).message }, pairedItem: { item: i } };
 		}
 	}
 
@@ -72,7 +75,7 @@ export async function sendBulk(
 				ready.push({ sessionId, first, pairedItem, body });
 			} catch (error) {
 				if (!ctx.continueOnFail()) throw toNodeError(ctx, error, first);
-				output.push({ json: { error: (error as Error).message }, pairedItem });
+				output[first] = { json: { error: (error as Error).message }, pairedItem };
 			}
 		}
 	}
@@ -85,13 +88,13 @@ export async function sendBulk(
 				`/api/sessions/${encodeURIComponent(sessionId)}/messages/send-bulk`,
 				{ body, sessionId, itemIndex: first },
 			)) as IDataObject;
-			output.push({ json: response, pairedItem });
+			output[first] = { json: response, pairedItem };
 		} catch (error) {
 			if (!ctx.continueOnFail()) throw toNodeError(ctx, error, first);
-			output.push({ json: { error: (error as Error).message }, pairedItem });
+			output[first] = { json: { error: (error as Error).message }, pairedItem };
 		}
 	}
-	return output;
+	return output.filter(Boolean);
 }
 
 /**

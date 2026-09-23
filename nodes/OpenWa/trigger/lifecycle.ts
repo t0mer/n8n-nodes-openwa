@@ -51,6 +51,18 @@ export async function credentialApiKey(ctx: {
 	return String((await ctx.getCredentials('openWaApi')).apiKey ?? '');
 }
 
+/**
+ * What a trigger's secret is derived from: the workflow and node IDs. Not the webhook URL,
+ * because in a test delivery n8n's getNodeWebhookUrl() returns the production URL, which would
+ * derive a different secret from the one registered with the test URL.
+ */
+export function secretScope(ctx: {
+	getWorkflow(): { id?: string };
+	getNode(): { id: string };
+}): string {
+	return `${ctx.getWorkflow().id ?? ''}:${ctx.getNode().id}`;
+}
+
 export function configuredSessionId(ctx: {
 	getNodeParameter(name: string, fallback?: unknown, options?: IDataObject): unknown;
 }): string {
@@ -93,7 +105,7 @@ async function readRegistration(ctx: IHookFunctions): Promise<Registration> {
 		events,
 		retryCount: Number.isFinite(retryCount) ? retryCount : 3,
 		filters,
-		secret: deriveWebhookSecret(await credentialApiKey(ctx), url),
+		secret: deriveWebhookSecret(await credentialApiKey(ctx), secretScope(ctx)),
 	};
 }
 

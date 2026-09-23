@@ -57,6 +57,7 @@ function hookContext(
 	const calls: IHttpRequestOptions[] = [];
 	const ctx = {
 		getNode: () => node,
+		getWorkflow: () => ({ id: 'wf1', active: false }),
 		getNodeParameter: readParam(params),
 		getNodeWebhookUrl: () => url,
 		getWorkflowStaticData: () => staticData,
@@ -83,7 +84,7 @@ async function registered(params: Record<string, unknown> = base, url = prodUrl)
 }
 
 describe('create', () => {
-	it('registers the webhook with a secret derived from the API key and URL', async () => {
+	it('registers the webhook with a secret derived from the API key, workflow and node', async () => {
 		const { ctx, calls, staticData } = hookContext(base);
 		expect(await webhookMethods.default.create.call(ctx)).toBe(true);
 		expect(calls).toHaveLength(1);
@@ -91,14 +92,14 @@ describe('create', () => {
 		expect(calls[0].body).toEqual({
 			url: prodUrl,
 			events: ['message.received'],
-			secret: deriveWebhookSecret(apiKey, prodUrl),
+			secret: deriveWebhookSecret(apiKey, 'wf1:1'),
 			retryCount: 3,
 		});
 		expect(staticData.registrations?.[prodUrl]).toMatchObject({
 			webhookId: 'wh1',
 			sessionId: 'sA',
 		});
-		expect(JSON.stringify(staticData)).not.toContain(deriveWebhookSecret(apiKey, prodUrl));
+		expect(JSON.stringify(staticData)).not.toContain(deriveWebhookSecret(apiKey, 'wf1:1'));
 	});
 
 	it('sends message filters and the chosen retry count', async () => {
@@ -280,8 +281,8 @@ describe('receiveWebhook', () => {
 		deliveryId: 'dlv_1',
 		data: { id: 'ABC', body: 'hi' },
 	};
-	const sign = (raw: Buffer | string, url = prodUrl) =>
-		`sha256=${createHmac('sha256', deriveWebhookSecret(apiKey, url)).update(raw).digest('hex')}`;
+	const sign = (raw: Buffer | string) =>
+		`sha256=${createHmac('sha256', deriveWebhookSecret(apiKey, 'wf1:1')).update(raw).digest('hex')}`;
 
 	function webhookContext({
 		params = base as Record<string, unknown>,
@@ -313,11 +314,13 @@ describe('receiveWebhook', () => {
 			},
 		};
 		const ctx = {
+			getNode: () => node,
+			getWorkflow: () => ({ id: 'wf1', active: false }),
 			getNodeParameter: readParam(params),
 			getNodeWebhookUrl: () => url,
 			getCredentials: async () => ({ baseUrl: 'https://wa.example.com', apiKey }),
 			getHeaderData: () => ({
-				'x-openwa-signature': sign(rawBody, url),
+				'x-openwa-signature': sign(rawBody),
 				'x-openwa-event': body.event,
 				...headers,
 			}),
@@ -335,7 +338,7 @@ describe('receiveWebhook', () => {
 		expect(await receiveWebhook.call(ctx)).toEqual({ workflowData: [[{ json: delivery }]] });
 	});
 
-	it('verifies test-URL deliveries with the test URL’s secret', async () => {
+	it('verifies deliveries arriving on the test URL with the same secret', async () => {
 		const { ctx } = webhookContext({ url: testUrl });
 		expect(await receiveWebhook.call(ctx)).toHaveProperty('workflowData');
 	});
@@ -411,5 +414,34 @@ describe('receiveWebhook', () => {
 			params: { ...base, options: { ignoreDuplicates: false } },
 		});
 		expect(await receiveWebhook.call(allowed.ctx)).toHaveProperty('workflowData');
+	});
+});
+
+describe('test-mode deliveries (regression)', () => {
+	it('verifies a delivery registered on the test URL although n8n reports the production URL', async () => {
+		// Listen for test event: n8n registers with the test URL...
+		const { ctx: hook, calls } = hookContext(base, { url: testUrl });
+		await webhookMethods.default.create.call(hook);
+		const registeredSecret = (calls[0].body as IDataObject).secret as string;
+
+		// ...but the webhook context's getNodeWebhookUrl() returns the production URL.
+		const body = { event: 'message.received', sessionId: 'sA', idempotencyKey: 'k1', data: {} };
+		const raw = Buffer.from(JSON.stringify(body));
+		const signature = `sha256=${createHmac('sha256', registeredSecret).update(raw).digest('hex')}`;
+		const res = { status: () => res, json: () => res };
+		const ctx = {
+			getNode: () => node,
+			getWorkflow: () => ({ id: 'wf1', active: false }),
+			getNodeParameter: readParam(base),
+			getNodeWebhookUrl: () => prodUrl,
+			getCredentials: async () => ({ baseUrl: 'https://wa.example.com', apiKey }),
+			getHeaderData: () => ({ 'x-openwa-signature': signature }),
+			getBodyData: () => body,
+			getRequestObject: () => ({ rawBody: raw }),
+			getResponseObject: () => res,
+			getWorkflowStaticData: () => ({}),
+			helpers: { returnJsonArray: (items: IDataObject[]) => items.map((json) => ({ json })) },
+		} as unknown as IWebhookFunctions;
+		expect(await receiveWebhook.call(ctx)).toHaveProperty('workflowData');
 	});
 });

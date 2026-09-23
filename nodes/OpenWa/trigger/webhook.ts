@@ -19,12 +19,12 @@ export function verifySignature(
 }
 
 /**
- * The signing secret for one webhook URL, derived from the API key. Registration and delivery
- * compute the same value, so verification never depends on stored state (and can't fail open),
- * and rotating the API key changes it.
+ * The signing secret for one trigger node, derived from the API key and a scope that is the
+ * same at registration and at delivery (workflow and node ID). Nothing is stored, so
+ * verification can't fail open, and rotating the API key changes it.
  */
-export function deriveWebhookSecret(apiKey: string, webhookUrl: string): string {
-	return createHmac('sha256', apiKey).update(`openwa-trigger:${webhookUrl}`).digest('hex');
+export function deriveWebhookSecret(apiKey: string, scope: string): string {
+	return createHmac('sha256', apiKey).update(`openwa-trigger:${scope}`).digest('hex');
 }
 
 /** A short, non-reversible tag of a secret, for noticing that it changed. */

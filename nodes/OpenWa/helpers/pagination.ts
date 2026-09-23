@@ -47,3 +47,24 @@ export async function fetchByCursor<T>(
 		after = next;
 	}
 }
+
+/**
+ * Collect results from a limit/offset endpoint that wraps each page with a `total` count
+ * (e.g. `{ data, total }`). Stops once `total` or `max` rows are collected, at an empty page,
+ * or when `offset` would pass `maxOffset`.
+ */
+export async function fetchPagedWithTotal<T>(
+	fetchPage: (limit: number, offset: number) => Promise<{ items: T[]; total: number }>,
+	max?: number,
+	pageSize = 100,
+	maxOffset = Infinity,
+): Promise<T[]> {
+	const results: T[] = [];
+	for (;;) {
+		const limit = Math.min(pageSize, max === undefined ? pageSize : max - results.length);
+		if (limit <= 0 || results.length > maxOffset) return results;
+		const { items, total } = await fetchPage(limit, results.length);
+		results.push(...items.slice(0, limit));
+		if (!items.length || results.length >= total) return results;
+	}
+}

@@ -23,6 +23,36 @@ interface Template {
 	name: string;
 }
 
+interface Label {
+	id: string;
+	name: string;
+}
+
+interface Channel {
+	id: string;
+	name: string;
+}
+
+interface Webhook {
+	id: string;
+	url: string;
+	events?: string[];
+}
+
+interface AutomationRule {
+	id: string;
+	name: string;
+	enabled?: boolean;
+}
+
+interface ApiKey {
+	id: string;
+	name: string;
+	role: string;
+	keyPrefix: string;
+	isActive?: boolean;
+}
+
 interface Session {
 	id: string;
 	name: string;
@@ -126,5 +156,100 @@ export async function searchTemplates(
 			.filter((template) => matches(filter, template.name, template.id))
 			.sort((a, b) => a.name.localeCompare(b.name))
 			.map((template) => ({ name: template.name, value: template.id })),
+	};
+}
+
+export async function searchLabels(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'labels');
+	const labels = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/labels`,
+		{ sessionId },
+	)) as Label[];
+	return {
+		results: labels
+			.filter((label) => matches(filter, label.name, label.id))
+			.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+			.map((label) => ({ name: label.name || label.id, value: label.id })),
+	};
+}
+
+export async function searchChannels(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'channels');
+	const channels = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/channels`,
+		{ sessionId },
+	)) as Channel[];
+	return {
+		results: channels
+			.filter((channel) => matches(filter, channel.name, channel.id))
+			.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+			.map((channel) => ({ name: channel.name || channel.id, value: channel.id })),
+	};
+}
+
+export async function searchWebhooks(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'webhooks');
+	const webhooks = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/webhooks`,
+		{ sessionId },
+	)) as Webhook[];
+	return {
+		results: webhooks
+			.filter((webhook) => matches(filter, webhook.url, webhook.id, ...(webhook.events ?? [])))
+			.map((webhook) => ({
+				name: `${webhook.url} (${(webhook.events ?? []).join(', ')})`,
+				value: webhook.id,
+			})),
+	};
+}
+
+export async function searchAutomationRules(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'automation rules');
+	const rules = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/automation-rules`,
+		{ sessionId },
+	)) as AutomationRule[];
+	return {
+		results: rules
+			.filter((rule) => matches(filter, rule.name, rule.id))
+			.map((rule) => ({
+				name: `${rule.name} (${rule.enabled === false ? 'disabled' : 'enabled'})`,
+				value: rule.id,
+			})),
+	};
+}
+
+export async function searchApiKeys(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const keys = (await openWaApiRequest.call(this, 'GET', '/api/auth/api-keys')) as ApiKey[];
+	return {
+		results: keys
+			.filter((key) => matches(filter, key.name, key.id, key.keyPrefix, key.role))
+			.map((key) => ({
+				name: `${key.name} (${key.role}, ${key.keyPrefix}…${key.isActive === false ? ', revoked' : ''})`,
+				value: key.id,
+			})),
 	};
 }

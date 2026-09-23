@@ -1,7 +1,7 @@
 import type { IDataObject, IWebhookFunctions, IWebhookResponseData } from 'n8n-workflow';
 import { ALL_EVENTS_WILDCARD } from './events';
-import { configuredSessionId, credentialApiKey, secretScope, triggerStaticData } from './lifecycle';
-import { deriveWebhookSecret, rememberDelivery, verifySignature } from './webhook';
+import { configuredSessionId, resolveWebhookSecret, triggerStaticData } from './lifecycle';
+import { rememberDelivery, verifySignature } from './webhook';
 
 /** Answer the gateway without starting the workflow. */
 function acknowledge(
@@ -25,8 +25,8 @@ export async function receiveWebhook(this: IWebhookFunctions): Promise<IWebhookR
 	const body = this.getBodyData();
 
 	if (options.verifySignature !== false) {
-		// The secret is derived, not stored, so there is always one to check against (fail closed).
-		const secret = deriveWebhookSecret(await credentialApiKey(this), secretScope(this));
+		// There is always a secret to check against (custom or derived), so this fails closed.
+		const secret = await resolveWebhookSecret(this, options);
 		// The HMAC covers the exact bytes sent; re-serializing is only a fallback if n8n kept none.
 		const raw = this.getRequestObject().rawBody ?? Buffer.from(JSON.stringify(body));
 		if (!verifySignature(raw, header(headers, 'x-openwa-signature'), secret)) {

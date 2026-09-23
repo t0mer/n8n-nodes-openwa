@@ -75,6 +75,9 @@ function hookContext(
 }
 
 const sessionA = { mode: 'id', value: 'sA' };
+const customSecret = ['custom', 'signing', 'value', 'for', 'tests'].join('-');
+const signWith = (secret: string, raw: Buffer | string) =>
+	`sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`;
 const base = { session: sessionA, events: ['message.received'], options: {} };
 
 async function registered(params: Record<string, unknown> = base, url = prodUrl) {
@@ -375,6 +378,25 @@ describe('receiveWebhook', () => {
 		expect(await receiveWebhook.call(off.ctx)).toHaveProperty('workflowData');
 	});
 
+	it('verifies with the custom Webhook Secret when set, not the derived one', async () => {
+		const params = { ...base, options: { webhookSecret: customSecret } };
+		const raw = Buffer.from(JSON.stringify(delivery));
+		const good = webhookContext({
+			params,
+			headers: { 'x-openwa-signature': signWith(customSecret, raw) },
+		});
+		expect(await receiveWebhook.call(good.ctx)).toHaveProperty('workflowData');
+
+		const derived = webhookContext({ params }); // signed with the derived secret
+		expect(await receiveWebhook.call(derived.ctx)).toEqual({ noWebhookResponse: true });
+		expect(derived.response.code).toBe(401);
+	});
+
+	it('fails closed on an invalid Webhook Secret', async () => {
+		const { ctx } = webhookContext({ params: { ...base, options: { webhookSecret: 'short' } } });
+		await expect(receiveWebhook.call(ctx)).rejects.toThrow('16–255 characters');
+	});
+
 	it('ignores deliveries for another session', async () => {
 		const { ctx, response } = webhookContext({ body: { ...delivery, sessionId: 'sB' } });
 		expect(await receiveWebhook.call(ctx)).toEqual({ noWebhookResponse: true });
@@ -443,5 +465,146 @@ describe('test-mode deliveries (regression)', () => {
 			helpers: { returnJsonArray: (items: IDataObject[]) => items.map((json) => ({ json })) },
 		} as unknown as IWebhookFunctions;
 		expect(await receiveWebhook.call(ctx)).toHaveProperty('workflowData');
+	});
+});
+
+describe('custom webhook secret', () => {
+	const withSecret = (webhookSecret: string) => ({ ...base, options: { webhookSecret } });
+
+	it('registers the custom secret exactly as typed', async () => {
+		const { ctx, calls, staticData } = hookContext(withSecret(customSecret));
+		await webhookMethods.default.create.call(ctx);
+		expect((calls[0].body as IDataObject).secret).toBe(customSecret);
+		expect(JSON.stringify(staticData)).not.toContain(customSecret);
+	});
+
+	it('derives the secret when the option is empty', async () => {
+		const { ctx, calls } = hookContext(withSecret(''));
+		await webhookMethods.default.create.call(ctx);
+		expect((calls[0].body as IDataObject).secret).toBe(deriveWebhookSecret(apiKey, 'wf1:1'));
+	});
+
+	it.each([
+		['a'.repeat(15), '16–255 characters'],
+		['a'.repeat(256), '16–255 characters'],
+		[` ${customSecret}`, 'must not start or end with spaces'],
+		[`${customSecret}\n`, 'must not start or end with spaces'],
+	])('refuses %j before calling the gateway', async (secret, message) => {
+		const { ctx, calls } = hookContext(withSecret(secret));
+		await expect(webhookMethods.default.create.call(ctx)).rejects.toThrow(message);
+		expect(calls).toHaveLength(0);
+	});
+
+	it('accepts 16 and 255 characters', async () => {
+		for (const secret of ['a'.repeat(16), 'a'.repeat(255)]) {
+			const { ctx, calls } = hookContext(withSecret(secret));
+			await webhookMethods.default.create.call(ctx);
+			expect((calls[0].body as IDataObject).secret).toBe(secret);
+		}
+	});
+
+	it('re-registers when the secret is set, changed or cleared', async () => {
+		const exists = (staticData: TriggerStaticData, params: Record<string, unknown>) =>
+			webhookMethods.default.checkExists.call(
+				hookContext(params, {
+					respond: (o) => (o.method === 'GET' ? { id: 'wh1', active: true } : { success: true }),
+					staticData,
+				}).ctx,
+			);
+		expect(await exists(await registered(), withSecret(customSecret))).toBe(false);
+		expect(await exists(await registered(withSecret(customSecret)), withSecret(customSecret))).toBe(
+			true,
+		);
+		expect(
+			await exists(await registered(withSecret(customSecret)), withSecret(`${customSecret}-2`)),
+		).toBe(false);
+		expect(await exists(await registered(withSecret(customSecret)), base)).toBe(false);
+	});
+});
+
+describe('raw filter conditions', () => {
+	const hasMedia = { field: 'hasMedia', operator: 'equals', value: true };
+	const groupKind = { field: 'kind', operator: 'is', value: ['group'] };
+	const withRaw = (filterConditions: unknown, extra: IDataObject = {}, events?: string[]) => ({
+		...base,
+		...(events ? { events } : {}),
+		options: { ...extra, filterConditions },
+	});
+
+	it('sends the raw conditions after the form conditions', async () => {
+		const { ctx, calls } = hookContext(
+			withRaw(JSON.stringify({ conditions: [hasMedia, groupKind] }), { bodyContains: 'hi' }),
+		);
+		await webhookMethods.default.create.call(ctx);
+		expect((calls[0].body as IDataObject).filters).toEqual({
+			conditions: [{ field: 'body', operator: 'contains', value: 'hi' }, hasMedia, groupKind],
+		});
+	});
+
+	it.each([[''], ['  \n '], [undefined]])('sends no filters for %j', async (value) => {
+		const { ctx, calls } = hookContext(withRaw(value));
+		await webhookMethods.default.create.call(ctx);
+		expect(calls[0].body).not.toHaveProperty('filters');
+	});
+
+	it('allows raw conditions with events of any family', async () => {
+		const status = { field: 'status', operator: 'is', value: 'failed' };
+		const { ctx, calls } = hookContext(
+			withRaw(JSON.stringify([status]), {}, ['session.status', '*']),
+		);
+		await webhookMethods.default.create.call(ctx);
+		expect((calls[0].body as IDataObject).filters).toEqual({ conditions: [status] });
+	});
+
+	it('still refuses form filters with other events, even alongside raw conditions', async () => {
+		const { ctx, calls } = hookContext(
+			withRaw(JSON.stringify([hasMedia]), { bodyContains: 'hi' }, ['session.status']),
+		);
+		await expect(webhookMethods.default.create.call(ctx)).rejects.toThrow(
+			"Message filters can't be combined with session.status",
+		);
+		expect(calls).toHaveLength(0);
+	});
+
+	it.each([
+		['{not json', 'Filter Conditions (JSON): Filter conditions are not valid JSON'],
+		[
+			JSON.stringify([{ field: 'body', operator: 'startsWith', value: 'x' }]),
+			'Filter Conditions (JSON): Filter condition 1: "operator" must be one of',
+		],
+		['[]', 'Filter Conditions (JSON): Filter conditions must have 1–20 entries'],
+	])('refuses %s before calling the gateway', async (value, message) => {
+		const { ctx, calls } = hookContext(withRaw(value));
+		await expect(webhookMethods.default.create.call(ctx)).rejects.toThrow(message);
+		expect(calls).toHaveLength(0);
+	});
+
+	it('refuses more than 20 conditions in total, counting the form filters', async () => {
+		const twenty = JSON.stringify(Array(20).fill(hasMedia));
+		const { ctx: ok } = hookContext(withRaw(twenty));
+		await expect(webhookMethods.default.create.call(ok)).resolves.toBe(true);
+
+		const { ctx, calls } = hookContext(withRaw(twenty, { bodyContains: 'hi' }));
+		const error = await webhookMethods.default.create
+			.call(ctx)
+			.catch((e: Error & { description?: string }) => e);
+		expect(error.message).toBe('Too many filter conditions: 21 (the most is 20)');
+		expect(error.description).toMatch(/1 come from the filter options and 20 from/);
+		expect(calls).toHaveLength(0);
+	});
+
+	it('re-registers when the raw conditions change', async () => {
+		const exists = (staticData: TriggerStaticData, params: Record<string, unknown>) =>
+			webhookMethods.default.checkExists.call(
+				hookContext(params, {
+					respond: (o) => (o.method === 'GET' ? { id: 'wh1', active: true } : { success: true }),
+					staticData,
+				}).ctx,
+			);
+		const one = withRaw(JSON.stringify([hasMedia]));
+		expect(await exists(await registered(one), one)).toBe(true);
+		expect(await exists(await registered(one), withRaw(JSON.stringify([groupKind])))).toBe(false);
+		expect(await exists(await registered(one), base)).toBe(false);
+		expect(await exists(await registered(base), one)).toBe(false);
 	});
 });

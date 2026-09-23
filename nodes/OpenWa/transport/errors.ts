@@ -23,6 +23,13 @@ export function describeOpenWaError(
 				message: 'Authentication failed — check your OpenWA API key in the credentials',
 				description: apiMessage,
 			};
+		case 403:
+			// Wrong role (e.g. managing API keys needs admin), or outside the key's allowed IPs, sessions or chats.
+			return {
+				message: apiMessage || 'The OpenWA API key is not allowed to do this (HTTP 403)',
+				description:
+					'The API key lacks the required role or scope: viewer keys can only read, operator keys can also write, and only admin keys can manage API keys. A key can also be limited to certain IPs, sessions and chats.',
+			};
 		case 404:
 			// Only blame the session when the gateway says so; a proxy 404 usually means a wrong Base URL.
 			if (sessionId && /session/i.test(apiMessage ?? '')) {
@@ -51,6 +58,13 @@ export function describeOpenWaError(
 			return {
 				message: 'Media too large',
 				description: apiMessage ? `${apiMessage}. ${SIZE_LIMITS_TEXT}` : SIZE_LIMITS_TEXT,
+			};
+		case 422:
+			// Only the label routes answer 422 (e.g. adding a label on a personal account).
+			return {
+				message: apiMessage || 'OpenWA could not process the request (HTTP 422)',
+				description:
+					'Labels need a WhatsApp Business account, and some chat types cannot carry labels.',
 			};
 		case 501:
 			return { message: apiMessage || 'Not supported by the active OpenWA engine' };

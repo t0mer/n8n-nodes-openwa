@@ -9,35 +9,61 @@ import {
 	type INodeTypeDescription,
 	type JsonObject,
 } from 'n8n-workflow';
-import { recipientFields, sessionField } from './descriptions/common';
+import { isSessionless, recipientFields, sessionFields } from './descriptions/common';
+import { executeApiKey } from './actions/apiKey';
+import { executeAutomationRule } from './actions/automationRule';
+import { sendBulk } from './actions/bulk';
 import { executeCall } from './actions/call';
+import { executeCatalog } from './actions/catalog';
+import { executeChannel } from './actions/channel';
 import { executeChat } from './actions/chat';
 import { executeContact } from './actions/contact';
 import { executeGroup } from './actions/group';
+import { executeLabel } from './actions/label';
+import { executeMediaTools } from './actions/mediaTools';
 import { executeMessage } from './actions/message';
 import { executeProfile } from './actions/profile';
+import { executeSession } from './actions/session';
 import { executeStatus } from './actions/status';
+import { executeSystem } from './actions/system';
 import { executeTemplate } from './actions/template';
+import { executeWebhook } from './actions/webhook';
 import { messageActionFields } from './descriptions/actions';
+import { apiKeyFields, apiKeyOperations } from './descriptions/apiKey';
+import { automationRuleFields, automationRuleOperations } from './descriptions/automationRule';
+import { bulkFields } from './descriptions/bulk';
 import { callFields, callOperations } from './descriptions/call';
+import { catalogFields, catalogOperations } from './descriptions/catalog';
+import { channelFields, channelOperations } from './descriptions/channel';
 import { chatFields, chatOperations } from './descriptions/chat';
 import { contactFields, contactOperations } from './descriptions/contact';
 import { contactCardFields } from './descriptions/contactCard';
 import { groupFields, groupOperations } from './descriptions/group';
 import { historyFields } from './descriptions/history';
+import { labelFields, labelOperations } from './descriptions/label';
 import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
+import { mediaToolsFields, mediaToolsOperations } from './descriptions/mediaTools';
 import { pollFields } from './descriptions/poll';
+import { productMessageFields } from './descriptions/product';
 import { profileFields, profileOperations } from './descriptions/profile';
+import { sessionOperations, sessionResourceFields } from './descriptions/session';
 import { statusFields, statusOperations } from './descriptions/status';
+import { systemFields, systemOperations } from './descriptions/system';
 import { messageOperations, messageOptions } from './descriptions/message';
 import { sendTemplateFields, templateFields, templateOperations } from './descriptions/template';
 import { textFields } from './descriptions/text';
+import { webhookFields, webhookOperations } from './descriptions/webhook';
 import {
+	searchApiKeys,
+	searchAutomationRules,
+	searchChannels,
 	searchContacts,
 	searchGroups,
+	searchLabels,
 	searchSessions,
 	searchTemplates,
+	searchWebhooks,
 } from './methods/listSearch';
 
 type Executor = (
@@ -53,14 +79,23 @@ function isExecutionData(value: unknown): value is INodeExecutionData {
 }
 
 const EXECUTORS: Record<string, Executor> = {
+	apiKey: executeApiKey,
+	automationRule: executeAutomationRule,
 	call: executeCall,
+	catalog: executeCatalog,
+	channel: executeChannel,
 	chat: executeChat,
 	contact: executeContact,
 	group: executeGroup,
+	label: executeLabel,
+	media: executeMediaTools,
 	message: executeMessage,
 	profile: executeProfile,
+	session: executeSession,
 	status: executeStatus,
+	system: executeSystem,
 	template: executeTemplate,
+	webhook: executeWebhook,
 };
 
 export class OpenWa implements INodeType {
@@ -69,7 +104,10 @@ export class OpenWa implements INodeType {
 		name: 'openWa',
 		icon: { light: 'file:openwa.svg', dark: 'file:openwa.dark.svg' },
 		group: ['output'],
-		version: 1,
+		// Light versioning: gate output changes on `atLeast(ctx, <version>)` so saved workflows keep
+		// the output of the version they were built with.
+		version: [1, 1.1],
+		defaultVersion: 1.1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Send WhatsApp messages through a self-hosted OpenWA gateway',
 		defaults: {
@@ -86,33 +124,60 @@ export class OpenWa implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
+					{ name: 'API Key', value: 'apiKey' },
+					{ name: 'Automation Rule', value: 'automationRule' },
 					{ name: 'Call', value: 'call' },
+					{ name: 'Catalog', value: 'catalog' },
+					{ name: 'Channel', value: 'channel' },
 					{ name: 'Chat', value: 'chat' },
 					{ name: 'Contact', value: 'contact' },
 					{ name: 'Group', value: 'group' },
+					{ name: 'Label', value: 'label' },
+					{ name: 'Media', value: 'media' },
 					{ name: 'Message', value: 'message' },
 					{ name: 'Profile', value: 'profile' },
+					{ name: 'Session', value: 'session' },
 					{ name: 'Status', value: 'status' },
+					{ name: 'System', value: 'system' },
 					{ name: 'Template', value: 'template' },
+					{ name: 'Webhook', value: 'webhook' },
 				],
 				default: 'message',
 			},
 			messageOperations,
+			apiKeyOperations,
+			automationRuleOperations,
 			callOperations,
+			catalogOperations,
+			channelOperations,
 			chatOperations,
 			contactOperations,
 			templateOperations,
 			groupOperations,
+			labelOperations,
+			mediaToolsOperations,
 			profileOperations,
+			sessionOperations,
 			statusOperations,
-			sessionField,
+			systemOperations,
+			webhookOperations,
+			...sessionFields(),
+			...apiKeyFields,
+			...automationRuleFields,
 			...callFields,
+			...catalogFields,
+			...channelFields,
 			...chatFields,
 			...contactFields,
 			...templateFields,
 			...groupFields,
+			...labelFields,
+			...mediaToolsFields,
 			...profileFields,
+			...sessionResourceFields,
 			...statusFields,
+			...systemFields,
+			...webhookFields,
 			...recipientFields,
 			...messageActionFields,
 			...textFields,
@@ -120,6 +185,8 @@ export class OpenWa implements INodeType {
 			...locationFields,
 			...pollFields,
 			...contactCardFields,
+			...productMessageFields,
+			...bulkFields,
 			...historyFields,
 			...sendTemplateFields,
 			messageOptions,
@@ -132,23 +199,40 @@ export class OpenWa implements INodeType {
 			searchGroups,
 			searchContacts,
 			searchTemplates,
+			searchLabels,
+			searchChannels,
+			searchWebhooks,
+			searchApiKeys,
+			searchAutomationRules,
 		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
+		// Send Bulk turns all input items into batches instead of sending one request per item.
+		if (
+			items.length > 0 &&
+			this.getNodeParameter('resource', 0) === 'message' &&
+			this.getNodeParameter('operation', 0) === 'sendBulk'
+		) {
+			return [await sendBulk(this, items.length)];
+		}
 		const returnData: INodeExecutionData[] = [];
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				const sessionId = String(
-					this.getNodeParameter('session', i, '', { extractValue: true }) ?? '',
-				).trim();
-				if (!sessionId) {
-					throw new NodeOperationError(this.getNode(), 'Session is required', { itemIndex: i });
+				const resource = this.getNodeParameter('resource', i) as string;
+				const operation = this.getNodeParameter('operation', i) as string;
+				let sessionId = '';
+				if (!isSessionless(resource, operation)) {
+					sessionId = String(
+						this.getNodeParameter('session', i, '', { extractValue: true }) ?? '',
+					).trim();
+					if (!sessionId) {
+						throw new NodeOperationError(this.getNode(), 'Session is required', { itemIndex: i });
+					}
 				}
 
-				const resource = this.getNodeParameter('resource', i) as string;
 				const executor = EXECUTORS[resource];
 				if (!executor) {
 					throw new NodeOperationError(this.getNode(), `Unsupported resource "${resource}"`, {

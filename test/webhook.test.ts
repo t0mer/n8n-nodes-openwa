@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildMessageFilters,
 	deriveWebhookSecret,
+	parseFilterConditions,
 	secretTag,
 	rememberDelivery,
 	verifySignature,
@@ -115,5 +116,49 @@ describe('deriveWebhookSecret', () => {
 		expect(secretTag(secret)).toHaveLength(16);
 		expect(secret).not.toContain(secretTag(secret));
 		expect(secretTag(secret)).toBe(secretTag(secret));
+	});
+});
+
+describe('parseFilterConditions', () => {
+	const condition = { field: 'body', operator: 'contains', value: 'invoice' };
+
+	it('accepts a conditions object, a bare array, or their JSON', () => {
+		expect(parseFilterConditions({ conditions: [condition] })).toEqual([condition]);
+		expect(parseFilterConditions([condition])).toEqual([condition]);
+		expect(parseFilterConditions(JSON.stringify({ conditions: [condition] }))).toEqual([condition]);
+	});
+
+	it('keeps string arrays, booleans and caseSensitive', () => {
+		const conditions = [
+			{ field: 'sender', operator: 'is', value: ['1@c.us', '2@c.us'] },
+			{ field: 'isGroup', operator: 'equals', value: true },
+			{ field: 'body', operator: 'isNot', value: 'spam', caseSensitive: true },
+		];
+		expect(parseFilterConditions(conditions)).toEqual(conditions);
+	});
+
+	it('rejects invalid JSON and non-arrays', () => {
+		expect(() => parseFilterConditions('{nope')).toThrow('not valid JSON');
+		expect(() => parseFilterConditions({ field: 'body' })).toThrow('must be an array');
+		expect(() => parseFilterConditions('"text"')).toThrow('must be an array');
+	});
+
+	it('requires 1–20 conditions', () => {
+		expect(() => parseFilterConditions([])).toThrow('1–20 entries, got 0');
+		expect(() => parseFilterConditions(Array(21).fill(condition))).toThrow('got 21');
+		expect(parseFilterConditions(Array(20).fill(condition))).toHaveLength(20);
+	});
+
+	it('names the bad condition and field', () => {
+		expect(() => parseFilterConditions([condition, { ...condition, operator: 'like' }])).toThrow(
+			'Filter condition 2: "operator" must be one of is, isNot, contains, equals',
+		);
+		expect(() => parseFilterConditions([{ ...condition, field: ' ' }])).toThrow('"field"');
+		expect(() => parseFilterConditions([{ ...condition, value: 5 }])).toThrow('"value"');
+		expect(() => parseFilterConditions([{ ...condition, value: ['a', 1] }])).toThrow('"value"');
+		expect(() => parseFilterConditions([{ ...condition, caseSensitive: 'yes' }])).toThrow(
+			'"caseSensitive"',
+		);
+		expect(() => parseFilterConditions(['body'])).toThrow('must be an object');
 	});
 });

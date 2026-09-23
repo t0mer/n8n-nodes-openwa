@@ -44,6 +44,73 @@ export interface FilterCondition {
 	field: string;
 	operator: 'is' | 'isNot' | 'contains' | 'equals';
 	value: string | string[] | boolean;
+	caseSensitive?: boolean;
+}
+
+const INVALID_JSON = Symbol('invalid JSON');
+
+function parseJson(text: string): unknown {
+	try {
+		return JSON.parse(text);
+	} catch {
+		return INVALID_JSON;
+	}
+}
+
+const FILTER_OPERATORS = ['is', 'isNot', 'contains', 'equals'];
+
+/** Most conditions one webhook filter accepts. */
+export const MAX_FILTER_CONDITIONS = 20;
+
+/**
+ * Validate raw filter conditions (a JSON string or an already parsed value): either
+ * `{ "conditions": [...] }` or a bare array of `{ field, operator, value, caseSensitive? }`.
+ * Returns the conditions, or throws an error naming the first problem.
+ */
+export function parseFilterConditions(value: unknown): FilterCondition[] {
+	let parsed = value;
+	if (typeof parsed === 'string') {
+		parsed = parseJson(parsed);
+		if (parsed === INVALID_JSON) throw new Error('Filter conditions are not valid JSON');
+	}
+	if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+		parsed = (parsed as { conditions?: unknown }).conditions;
+	}
+	if (!Array.isArray(parsed)) {
+		throw new Error('Filter conditions must be an array, or an object with a "conditions" array');
+	}
+	if (parsed.length < 1 || parsed.length > MAX_FILTER_CONDITIONS) {
+		throw new Error(
+			`Filter conditions must have 1–${MAX_FILTER_CONDITIONS} entries, got ${parsed.length}`,
+		);
+	}
+	return parsed.map((entry: unknown, index) => {
+		const fail = (problem: string) => new Error(`Filter condition ${index + 1}: ${problem}`);
+		if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+			throw fail('must be an object with field, operator and value');
+		}
+		const { field, operator, value, caseSensitive } = entry as Record<string, unknown>;
+		if (typeof field !== 'string' || !field.trim())
+			throw fail('"field" must be a non-empty string');
+		if (typeof operator !== 'string' || !FILTER_OPERATORS.includes(operator)) {
+			throw fail(`"operator" must be one of ${FILTER_OPERATORS.join(', ')}`);
+		}
+		const validValue =
+			typeof value === 'string' ||
+			typeof value === 'boolean' ||
+			(Array.isArray(value) && value.every((item) => typeof item === 'string'));
+		if (!validValue) throw fail('"value" must be a string, an array of strings, or a boolean');
+		if (caseSensitive !== undefined && typeof caseSensitive !== 'boolean') {
+			throw fail('"caseSensitive" must be a boolean');
+		}
+		const condition: FilterCondition = {
+			field: field.trim(),
+			operator: operator as FilterCondition['operator'],
+			value: value as FilterCondition['value'],
+		};
+		if (caseSensitive !== undefined) condition.caseSensitive = caseSensitive;
+		return condition;
+	});
 }
 
 /**

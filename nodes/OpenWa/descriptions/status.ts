@@ -105,6 +105,11 @@ export const statusFields: INodeProperties[] = [
 				value: 'binary',
 				description: 'Upload a file from a previous node (up to 18 MB)',
 			},
+			{
+				name: 'Base64',
+				value: 'base64',
+				description: 'Send base64-encoded file content (up to 18 MB decoded)',
+			},
 		],
 		default: 'url',
 		displayOptions: showFor(MEDIA_POST_OPERATIONS),
@@ -135,6 +140,39 @@ export const statusFields: INodeProperties[] = [
 			},
 		},
 		hint: 'The name of the input binary field containing the file',
+	},
+	{
+		displayName: 'Base64 Data',
+		name: 'statusMediaBase64',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. data:image/jpeg;base64,iVBORw0KGgo...',
+		displayOptions: {
+			show: {
+				resource: ['status'],
+				operation: MEDIA_POST_OPERATIONS,
+				statusMediaSource: ['base64'],
+			},
+		},
+		description:
+			'The file as base64 text, or as a data URL (<code>data:&lt;mime&gt;;base64,…</code>)',
+	},
+	{
+		displayName: 'MIME Type',
+		name: 'statusMediaMimeType',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. image/jpeg',
+		displayOptions: {
+			show: {
+				resource: ['status'],
+				operation: MEDIA_POST_OPERATIONS,
+				statusMediaSource: ['base64'],
+			},
+		},
+		description:
+			'MIME type of the file. Required unless Base64 Data is a data URL, which carries its own.',
 	},
 	{
 		displayName: 'Caption',

@@ -1,4 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
+import { bulkOptions } from './bulk';
 import { locationOptions } from './location';
 import { MEDIA_ENDPOINTS } from './media';
 import { LINK_PREVIEW_OPERATIONS, MENTION_OPERATIONS, textOptions } from './text';
@@ -12,6 +13,7 @@ export const SEND_OPERATIONS = [
 	'sendPoll',
 	'sendTemplate',
 	'sendContact',
+	'sendProduct',
 ];
 
 /** Send operations whose request accepts `quotedMessageId` (send-template does not). */
@@ -30,6 +32,12 @@ export const messageOperations: INodeProperties = {
 	noDataExpression: true,
 	displayOptions: { show: { resource: ['message'] } },
 	options: [
+		{
+			name: 'Cancel Batch',
+			value: 'cancelBatch',
+			action: 'Cancel a bulk batch',
+			description: 'Cancel the messages of a Send Bulk batch that are not sent yet',
+		},
 		{
 			name: 'Delete',
 			value: 'delete',
@@ -53,6 +61,12 @@ export const messageOperations: INodeProperties = {
 			value: 'forward',
 			action: 'Forward a message',
 			description: 'Forward a message from one chat to a contact or group',
+		},
+		{
+			name: 'Get Batch Status',
+			value: 'getBatchStatus',
+			action: 'Get the status of a bulk batch',
+			description: 'Get the progress and per-recipient results of a Send Bulk batch',
 		},
 		{
 			name: 'Get Chat History',
@@ -97,6 +111,13 @@ export const messageOperations: INodeProperties = {
 			description: 'Send an audio file to a contact or group',
 		},
 		{
+			name: 'Send Bulk',
+			value: 'sendBulk',
+			action: 'Send bulk messages',
+			description:
+				'Send one message per input item as a gateway-side batch (up to 100 per batch), with a delay between messages',
+		},
+		{
 			name: 'Send Contact Card',
 			value: 'sendContact',
 			action: 'Send a contact card',
@@ -125,6 +146,12 @@ export const messageOperations: INodeProperties = {
 			value: 'sendPoll',
 			action: 'Send a poll',
 			description: 'Send a poll to a contact or group',
+		},
+		{
+			name: 'Send Product',
+			value: 'sendProduct',
+			action: 'Send a product',
+			description: 'Send a catalog product card to a contact or group (Baileys engine only)',
 		},
 		{
 			name: 'Send Sticker',
@@ -185,6 +212,7 @@ const OPTION_OPERATIONS = [
 		...QUOTE_OPERATIONS,
 		...MENTION_OPERATIONS,
 		...LINK_PREVIEW_OPERATIONS,
+		'sendBulk',
 	]),
 ];
 
@@ -217,5 +245,6 @@ export const messageOptions: INodeProperties = {
 		},
 		...textOptions,
 		...locationOptions,
+		...bulkOptions,
 	],
 };

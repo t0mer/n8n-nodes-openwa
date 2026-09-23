@@ -14,9 +14,10 @@ import {
 	validateGroupId,
 } from '../helpers/chatId';
 import { pairsToObject, parseCoordinate, parsePollOptions } from '../helpers/fields';
-import { buildMediaBody, type MediaInput } from '../helpers/media';
+import { buildMediaBody, type MediaBody, type MediaInput } from '../helpers/media';
 import { fetchByCursor } from '../helpers/pagination';
 import { openWaApiRequest } from '../transport/request';
+import { executeBatch } from './bulk';
 import { checkNumber } from './contact';
 import { convertToVoiceNote, downloadBinary } from './media';
 import { getTemplateId } from './template';
@@ -45,6 +46,7 @@ const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	pin: { endpoint: 'pin', build: buildPinBody },
 	unpin: { endpoint: 'unpin', build: buildMessageRefBody },
 	sendContact: { endpoint: 'send-contact', build: buildContactCardBody },
+	sendProduct: { endpoint: 'send-product', build: buildProductBody },
 	sendTemplate: { endpoint: 'send-template', build: buildTemplateBody },
 	votePoll: { endpoint: 'vote-poll', build: buildVotePollBody },
 	sendPoll: { endpoint: 'send-poll', build: buildPollBody },
@@ -69,6 +71,9 @@ export async function executeMessage(
 ): Promise<IDataObject | IDataObject[] | INodeExecutionData> {
 	const operation = ctx.getNodeParameter('operation', i) as string;
 	if (operation === 'getAll') return await getMessages(ctx, i, sessionId);
+	if (operation === 'getBatchStatus' || operation === 'cancelBatch') {
+		return await executeBatch(ctx, i, sessionId, operation);
+	}
 
 	const chatId = getChatId(ctx, i);
 	if (operation === 'downloadMedia') return await downloadMedia(ctx, i, sessionId, chatId);
@@ -203,7 +208,7 @@ async function readChat(
 }
 
 /** Resolve and validate the recipient chat ID for an item. */
-function getChatId(ctx: IExecuteFunctions, i: number): string {
+export function getChatId(ctx: IExecuteFunctions, i: number): string {
 	try {
 		if (ctx.getNodeParameter('recipientType', i) === 'group') {
 			return validateGroupId(ctx.getNodeParameter('group', i, '', { extractValue: true }));
@@ -400,6 +405,16 @@ function buildContactCardBody(ctx: IExecuteFunctions, i: number, chatId: string)
 	return { chatId, contactName, contactNumber: chatIdUser(contactId) };
 }
 
+function buildProductBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	const productId = String(ctx.getNodeParameter('productId', i) ?? '').trim();
+	if (!productId)
+		throw new NodeOperationError(ctx.getNode(), 'Product ID is required', { itemIndex: i });
+	const body: IDataObject = { chatId, productId };
+	const text = String(ctx.getNodeParameter('productBody', i, '') ?? '');
+	if (text.trim()) body.body = text;
+	return body;
+}
+
 function buildPinBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
 	return {
 		...buildMessageRefBody(ctx, i, chatId),
@@ -412,12 +427,12 @@ function buildMessageRefBody(ctx: IExecuteFunctions, i: number, chatId: string):
 	return { chatId, messageId: getMessageId(ctx, i) };
 }
 
-function getText(ctx: IExecuteFunctions, i: number): string {
+export function getText(ctx: IExecuteFunctions, i: number): string {
 	return String(ctx.getNodeParameter('text', i) ?? '');
 }
 
 /** `{ mentions }` from the Mentions option, or nothing when it is empty. */
-function getMentions(ctx: IExecuteFunctions, i: number, options: IDataObject): IDataObject {
+export function getMentions(ctx: IExecuteFunctions, i: number, options: IDataObject): IDataObject {
 	if (!options.mentions) return {};
 	try {
 		return { mentions: parseMentions(options.mentions) };
@@ -441,22 +456,7 @@ async function buildMediaRequestBody(
 	operation: string,
 	sessionId: string,
 ): Promise<IDataObject> {
-	let input: MediaInput;
-	if (ctx.getNodeParameter('mediaSource', i) === 'binary') {
-		const field = ctx.getNodeParameter('binaryPropertyName', i) as string;
-		const binary = ctx.helpers.assertBinaryData(i, field);
-		const data = await ctx.helpers.getBinaryDataBuffer(i, field);
-		input = { source: 'binary', data, mimeType: binary.mimeType, fileName: binary.fileName };
-	} else {
-		input = { source: 'url', url: String(ctx.getNodeParameter('mediaUrl', i) ?? '') };
-	}
-
-	let body: IDataObject;
-	try {
-		body = { chatId, ...buildMediaBody(input) };
-	} catch (error) {
-		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
-	}
+	const body: IDataObject = { chatId, ...(await readMessageMedia(ctx, i)) };
 
 	if (CAPTION_OPERATIONS.includes(operation)) {
 		const caption = String(ctx.getNodeParameter('caption', i, '') ?? '');
@@ -477,4 +477,32 @@ async function buildMediaRequestBody(
 		}
 	}
 	return body;
+}
+
+/**
+ * The media of a send as `{ url }` or `{ base64, mimetype, filename? }`, from the Media Source
+ * fields (the binary's file name is kept).
+ */
+export async function readMessageMedia(ctx: IExecuteFunctions, i: number): Promise<MediaBody> {
+	const source = ctx.getNodeParameter('mediaSource', i);
+	let input: MediaInput;
+	if (source === 'binary') {
+		const field = ctx.getNodeParameter('binaryPropertyName', i) as string;
+		const binary = ctx.helpers.assertBinaryData(i, field);
+		const data = await ctx.helpers.getBinaryDataBuffer(i, field);
+		input = { source: 'binary', data, mimeType: binary.mimeType, fileName: binary.fileName };
+	} else if (source === 'base64') {
+		input = {
+			source: 'base64',
+			data: String(ctx.getNodeParameter('mediaBase64', i) ?? ''),
+			mimeType: String(ctx.getNodeParameter('mediaMimeType', i, '') ?? ''),
+		};
+	} else {
+		input = { source: 'url', url: String(ctx.getNodeParameter('mediaUrl', i) ?? '') };
+	}
+	try {
+		return buildMediaBody(input);
+	} catch (error) {
+		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
+	}
 }

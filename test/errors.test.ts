@@ -49,6 +49,13 @@ describe('describeOpenWaError', () => {
 		);
 	});
 
+	it('keeps the gateway message on 403 and explains roles', () => {
+		const error = describeOpenWaError(403, 'Insufficient permissions');
+		expect(error.message).toBe('Insufficient permissions');
+		expect(error.description).toMatch(/only admin keys can manage API keys/);
+		expect(describeOpenWaError(403, undefined).message).toMatch(/not allowed.*403/);
+	});
+
 	it('names the session on 404 only when the gateway blames the session', () => {
 		expect(describeOpenWaError(404, 'Session not found', 'main').message).toContain(
 			'Session "main"',

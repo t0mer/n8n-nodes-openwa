@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
 	chatIdUser,
 	parseContactList,
+	parseChannelInviteCode,
 	parseInviteCode,
+	validateChannelId,
 	normalizeContactId,
 	parseMentions,
 	validateGroupId,
@@ -123,4 +125,38 @@ describe('parseInviteCode', () => {
 	it.each(['', 'abc', 'https://example.com/x', 'bad code!'])('rejects %j', (input) => {
 		expect(() => parseInviteCode(input)).toThrow('not a valid group invite code or link');
 	});
+});
+
+describe('parseChannelInviteCode', () => {
+	it.each([
+		['https://whatsapp.com/channel/0029VaAbCdEf123456', '0029VaAbCdEf123456'],
+		['https://www.whatsapp.com/channel/0029VaAbCdEf123456?utm=x', '0029VaAbCdEf123456'],
+		[' 0029VaAbCdEf123456 ', '0029VaAbCdEf123456'],
+	])('extracts the code from %j', (input, expected) => {
+		expect(parseChannelInviteCode(input)).toBe(expected);
+	});
+
+	it.each(['', 'abc', 'https://chat.whatsapp.com/AbCdEf123456', 'bad code!'])(
+		'rejects %j',
+		(input) => {
+			expect(() => parseChannelInviteCode(input)).toThrow(
+				'not a valid channel invite code or link',
+			);
+		},
+	);
+});
+
+describe('validateChannelId', () => {
+	it('accepts a newsletter ID', () => {
+		expect(validateChannelId(' 120363012345678901@newsletter ')).toBe(
+			'120363012345678901@newsletter',
+		);
+	});
+
+	it.each(['', '120363012345678901', '120363012345678901@g.us', '@newsletter'])(
+		'rejects %j',
+		(input) => {
+			expect(() => validateChannelId(input)).toThrow('expected <id>@newsletter');
+		},
+	);
 });

@@ -106,6 +106,15 @@ export function triggerProperties(
 			options: [
 				...(hasMessageEvents ? messageFilterOptions : []),
 				{
+					displayName: 'Filter Conditions (JSON)',
+					name: 'filterConditions',
+					type: 'json',
+					default: '',
+					placeholder: '[{"field": "hasMedia", "operator": "equals", "value": true}]',
+					description:
+						'Extra conditions OpenWA checks before delivering an event; every one must match. A bare array or {"conditions": [...]} of objects with field, operator (is, isNot, contains, equals), value (string, array of strings, or boolean) and optional caseSensitive. Up to 20 conditions in total, including the filter options. Message events offer the fields sender, recipient, chatId, body, type, isGroup, kind, fromMe, hasMedia and mentions. Other events have other fields: only use fields that exist on every selected event, or events without them are dropped.',
+				},
+				{
 					displayName: 'Ignore Duplicate Deliveries',
 					name: 'ignoreDuplicates',
 					type: 'boolean',
@@ -129,6 +138,15 @@ export function triggerProperties(
 					default: true,
 					description:
 						'Whether to reject deliveries whose X-OpenWA-Signature does not match the secret registered with the webhook',
+				},
+				{
+					displayName: 'Webhook Secret',
+					name: 'webhookSecret',
+					type: 'string',
+					typeOptions: { password: true },
+					default: '',
+					description:
+						'The secret OpenWA signs deliveries with, 16–255 characters. Set it when another system must verify the same deliveries, or to rotate the secret (the webhook is re-registered). Leave empty to derive it from the API key and this node.',
 				},
 			],
 		},

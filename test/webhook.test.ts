@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import { describe, expect, it } from 'vitest';
 import {
 	buildMessageFilters,
@@ -113,9 +113,16 @@ describe('deriveWebhookSecret', () => {
 
 	it('tags a secret without revealing it', () => {
 		const secret = deriveWebhookSecret(apiKey, 'u');
-		expect(secretTag(secret)).toHaveLength(16);
-		expect(secret).not.toContain(secretTag(secret));
-		expect(secretTag(secret)).toBe(secretTag(secret));
+		expect(secretTag(secret, apiKey)).toMatch(/^[0-9a-f]{16}$/);
+		expect(secret).not.toContain(secretTag(secret, apiKey));
+		expect(secretTag(secret, apiKey)).toBe(secretTag(secret, apiKey));
+	});
+
+	it('keys the tag with the API key, so it is not a plain hash of the secret', () => {
+		const secret = ['my', 'custom', 'trigger', 'secret'].join('-');
+		const tag = secretTag(secret, apiKey);
+		expect(secretTag(secret, `${apiKey}-other`)).not.toBe(tag);
+		expect(createHash('sha256').update(secret).digest('hex')).not.toContain(tag);
 	});
 });
 

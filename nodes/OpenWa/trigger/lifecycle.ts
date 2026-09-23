@@ -41,6 +41,8 @@ interface Registration {
 	retryCount: number;
 	filters?: { conditions: FilterCondition[] };
 	secret: string;
+	/** Keys the secret's tag in the fingerprint. */
+	apiKey: string;
 }
 
 export function triggerStaticData(ctx: { getWorkflowStaticData(type: string): IDataObject }) {
@@ -158,6 +160,7 @@ async function readRegistration(ctx: IHookFunctions): Promise<Registration> {
 		retryCount: Number.isFinite(retryCount) ? retryCount : 3,
 		filters,
 		secret: await resolveWebhookSecret(ctx, options),
+		apiKey: await credentialApiKey(ctx),
 	};
 }
 
@@ -168,6 +171,7 @@ function fingerprint({
 	retryCount,
 	filters,
 	secret,
+	apiKey,
 }: Registration): string {
 	return JSON.stringify({
 		sessionId,
@@ -175,7 +179,7 @@ function fingerprint({
 		events: [...events].sort(),
 		retryCount,
 		filters,
-		secret: secretTag(secret),
+		secret: secretTag(secret, apiKey),
 	});
 }
 

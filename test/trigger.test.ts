@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import type {
 	IDataObject,
 	IHookFunctions,
@@ -519,6 +519,15 @@ describe('custom webhook secret', () => {
 			await exists(await registered(withSecret(customSecret)), withSecret(`${customSecret}-2`)),
 		).toBe(false);
 		expect(await exists(await registered(withSecret(customSecret)), base)).toBe(false);
+	});
+
+	it('stores only a keyed tag of the secret, never its plain hash', async () => {
+		const staticData = await registered(withSecret(customSecret));
+		const stored = JSON.stringify(staticData);
+		expect(stored).not.toContain(customSecret);
+		expect(stored).not.toContain(
+			createHash('sha256').update(customSecret).digest('hex').slice(0, 16),
+		);
 	});
 });
 

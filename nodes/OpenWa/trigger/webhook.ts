@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { normalizeChatId, parseContactList } from '../helpers/chatId';
 
 /**
@@ -27,9 +27,12 @@ export function deriveWebhookSecret(apiKey: string, scope: string): string {
 	return createHmac('sha256', apiKey).update(`openwa-trigger:${scope}`).digest('hex');
 }
 
-/** A short, non-reversible tag of a secret, for noticing that it changed. */
-export function secretTag(secret: string): string {
-	return createHash('sha256').update(secret).digest('hex').slice(0, 16);
+/**
+ * A short tag of a secret, for noticing that it changed. Keyed with the API key, so a tag kept
+ * in static data can't be checked offline against guesses of a custom secret.
+ */
+export function secretTag(secret: string, apiKey: string): string {
+	return createHmac('sha256', apiKey).update(secret).digest('hex').slice(0, 16);
 }
 
 export interface MessageFilterOptions {

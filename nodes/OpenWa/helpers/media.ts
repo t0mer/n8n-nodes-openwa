@@ -28,7 +28,8 @@ export function assertBinarySize(bytes: number): void {
 
 /**
  * Clean up base64 text: drop a `data:<mime>;base64,` prefix (returning its MIME type) and
- * whitespace, then check it is standard base64 of at most MAX_BINARY_BYTES decoded bytes.
+ * whitespace, turn URL-safe base64 into standard base64 and restore missing padding, then check
+ * it is valid base64 of at most MAX_BINARY_BYTES decoded bytes.
  */
 export function parseBase64(text: string): { base64: string; mimeType?: string } {
 	let base64 = String(text ?? '').trim();
@@ -38,8 +39,12 @@ export function parseBase64(text: string): { base64: string; mimeType?: string }
 		mimeType = dataUrl[1].split(';')[0].trim() || undefined;
 		base64 = base64.slice(dataUrl[0].length);
 	}
-	base64 = base64.replace(/\s+/g, '');
+	base64 = base64.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
 	if (!base64) throw new Error('The Base64 data is empty');
+	const unpadded = base64.replace(/=+$/, '');
+	if (base64.length - unpadded.length <= 2 && unpadded.length % 4 > 1) {
+		base64 = unpadded.padEnd(unpadded.length + 4 - (unpadded.length % 4), '=');
+	}
 	if (base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
 		throw new Error('The Base64 data is not valid base64');
 	}

@@ -26,11 +26,26 @@ describe('parseBase64', () => {
 		expect(parseBase64(`  ${png.slice(0, 4)}\n${png.slice(4)}  `).base64).toBe(png);
 	});
 
+	it('accepts URL-safe and unpadded base64 and sends it as standard padded base64', () => {
+		const bytes = Buffer.from([0xfb, 0xff, 0xbf, 0x01]);
+		const standard = bytes.toString('base64');
+		expect(standard).toBe('+/+/AQ==');
+		expect(parseBase64(bytes.toString('base64url')).base64).toBe(standard);
+		expect(parseBase64('-_-_AQ').base64).toBe(standard);
+		expect(parseBase64('+/+/AQ').base64).toBe(standard);
+		expect(parseBase64('data:image/png;base64,-_-_AQ=')).toEqual({
+			base64: standard,
+			mimeType: 'image/png',
+		});
+		expect(parseBase64('YWI').base64).toBe('YWI=');
+	});
+
 	it('rejects empty and invalid base64', () => {
 		expect(() => parseBase64('')).toThrow('The Base64 data is empty');
 		expect(() => parseBase64('data:image/png;base64,')).toThrow('empty');
 		expect(() => parseBase64('not base64!')).toThrow('not valid base64');
-		expect(() => parseBase64('abc')).toThrow('not valid base64');
+		expect(() => parseBase64('abcde')).toThrow('not valid base64');
+		expect(() => parseBase64('ab===')).toThrow('not valid base64');
 		expect(() => parseBase64('ab=c')).toThrow('not valid base64');
 	});
 

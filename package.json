@@ -45,7 +45,8 @@
       "dist/credentials/OpenWaApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/OpenWa/OpenWa.node.js"
+      "dist/nodes/OpenWa/OpenWa.node.js",
+      "dist/nodes/OpenWaTrigger/OpenWaTrigger.node.js"
     ]
   },
   "devDependencies": {

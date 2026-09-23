@@ -55,10 +55,22 @@ export const messageOperations: INodeProperties = {
 			description: 'Forward a message from one chat to a contact or group',
 		},
 		{
+			name: 'Get Chat History',
+			value: 'getHistory',
+			action: 'Get chat history',
+			description: 'Fetch the latest messages of a chat live from WhatsApp, one item per message',
+		},
+		{
 			name: 'Get Many',
 			value: 'getAll',
 			action: 'Get many messages',
 			description: 'List stored messages, newest first, optionally filtered by chat or sender',
+		},
+		{
+			name: 'Get Reactions',
+			value: 'getReactions',
+			action: 'Get reactions of a message',
+			description: 'List the emoji reactions on a message, one item per emoji',
 		},
 		{
 			name: 'Pin',

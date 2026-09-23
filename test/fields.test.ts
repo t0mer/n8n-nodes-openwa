@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeChatId } from '../nodes/OpenWa/helpers/chatId';
-import { pairsToObject, parseCoordinate, parsePollOptions } from '../nodes/OpenWa/helpers/fields';
+import {
+	pairsToObject,
+	parseCoordinate,
+	parseDateInTimezone,
+	parsePollOptions,
+} from '../nodes/OpenWa/helpers/fields';
 
 describe('normalizeChatId', () => {
 	it('validates groups and normalizes contacts', () => {
@@ -78,5 +83,44 @@ describe('pairsToObject', () => {
 		expect(() => pairsToObject([{ name: 'a' }, { name: 'a' }])).toThrow(
 			'"a" is defined more than once',
 		);
+	});
+});
+
+describe('parseDateInTimezone', () => {
+	it('reads an offset-less value in the given timezone', () => {
+		// Israel is UTC+3 in October (daylight time) and UTC+2 in December.
+		expect(parseDateInTimezone('2026-10-01T09:00:00', 'Asia/Jerusalem')).toBe(
+			Date.UTC(2026, 9, 1, 6),
+		);
+		expect(parseDateInTimezone('2026-12-01T09:00:00.000', 'Asia/Jerusalem')).toBe(
+			Date.UTC(2026, 11, 1, 7),
+		);
+		expect(parseDateInTimezone('2026-10-01 09:30', 'America/New_York')).toBe(
+			Date.UTC(2026, 9, 1, 13, 30),
+		);
+		expect(parseDateInTimezone('2026-10-01', 'UTC')).toBe(Date.UTC(2026, 9, 1));
+	});
+
+	it('keeps values that carry their own offset, and epoch milliseconds', () => {
+		expect(parseDateInTimezone('2026-10-01T09:00:00Z', 'Asia/Jerusalem')).toBe(
+			Date.UTC(2026, 9, 1, 9),
+		);
+		expect(parseDateInTimezone('2026-10-01T09:00:00.000+03:00', 'UTC')).toBe(
+			Date.UTC(2026, 9, 1, 6),
+		);
+		expect(parseDateInTimezone(1790000000000, 'Asia/Jerusalem')).toBe(1790000000000);
+	});
+
+	it('handles the day daylight time ends', () => {
+		// 2026-10-25 02:00 IDT → 01:00 IST in Israel; 12:00 that day is UTC+2.
+		expect(parseDateInTimezone('2026-10-25T12:00:00', 'Asia/Jerusalem')).toBe(
+			Date.UTC(2026, 9, 25, 10),
+		);
+	});
+
+	it('returns NaN for anything else', () => {
+		expect(parseDateInTimezone('soon', 'UTC')).toBeNaN();
+		expect(parseDateInTimezone('', 'UTC')).toBeNaN();
+		expect(parseDateInTimezone(Number.NaN, 'UTC')).toBeNaN();
 	});
 });

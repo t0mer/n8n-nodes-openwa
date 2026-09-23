@@ -93,6 +93,8 @@ When you save, n8n tests the credential by calling `POST /api/auth/validate`. A 
 | Star / Unstar | `star` | Message ID. Best-effort on whatsapp-web.js, which may silently ignore it. |
 | Get Many | `GET /messages` | Return All or Limit; filters: Chat, Sender, Include Media. One item per message, newest first. No recipient needed. |
 | Download Media | `GET /messages/{chatId}/{messageId}/media` | Message ID, Put Output File in Field (default `data`). Outputs the file as binary data. |
+| Get Reactions | `GET /messages/{chatId}/{messageId}/reactions` | Message ID. One item per emoji, with who reacted. |
+| Get Chat History | `GET /messages/{chatId}/history` | Live from WhatsApp (not the gateway's store): Limit (up to 100, or 2000 with Deep), Include Media (not with Deep). One item per message. |
 
 Common fields:
 
@@ -115,7 +117,34 @@ Each item outputs the OpenWA response:
 { "messageId": "true_972501234567@c.us_3EB0123456789", "timestamp": 1758585600 }
 ```
 
-A `messageId` means the gateway accepted the message. It does not confirm delivery. React, Delete and Vote Poll output `{ "success": true }`.
+A `messageId` means the gateway accepted the message. It does not confirm delivery.
+
+List operations output one item per entry, and **no items** when the list is empty, so the next node doesn't run. Turn on the node's **Always Output Data** setting if a workflow must continue either way. React, Delete and Vote Poll output `{ "success": true }`.
+
+### Chat
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Get Many | `GET /chats` | Return All or Limit. One item per chat (`id`, `name`, `kind`, `unreadCount`, `archived`, `pinned`, `muted`, …). |
+| Mark as Read / Mark as Unread | `POST /chats/read`, `/unread` | Mark as Read can take specific Message IDs. |
+| Send Chat State | `POST /chats/typing` | Typing, Recording, or Stop |
+| Archive / Unarchive | `POST /chats/archive` | — |
+| Pin / Unpin | `POST /chats/pin` | — |
+| Mute / Unmute | `POST /chats/mute` | Mute For: 8 hours, 1 week, or until a date (read in the workflow's timezone) |
+| Subscribe to Presence | `POST /presence/subscribe` | Needed for the `presence.update` trigger event and for Get Presence (not supported on every engine) |
+| Get Presence | `GET /presence/{chatId}` | The last reported online/typing state. `participants` is empty when nothing was reported yet. |
+| Delete | `POST /chats/delete` | Removes the chat from the list. Can't be undone. |
+| Clear Messages | `DELETE /chats/{chatId}/messages` | Deletes every message, keeping the chat. Can't be undone. |
+
+- **Chat**: a phone number, a contact ID (`@c.us` / `@lid`) or a group ID (`@g.us`).
+- Some gateway operations, such as Mute, only accept the chat's own ID. If an operation fails for a phone number, use the chat's `id` from Chat → Get Many (often `…@lid`).
+
+### Call
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Reject | `POST /calls/{callId}/reject` | Call ID, e.g. `{{ $json.data.callId }}` from the OpenWA Call Trigger |
+| Create Link | `POST /calls/link` | Call Type (voice or video), Start Time (empty means now, read in the workflow's timezone). Outputs `{ link }`. |
 
 ### Contact
 
@@ -128,6 +157,10 @@ A `messageId` means the gateway accepted the message. It does not confirm delive
 | Get Phone Number | `GET /contacts/{contactId}/phone` | `{ contactId, phone }`. Resolves an ID such as an `@lid` to a phone number; `phone` is `null` when the gateway doesn't know it. |
 | Get Profile Picture | `GET /contacts/{contactId}/profile-picture` | `{ url }`. `url` is `null` when the contact has no picture or hides it. |
 | Unblock | `DELETE /contacts/{contactId}/block` | `{ success, message }` |
+| Save | `PUT /contacts/{contactId}` | First Name, Last Name. Adds to the address book or renames. |
+| Remove | `DELETE /contacts/{contactId}` | Removes from the address book (the chat is kept) |
+| Get Blocked | `GET /contacts/blocked` | One item per blocked contact, `{ id }` |
+| Get Profile Pictures | `GET /contacts/profile-pictures` | Contacts (up to 50). One item per contact, `{ contactId, url }` (`url` is `null` when hidden or unset). |
 
 - **Contact**: pick a contact of the selected session from the list (searchable by name, number or ID), or enter a phone number or a chat ID ending in `@c.us` or `@lid`.
 - **Phone Number** (Check Number): international format; `@lid` IDs can't be checked.
@@ -187,6 +220,7 @@ Changes the session's own WhatsApp account.
 | Set About | `PUT /profile/status` | About (up to 139 characters; empty clears it) |
 | Set Picture | `PUT /profile/picture` | Picture Source (URL, or a binary image up to 18 MB) |
 | Remove Picture | `DELETE /profile/picture` | — |
+| Set Presence | `PUT /presence` | Online on/off. An always-online linked device suppresses the phone's notifications; go offline to get them back. |
 
 ### Template
 

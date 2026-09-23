@@ -28,6 +28,12 @@ export const contactOperations: INodeProperties = {
 			description: 'Get a single contact',
 		},
 		{
+			name: 'Get Blocked',
+			value: 'getBlocked',
+			action: 'Get blocked contacts',
+			description: 'List the contacts this account has blocked, one item per contact',
+		},
+		{
 			name: 'Get Many',
 			value: 'getAll',
 			action: 'Get many contacts',
@@ -47,6 +53,25 @@ export const contactOperations: INodeProperties = {
 			description: 'Get the profile picture URL of a contact (null when hidden or unset)',
 		},
 		{
+			name: 'Get Profile Pictures',
+			value: 'getProfilePictures',
+			action: 'Get profile pictures of contacts',
+			description:
+				'Get the profile picture URLs of up to 50 contacts at once, one item per contact',
+		},
+		{
+			name: 'Remove',
+			value: 'remove',
+			action: 'Remove a contact',
+			description: 'Remove a contact from the address book (the chat is kept)',
+		},
+		{
+			name: 'Save',
+			value: 'save',
+			action: 'Save a contact',
+			description: 'Save a contact to the address book, or rename an existing one',
+		},
+		{
 			name: 'Unblock',
 			value: 'unblock',
 			action: 'Unblock a contact',
@@ -57,7 +82,15 @@ export const contactOperations: INodeProperties = {
 };
 
 /** Operations that act on a single existing contact. */
-const CONTACT_ID_OPERATIONS = ['get', 'getProfilePicture', 'block', 'unblock', 'getPhone'];
+const CONTACT_ID_OPERATIONS = [
+	'get',
+	'getProfilePicture',
+	'block',
+	'unblock',
+	'getPhone',
+	'save',
+	'remove',
+];
 
 export const contactFields: INodeProperties[] = [
 	{
@@ -114,5 +147,30 @@ export const contactFields: INodeProperties[] = [
 		default: 50,
 		displayOptions: { show: { resource: ['contact'], operation: ['getAll'], returnAll: [false] } },
 		description: 'Max number of results to return',
+	},
+	{
+		displayName: 'First Name',
+		name: 'firstName',
+		type: 'string',
+		default: '',
+		required: true,
+		displayOptions: showFor(['save']),
+	},
+	{
+		displayName: 'Last Name',
+		name: 'lastName',
+		type: 'string',
+		default: '',
+		displayOptions: showFor(['save']),
+	},
+	{
+		displayName: 'Contacts',
+		name: 'contacts',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. 972501234567, 972509876543',
+		displayOptions: showFor(['getProfilePictures']),
+		description: 'Up to 50 comma-separated phone numbers or contact IDs (@c.us / @lid)',
 	},
 ];

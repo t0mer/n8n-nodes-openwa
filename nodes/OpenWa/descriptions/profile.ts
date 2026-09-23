@@ -35,6 +35,12 @@ export const profileOperations: INodeProperties = {
 			action: 'Set the profile picture',
 			description: 'Set the profile picture of the session account from a URL or binary image',
 		},
+		{
+			name: 'Set Presence',
+			value: 'setPresence',
+			action: 'Set the online presence',
+			description: 'Appear online or offline. Offline hands notifications back to the phone.',
+		},
 	],
 	default: 'setAbout',
 };
@@ -94,5 +100,14 @@ export const profileFields: INodeProperties[] = [
 			show: { resource: ['profile'], operation: ['setPicture'], profilePictureSource: ['binary'] },
 		},
 		hint: 'The name of the input binary field containing the image',
+	},
+	{
+		displayName: 'Online',
+		name: 'online',
+		type: 'boolean',
+		default: true,
+		displayOptions: showFor(['setPresence']),
+		description:
+			'Whether to appear online. An always-online linked device suppresses the phone’s own notifications; appear offline to get them back.',
 	},
 ];

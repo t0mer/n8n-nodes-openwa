@@ -54,6 +54,17 @@ export async function executeProfile(
 			);
 		case 'removePicture':
 			return await request('DELETE', '/picture');
+		case 'setPresence':
+			return (await openWaApiRequest.call(
+				ctx,
+				'PUT',
+				`/api/sessions/${encodeURIComponent(sessionId)}/presence`,
+				{
+					body: { available: ctx.getNodeParameter('online', i, true) as boolean },
+					sessionId,
+					itemIndex: i,
+				},
+			)) as IDataObject;
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,

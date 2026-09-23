@@ -55,4 +55,32 @@ export const historyFields: INodeProperties[] = [
 			},
 		],
 	},
+	{
+		displayName: 'Limit',
+		name: 'historyLimit',
+		type: 'number',
+		typeOptions: { minValue: 1, maxValue: 2000 },
+		default: 50,
+		displayOptions: {
+			show: { resource: ['message'], operation: ['getHistory'], deep: [false] },
+		},
+		description: 'Max number of messages to return. Up to 100, or up to 2000 with Deep turned on.',
+	},
+	{
+		displayName: 'Deep',
+		name: 'deep',
+		type: 'boolean',
+		default: false,
+		displayOptions: { show: { resource: ['message'], operation: ['getHistory'] } },
+		description:
+			'Whether to load older messages from WhatsApp to reach further back (up to 2000; slower, whatsapp-web.js engine only)',
+	},
+	{
+		displayName: 'Include Media',
+		name: 'includeMedia',
+		type: 'boolean',
+		default: false,
+		displayOptions: { show: { resource: ['message'], operation: ['getHistory'] } },
+		description: 'Whether to download media (base64) for messages that have it. Slower.',
+	},
 ];

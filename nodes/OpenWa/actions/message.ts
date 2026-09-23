@@ -72,6 +72,9 @@ export async function executeMessage(
 
 	const chatId = getChatId(ctx, i);
 	if (operation === 'downloadMedia') return await downloadMedia(ctx, i, sessionId, chatId);
+	if (operation === 'getReactions' || operation === 'getHistory') {
+		return await readChat(ctx, i, sessionId, chatId, operation);
+	}
 	const options = ctx.getNodeParameter('options', i, {}) as IDataObject;
 
 	const spec = OPERATIONS[operation];
@@ -157,6 +160,46 @@ async function downloadMedia(
 		json: { chatId, messageId, fileName: binary.fileName, mimeType: binary.mimeType, fileSize },
 		binary: { [field]: binary },
 	};
+}
+
+/** Live reads of one chat: the reactions on a message, or its history straight from WhatsApp. */
+async function readChat(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+	chatId: string,
+	operation: 'getReactions' | 'getHistory',
+): Promise<IDataObject[]> {
+	const chatPath = `/api/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(chatId)}`;
+	if (operation === 'getReactions') {
+		return (await openWaApiRequest.call(
+			ctx,
+			'GET',
+			`${chatPath}/${encodeURIComponent(getMessageId(ctx, i))}/reactions`,
+			{ sessionId, itemIndex: i },
+		)) as IDataObject[];
+	}
+	const limit = Number(ctx.getNodeParameter('historyLimit', i, 50));
+	const deep = ctx.getNodeParameter('deep', i, false) as boolean;
+	if (!Number.isInteger(limit) || limit < 1 || limit > (deep ? 2000 : 100)) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			deep
+				? `Limit must be between 1 and 2000, got ${limit}`
+				: `Limit must be between 1 and 100, got ${limit}. Turn on Deep to go up to 2000.`,
+			{ itemIndex: i },
+		);
+	}
+	return (await openWaApiRequest.call(ctx, 'GET', `${chatPath}/history`, {
+		// Deep reads are metadata-only on the gateway, so media is never requested with them.
+		qs: {
+			limit,
+			includeMedia: !deep && (ctx.getNodeParameter('includeMedia', i, false) as boolean),
+			deep,
+		},
+		sessionId,
+		itemIndex: i,
+	})) as IDataObject[];
 }
 
 /** Resolve and validate the recipient chat ID for an item. */

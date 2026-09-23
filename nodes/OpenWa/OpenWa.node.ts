@@ -10,6 +10,8 @@ import {
 	type JsonObject,
 } from 'n8n-workflow';
 import { recipientFields, sessionField } from './descriptions/common';
+import { executeCall } from './actions/call';
+import { executeChat } from './actions/chat';
 import { executeContact } from './actions/contact';
 import { executeGroup } from './actions/group';
 import { executeMessage } from './actions/message';
@@ -17,6 +19,8 @@ import { executeProfile } from './actions/profile';
 import { executeStatus } from './actions/status';
 import { executeTemplate } from './actions/template';
 import { messageActionFields } from './descriptions/actions';
+import { callFields, callOperations } from './descriptions/call';
+import { chatFields, chatOperations } from './descriptions/chat';
 import { contactFields, contactOperations } from './descriptions/contact';
 import { contactCardFields } from './descriptions/contactCard';
 import { groupFields, groupOperations } from './descriptions/group';
@@ -49,6 +53,8 @@ function isExecutionData(value: unknown): value is INodeExecutionData {
 }
 
 const EXECUTORS: Record<string, Executor> = {
+	call: executeCall,
+	chat: executeChat,
 	contact: executeContact,
 	group: executeGroup,
 	message: executeMessage,
@@ -80,6 +86,8 @@ export class OpenWa implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
+					{ name: 'Call', value: 'call' },
+					{ name: 'Chat', value: 'chat' },
 					{ name: 'Contact', value: 'contact' },
 					{ name: 'Group', value: 'group' },
 					{ name: 'Message', value: 'message' },
@@ -90,12 +98,16 @@ export class OpenWa implements INodeType {
 				default: 'message',
 			},
 			messageOperations,
+			callOperations,
+			chatOperations,
 			contactOperations,
 			templateOperations,
 			groupOperations,
 			profileOperations,
 			statusOperations,
 			sessionField,
+			...callFields,
+			...chatFields,
 			...contactFields,
 			...templateFields,
 			...groupFields,

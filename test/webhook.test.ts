@@ -56,8 +56,8 @@ describe('buildMessageFilters', () => {
 					value: ['120363012345678901@g.us', '972509999999@c.us'],
 				},
 				{ field: 'body', operator: 'contains', value: 'invoice' },
-				{ field: 'isGroup', operator: 'equals', value: true },
-				{ field: 'fromMe', operator: 'equals', value: false },
+				{ field: 'isGroup', operator: 'is', value: true },
+				{ field: 'fromMe', operator: 'is', value: false },
 			],
 		});
 	});
@@ -66,7 +66,7 @@ describe('buildMessageFilters', () => {
 		expect(buildMessageFilters({ chatType: 'direct', onlyInChat: ['972501234567'] })).toEqual({
 			conditions: [
 				{ field: 'chatId', operator: 'is', value: ['972501234567@c.us'] },
-				{ field: 'isGroup', operator: 'equals', value: false },
+				{ field: 'isGroup', operator: 'is', value: false },
 			],
 		});
 	});

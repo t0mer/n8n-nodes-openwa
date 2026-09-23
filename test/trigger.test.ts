@@ -117,7 +117,7 @@ describe('create', () => {
 			filters: {
 				conditions: [
 					{ field: 'sender', operator: 'is', value: ['972501234567@c.us'] },
-					{ field: 'isGroup', operator: 'equals', value: false },
+					{ field: 'isGroup', operator: 'is', value: false },
 				],
 			},
 		});

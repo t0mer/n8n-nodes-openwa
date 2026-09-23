@@ -153,10 +153,10 @@ export function buildMessageFilters(
 	if (body) conditions.push({ field: 'body', operator: 'contains', value: body });
 
 	if (options.chatType === 'group' || options.chatType === 'direct') {
-		conditions.push({ field: 'isGroup', operator: 'equals', value: options.chatType === 'group' });
+		conditions.push({ field: 'isGroup', operator: 'is', value: options.chatType === 'group' });
 	}
 	if (options.ignoreFromMe === true) {
-		conditions.push({ field: 'fromMe', operator: 'equals', value: false });
+		conditions.push({ field: 'fromMe', operator: 'is', value: false });
 	}
 
 	return conditions.length ? { conditions } : undefined;

@@ -8,6 +8,7 @@ import type {
 import { describe, expect, it } from 'vitest';
 import { webhookMethods, type TriggerStaticData } from '../nodes/OpenWa/trigger/lifecycle';
 import { receiveWebhook } from '../nodes/OpenWa/trigger/receive';
+import { deriveWebhookSecret } from '../nodes/OpenWa/trigger/webhook';
 
 const node = {
 	id: '1',
@@ -17,8 +18,10 @@ const node = {
 	position: [0, 0],
 	parameters: {},
 };
-const hooksUrl = 'https://wa.example.com/api/sessions/s1/webhooks';
-const n8nUrl = 'https://n8n.example.com/webhook/abc/webhook';
+const apiKey = ['unit', 'test', 'api', 'key'].join('-');
+const gateway = 'https://wa.example.com/api/sessions';
+const prodUrl = 'https://n8n.example.com/webhook/abc/webhook';
+const testUrl = 'https://n8n.example.com/webhook-test/abc/webhook';
 
 /** What n8n-core throws for a failed request: the response is kept as `cause`. */
 function httpError(status: number, message: string) {
@@ -28,23 +31,36 @@ function httpError(status: number, message: string) {
 	});
 }
 
+const readParam =
+	(params: Record<string, unknown>) =>
+	(name: string, fallback?: unknown, opts?: { extractValue?: boolean }) => {
+		const value = params[name] ?? fallback;
+		return opts?.extractValue && value && typeof value === 'object' && 'value' in value
+			? (value as { value: unknown }).value
+			: value;
+	};
+
 function hookContext(
 	params: Record<string, unknown>,
-	respond: (options: IHttpRequestOptions) => unknown = () => ({ id: 'wh1' }),
-	staticData: TriggerStaticData = {},
+	{
+		respond = () => ({ id: 'wh1' }),
+		staticData = {},
+		url = prodUrl,
+		key = apiKey,
+	}: {
+		respond?: (options: IHttpRequestOptions) => unknown;
+		staticData?: TriggerStaticData;
+		url?: string;
+		key?: string;
+	} = {},
 ) {
 	const calls: IHttpRequestOptions[] = [];
 	const ctx = {
 		getNode: () => node,
-		getNodeParameter: (name: string, fallback?: unknown, opts?: { extractValue?: boolean }) => {
-			const value = params[name] ?? fallback;
-			return opts?.extractValue && value && typeof value === 'object' && 'value' in value
-				? (value as { value: unknown }).value
-				: value;
-		},
-		getNodeWebhookUrl: () => n8nUrl,
+		getNodeParameter: readParam(params),
+		getNodeWebhookUrl: () => url,
 		getWorkflowStaticData: () => staticData,
-		getCredentials: async () => ({ baseUrl: 'https://wa.example.com', apiKey: 'test' }),
+		getCredentials: async () => ({ baseUrl: 'https://wa.example.com', apiKey: key }),
 		helpers: {
 			async httpRequestWithAuthentication(_type: string, options: IHttpRequestOptions) {
 				calls.push(options);
@@ -57,25 +73,32 @@ function hookContext(
 	return { ctx: ctx as unknown as IHookFunctions, calls, staticData };
 }
 
-const base = { session: { mode: 'id', value: 's1' }, events: ['message.received'], options: {} };
+const sessionA = { mode: 'id', value: 'sA' };
+const base = { session: sessionA, events: ['message.received'], options: {} };
+
+async function registered(params: Record<string, unknown> = base, url = prodUrl) {
+	const staticData: TriggerStaticData = {};
+	await webhookMethods.default.create.call(hookContext(params, { staticData, url }).ctx);
+	return staticData;
+}
 
 describe('create', () => {
-	it('registers the webhook with a generated secret and remembers it', async () => {
+	it('registers the webhook with a secret derived from the API key and URL', async () => {
 		const { ctx, calls, staticData } = hookContext(base);
 		expect(await webhookMethods.default.create.call(ctx)).toBe(true);
 		expect(calls).toHaveLength(1);
-		expect(calls[0]).toMatchObject({ method: 'POST', url: hooksUrl });
-		const body = calls[0].body as IDataObject;
-		expect(body).toMatchObject({ url: n8nUrl, events: ['message.received'], retryCount: 3 });
-		expect(body.secret).toMatch(/^[0-9a-f]{64}$/);
-		expect(body).not.toHaveProperty('filters');
-		expect(staticData).toMatchObject({
-			webhookId: 'wh1',
-			secret: body.secret,
+		expect(calls[0]).toMatchObject({ method: 'POST', url: `${gateway}/sA/webhooks` });
+		expect(calls[0].body).toEqual({
+			url: prodUrl,
 			events: ['message.received'],
-			seenKeys: [],
+			secret: deriveWebhookSecret(apiKey, prodUrl),
+			retryCount: 3,
 		});
-		expect(staticData.fingerprint).toBeTruthy();
+		expect(staticData.registrations?.[prodUrl]).toMatchObject({
+			webhookId: 'wh1',
+			sessionId: 'sA',
+		});
+		expect(JSON.stringify(staticData)).not.toContain(deriveWebhookSecret(apiKey, prodUrl));
 	});
 
 	it('sends message filters and the chosen retry count', async () => {
@@ -96,7 +119,7 @@ describe('create', () => {
 		});
 	});
 
-	it.each([['message.ack'], ['message.reaction'], ['*']])(
+	it.each([['message.ack'], ['message.reaction'], ['session.status'], ['group.join'], ['*']])(
 		'refuses filters combined with %s, before calling the gateway',
 		async (event) => {
 			const { ctx, calls } = hookContext({
@@ -112,7 +135,9 @@ describe('create', () => {
 	);
 
 	it('explains the gateway refusing a private n8n URL', async () => {
-		const { ctx } = hookContext(base, () => httpError(400, 'Destination address is not allowed'));
+		const { ctx } = hookContext(base, {
+			respond: () => httpError(400, 'Destination address is not allowed'),
+		});
 		const error = await webhookMethods.default.create
 			.call(ctx)
 			.catch((e: Error & { description?: string }) => e);
@@ -133,13 +158,7 @@ describe('create', () => {
 });
 
 describe('checkExists', () => {
-	async function registered(params = base) {
-		const staticData: TriggerStaticData = {};
-		await webhookMethods.default.create.call(hookContext(params, undefined, staticData).ctx);
-		return staticData;
-	}
-
-	it('is false without a stored webhook', async () => {
+	it('is false without a registration for this URL', async () => {
 		const { ctx, calls } = hookContext(base);
 		expect(await webhookMethods.default.checkExists.call(ctx)).toBe(false);
 		expect(calls).toHaveLength(0);
@@ -147,71 +166,139 @@ describe('checkExists', () => {
 
 	it('is true when the webhook exists with the same settings', async () => {
 		const staticData = await registered();
-		const { ctx, calls } = hookContext(base, () => ({ id: 'wh1', active: true }), staticData);
+		const { ctx, calls } = hookContext(base, {
+			respond: () => ({ id: 'wh1', active: true }),
+			staticData,
+		});
 		expect(await webhookMethods.default.checkExists.call(ctx)).toBe(true);
-		expect(calls.map((c) => [c.method, c.url])).toEqual([['GET', `${hooksUrl}/wh1`]]);
+		expect(calls.map((c) => [c.method, c.url])).toEqual([['GET', `${gateway}/sA/webhooks/wh1`]]);
 	});
 
 	it('forgets a webhook the gateway no longer has', async () => {
 		const staticData = await registered();
-		const { ctx } = hookContext(base, () => httpError(404, 'Webhook not found'), staticData);
+		const { ctx } = hookContext(base, {
+			respond: () => httpError(404, 'Webhook not found'),
+			staticData,
+		});
 		expect(await webhookMethods.default.checkExists.call(ctx)).toBe(false);
-		expect(staticData.webhookId).toBeUndefined();
+		expect(staticData.registrations?.[prodUrl]).toBeUndefined();
 	});
 
-	it('replaces the webhook when the settings changed', async () => {
+	it('replaces the webhook when the events changed', async () => {
 		const staticData = await registered();
 		const { ctx, calls } = hookContext(
 			{ ...base, events: ['message.received', 'message.sent'] },
-			(o) => (o.method === 'GET' ? { id: 'wh1', active: true } : { success: true }),
-			staticData,
+			{
+				respond: (o) => (o.method === 'GET' ? { id: 'wh1', active: true } : { success: true }),
+				staticData,
+			},
 		);
 		expect(await webhookMethods.default.checkExists.call(ctx)).toBe(false);
 		expect(calls.map((c) => c.method)).toEqual(['GET', 'DELETE']);
-		expect(staticData.webhookId).toBeUndefined();
+		expect(staticData.registrations?.[prodUrl]).toBeUndefined();
+	});
+
+	it('deletes the old webhook on its original session when the session changed', async () => {
+		const staticData = await registered();
+		const { ctx, calls } = hookContext(
+			{ ...base, session: { mode: 'id', value: 'sB' } },
+			{
+				respond: (o) => (o.method === 'GET' ? { id: 'wh1', active: true } : { success: true }),
+				staticData,
+			},
+		);
+		expect(await webhookMethods.default.checkExists.call(ctx)).toBe(false);
+		expect(calls.map((c) => [c.method, c.url])).toEqual([
+			['GET', `${gateway}/sA/webhooks/wh1`],
+			['DELETE', `${gateway}/sA/webhooks/wh1`],
+		]);
+	});
+
+	it('re-registers when the API key (and so the secret) changed', async () => {
+		const staticData = await registered();
+		const { ctx } = hookContext(base, {
+			respond: (o) => (o.method === 'GET' ? { id: 'wh1', active: true } : { success: true }),
+			staticData,
+			key: `${apiKey}-rotated`,
+		});
+		expect(await webhookMethods.default.checkExists.call(ctx)).toBe(false);
+	});
+});
+
+describe('test and production webhooks', () => {
+	it('keeps separate registrations and never touches the other one', async () => {
+		const staticData = await registered(base, prodUrl);
+		const respond = (o: IHttpRequestOptions) =>
+			o.method === 'POST' ? { id: 'wh-test' } : { id: 'x', active: true };
+
+		// "Listen for test event" while the workflow is active.
+		const test = hookContext(base, { respond, staticData, url: testUrl });
+		expect(await webhookMethods.default.checkExists.call(test.ctx)).toBe(false);
+		expect(await webhookMethods.default.create.call(test.ctx)).toBe(true);
+		expect(await webhookMethods.default.delete.call(test.ctx)).toBe(true);
+		expect(test.calls.map((c) => [c.method, c.url])).toEqual([
+			['POST', `${gateway}/sA/webhooks`],
+			['DELETE', `${gateway}/sA/webhooks/wh-test`],
+		]);
+
+		// The production registration is untouched and still recognised.
+		expect(staticData.registrations?.[prodUrl]).toMatchObject({ webhookId: 'wh1' });
+		const prod = hookContext(base, { respond, staticData, url: prodUrl });
+		expect(await webhookMethods.default.checkExists.call(prod.ctx)).toBe(true);
 	});
 });
 
 describe('delete', () => {
-	it('deletes the webhook and clears what was stored', async () => {
-		const staticData: TriggerStaticData = { webhookId: 'wh1', secret: 's', seenKeys: ['k'] };
-		const { ctx, calls } = hookContext(base, () => ({ success: true }), staticData);
+	it('deletes this URL’s webhook on its session and forgets it', async () => {
+		const staticData = await registered();
+		const { ctx, calls } = hookContext(
+			{ ...base, session: { mode: 'id', value: 'sB' } },
+			{ respond: () => ({ success: true }), staticData },
+		);
 		expect(await webhookMethods.default.delete.call(ctx)).toBe(true);
-		expect(calls.map((c) => [c.method, c.url])).toEqual([['DELETE', `${hooksUrl}/wh1`]]);
-		expect(staticData).toEqual({});
+		expect(calls.map((c) => [c.method, c.url])).toEqual([['DELETE', `${gateway}/sA/webhooks/wh1`]]);
+		expect(staticData.registrations).toEqual({});
 	});
 
 	it('treats an already-deleted webhook as done', async () => {
-		const staticData: TriggerStaticData = { webhookId: 'wh1' };
-		const { ctx } = hookContext(base, () => httpError(404, 'Webhook not found'), staticData);
+		const staticData = await registered();
+		const { ctx } = hookContext(base, {
+			respond: () => httpError(404, 'Webhook not found'),
+			staticData,
+		});
 		expect(await webhookMethods.default.delete.call(ctx)).toBe(true);
-		expect(staticData).toEqual({});
+		expect(staticData.registrations).toEqual({});
 	});
 });
 
 describe('receiveWebhook', () => {
-	const signingKey = ['unit', 'test', 'webhook', 'key'].join('-');
 	const delivery = {
 		event: 'message.received',
 		timestamp: '2026-09-23T10:00:00.000Z',
-		sessionId: 's1',
-		idempotencyKey: 'msg_s1_ABC',
+		sessionId: 'sA',
+		idempotencyKey: 'msg_sA_ABC',
 		deliveryId: 'dlv_1',
 		data: { id: 'ABC', body: 'hi' },
 	};
+	const sign = (raw: Buffer | string, url = prodUrl) =>
+		`sha256=${createHmac('sha256', deriveWebhookSecret(apiKey, url)).update(raw).digest('hex')}`;
 
 	function webhookContext({
 		params = base as Record<string, unknown>,
 		body = delivery as IDataObject,
 		headers = {} as IDataObject,
-		staticData = { secret: signingKey } as TriggerStaticData,
+		staticData = {} as TriggerStaticData,
 		raw,
+		noRawBody = false,
+		url = prodUrl,
 	}: {
 		params?: Record<string, unknown>;
 		body?: IDataObject;
 		headers?: IDataObject;
 		staticData?: TriggerStaticData;
 		raw?: Buffer;
+		noRawBody?: boolean;
+		url?: string;
 	} = {}) {
 		const rawBody = raw ?? Buffer.from(JSON.stringify(body));
 		const response = { code: 200, body: undefined as unknown };
@@ -225,16 +312,17 @@ describe('receiveWebhook', () => {
 				return res;
 			},
 		};
-		const signature = `sha256=${createHmac('sha256', signingKey).update(rawBody).digest('hex')}`;
 		const ctx = {
-			getNodeParameter: (name: string, fallback?: unknown) => params[name] ?? fallback,
+			getNodeParameter: readParam(params),
+			getNodeWebhookUrl: () => url,
+			getCredentials: async () => ({ baseUrl: 'https://wa.example.com', apiKey }),
 			getHeaderData: () => ({
-				'x-openwa-signature': signature,
+				'x-openwa-signature': sign(rawBody, url),
 				'x-openwa-event': body.event,
 				...headers,
 			}),
 			getBodyData: () => body,
-			getRequestObject: () => ({ rawBody }),
+			getRequestObject: () => (noRawBody ? {} : { rawBody }),
 			getResponseObject: () => res,
 			getWorkflowStaticData: () => staticData,
 			helpers: { returnJsonArray: (items: IDataObject[]) => items.map((json) => ({ json })) },
@@ -247,7 +335,12 @@ describe('receiveWebhook', () => {
 		expect(await receiveWebhook.call(ctx)).toEqual({ workflowData: [[{ json: delivery }]] });
 	});
 
-	it('rejects a bad or missing signature with 401', async () => {
+	it('verifies test-URL deliveries with the test URL’s secret', async () => {
+		const { ctx } = webhookContext({ url: testUrl });
+		expect(await receiveWebhook.call(ctx)).toHaveProperty('workflowData');
+	});
+
+	it('rejects a bad or missing signature with 401, even with no stored state', async () => {
 		const bad = webhookContext({ headers: { 'x-openwa-signature': 'sha256=deadbeef' } });
 		expect(await receiveWebhook.call(bad.ctx)).toEqual({ noWebhookResponse: true });
 		expect(bad.response.code).toBe(401);
@@ -258,28 +351,31 @@ describe('receiveWebhook', () => {
 	});
 
 	it('rejects a body changed after signing', async () => {
-		const signedFor = JSON.stringify(delivery);
 		const { ctx, response } = webhookContext({
 			raw: Buffer.from(JSON.stringify({ ...delivery, data: { body: 'changed' } })),
-			headers: {
-				'x-openwa-signature': `sha256=${createHmac('sha256', signingKey).update(signedFor).digest('hex')}`,
-			},
+			headers: { 'x-openwa-signature': sign(JSON.stringify(delivery)) },
 		});
 		expect(await receiveWebhook.call(ctx)).toEqual({ noWebhookResponse: true });
 		expect(response.code).toBe(401);
 	});
 
-	it('skips the check when Verify Signature is off, or when no secret was stored', async () => {
+	it('falls back to the parsed body when n8n kept no raw body', async () => {
+		const { ctx } = webhookContext({ noRawBody: true });
+		expect(await receiveWebhook.call(ctx)).toHaveProperty('workflowData');
+	});
+
+	it('skips the check only when Verify Signature is turned off', async () => {
 		const off = webhookContext({
 			params: { ...base, options: { verifySignature: false } },
 			headers: { 'x-openwa-signature': 'nope' },
 		});
 		expect(await receiveWebhook.call(off.ctx)).toHaveProperty('workflowData');
-		const noSecret = webhookContext({
-			staticData: {},
-			headers: { 'x-openwa-signature': undefined },
-		});
-		expect(await receiveWebhook.call(noSecret.ctx)).toHaveProperty('workflowData');
+	});
+
+	it('ignores deliveries for another session', async () => {
+		const { ctx, response } = webhookContext({ body: { ...delivery, sessionId: 'sB' } });
+		expect(await receiveWebhook.call(ctx)).toEqual({ noWebhookResponse: true });
+		expect(response).toEqual({ code: 200, body: { ignored: 'delivery is for another session' } });
 	});
 
 	it('acknowledges but ignores events that are not selected; * accepts any', async () => {
@@ -298,17 +394,17 @@ describe('receiveWebhook', () => {
 	});
 
 	it('drops a repeated delivery unless duplicates are allowed', async () => {
-		const staticData: TriggerStaticData = { secret: signingKey };
+		const staticData: TriggerStaticData = {};
 		expect(await receiveWebhook.call(webhookContext({ staticData }).ctx)).toHaveProperty(
 			'workflowData',
 		);
 		const repeat = webhookContext({
 			staticData,
-			headers: { 'x-openwa-idempotency-key': 'msg_s1_ABC' },
+			headers: { 'x-openwa-idempotency-key': 'msg_sA_ABC' },
 		});
 		expect(await receiveWebhook.call(repeat.ctx)).toEqual({ noWebhookResponse: true });
 		expect(repeat.response.body).toEqual({ ignored: 'duplicate delivery' });
-		expect(staticData.seenKeys).toEqual(['msg_s1_ABC']);
+		expect(staticData.seenKeys).toEqual(['msg_sA_ABC']);
 
 		const allowed = webhookContext({
 			staticData,

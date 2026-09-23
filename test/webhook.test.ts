@@ -2,6 +2,8 @@ import { createHmac } from 'crypto';
 import { describe, expect, it } from 'vitest';
 import {
 	buildMessageFilters,
+	deriveWebhookSecret,
+	secretTag,
 	rememberDelivery,
 	verifySignature,
 } from '../nodes/OpenWa/trigger/webhook';
@@ -90,5 +92,28 @@ describe('rememberDelivery', () => {
 		expect(rememberDelivery(keys, undefined)).toBe(false);
 		expect(rememberDelivery(keys, undefined)).toBe(false);
 		expect(keys).toEqual([]);
+	});
+});
+
+describe('deriveWebhookSecret', () => {
+	const apiKey = ['unit', 'test', 'api', 'key'].join('-');
+
+	it('is stable for the same key and URL, and differs per URL and per key', () => {
+		const prod = deriveWebhookSecret(apiKey, 'https://n8n.example.com/webhook/x/webhook');
+		expect(prod).toMatch(/^[0-9a-f]{64}$/);
+		expect(deriveWebhookSecret(apiKey, 'https://n8n.example.com/webhook/x/webhook')).toBe(prod);
+		expect(deriveWebhookSecret(apiKey, 'https://n8n.example.com/webhook-test/x/webhook')).not.toBe(
+			prod,
+		);
+		expect(
+			deriveWebhookSecret(`${apiKey}-rotated`, 'https://n8n.example.com/webhook/x/webhook'),
+		).not.toBe(prod);
+	});
+
+	it('tags a secret without revealing it', () => {
+		const secret = deriveWebhookSecret(apiKey, 'u');
+		expect(secretTag(secret)).toHaveLength(16);
+		expect(secret).not.toContain(secretTag(secret));
+		expect(secretTag(secret)).toBe(secretTag(secret));
 	});
 });

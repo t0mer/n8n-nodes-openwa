@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto';
 import {
 	NodeApiError,
 	NodeOperationError,
@@ -7,17 +6,28 @@ import {
 	type JsonObject,
 } from 'n8n-workflow';
 import { openWaApiRequest } from '../transport/request';
-import { ALL_EVENTS_WILDCARD } from './events';
-import { UNFILTERABLE_MESSAGE_EVENTS, buildMessageFilters, type FilterCondition } from './webhook';
+import {
+	FILTERABLE_EVENTS,
+	buildMessageFilters,
+	deriveWebhookSecret,
+	secretTag,
+	type FilterCondition,
+} from './webhook';
 
-/** What a trigger remembers between activation and deliveries (node static data). */
-export interface TriggerStaticData {
-	webhookId?: string;
-	secret?: string;
-	events?: string[];
+/** One webhook registered on the gateway, for one n8n webhook URL (test or production). */
+export interface RegistrationRecord {
+	webhookId: string;
+	/** The session it was registered on, which may differ from the node's current setting. */
+	sessionId: string;
 	/** Registration settings, to spot changes that need a fresh webhook. */
-	fingerprint?: string;
-	/** Recent idempotency keys, for dropping duplicate deliveries. */
+	fingerprint: string;
+}
+
+/** What a trigger keeps in node static data. */
+export interface TriggerStaticData {
+	/** Keyed by n8n webhook URL, so test and production registrations never touch each other. */
+	registrations?: Record<string, RegistrationRecord>;
+	/** Recent idempotency keys, for dropping duplicate deliveries (best effort). */
 	seenKeys?: string[];
 }
 
@@ -27,25 +37,29 @@ interface Registration {
 	events: string[];
 	retryCount: number;
 	filters?: { conditions: FilterCondition[] };
+	secret: string;
 }
 
 export function triggerStaticData(ctx: { getWorkflowStaticData(type: string): IDataObject }) {
 	return ctx.getWorkflowStaticData('node') as TriggerStaticData;
 }
 
-function clearRegistration(data: TriggerStaticData): void {
-	delete data.webhookId;
-	delete data.secret;
-	delete data.events;
-	delete data.fingerprint;
-	delete data.seenKeys;
+/** The API key of the node's credential, used to derive webhook secrets. */
+export async function credentialApiKey(ctx: {
+	getCredentials(type: string): Promise<IDataObject>;
+}): Promise<string> {
+	return String((await ctx.getCredentials('openWaApi')).apiKey ?? '');
 }
 
-/** Read and validate the trigger's settings. */
-function readRegistration(ctx: IHookFunctions): Registration {
-	const sessionId = String(
-		ctx.getNodeParameter('session', '', { extractValue: true }) ?? '',
-	).trim();
+export function configuredSessionId(ctx: {
+	getNodeParameter(name: string, fallback?: unknown, options?: IDataObject): unknown;
+}): string {
+	return String(ctx.getNodeParameter('session', '', { extractValue: true }) ?? '').trim();
+}
+
+/** Read and validate the trigger's settings for the current webhook URL. */
+async function readRegistration(ctx: IHookFunctions): Promise<Registration> {
+	const sessionId = configuredSessionId(ctx);
 	if (!sessionId) throw new NodeOperationError(ctx.getNode(), 'Session is required');
 
 	const events = [...new Set(ctx.getNodeParameter('events', []) as string[])];
@@ -59,54 +73,66 @@ function readRegistration(ctx: IHookFunctions): Registration {
 		throw new NodeOperationError(ctx.getNode(), error as Error);
 	}
 	if (filters) {
-		const unfilterable = events.filter(
-			(event) => event === ALL_EVENTS_WILDCARD || UNFILTERABLE_MESSAGE_EVENTS.includes(event),
-		);
+		const unfilterable = events.filter((event) => !FILTERABLE_EVENTS.includes(event));
 		if (unfilterable.length) {
 			throw new NodeOperationError(
 				ctx.getNode(),
 				`Message filters can't be combined with ${unfilterable.join(', ')}`,
 				{
-					description:
-						"Those events carry no sender, chat or text, so OpenWA's filters would silently drop them. Remove the filters, or select only message events that carry a message (received, sent, edited, revoked).",
+					description: `Filters only work with ${FILTERABLE_EVENTS.join(', ')}. Other events carry no sender, chat or text, so OpenWA would silently drop them. Remove the filters, or those events.`,
 				},
 			);
 		}
 	}
 
 	const retryCount = Number(options.retryCount ?? 3);
+	const url = ctx.getNodeWebhookUrl('default') ?? '';
 	return {
 		sessionId,
-		url: ctx.getNodeWebhookUrl('default') ?? '',
+		url,
 		events,
 		retryCount: Number.isFinite(retryCount) ? retryCount : 3,
 		filters,
+		secret: deriveWebhookSecret(await credentialApiKey(ctx), url),
 	};
 }
 
-function fingerprint({ sessionId, url, events, retryCount, filters }: Registration): string {
-	return JSON.stringify({ sessionId, url, events: [...events].sort(), retryCount, filters });
+function fingerprint({
+	sessionId,
+	url,
+	events,
+	retryCount,
+	filters,
+	secret,
+}: Registration): string {
+	return JSON.stringify({
+		sessionId,
+		url,
+		events: [...events].sort(),
+		retryCount,
+		filters,
+		secret: secretTag(secret),
+	});
 }
 
-const webhooksPath = (sessionId: string) =>
-	`/api/sessions/${encodeURIComponent(sessionId)}/webhooks`;
+const webhookPath = (sessionId: string, webhookId?: string) =>
+	`/api/sessions/${encodeURIComponent(sessionId)}/webhooks${webhookId ? `/${encodeURIComponent(webhookId)}` : ''}`;
 
 const isNotFound = (error: unknown) => error instanceof NodeApiError && error.httpCode === '404';
 
-async function deleteWebhook(ctx: IHookFunctions, sessionId: string, webhookId: string) {
+/** Delete a registered webhook on the session it was created on; a missing one is fine. */
+async function deleteWebhook(ctx: IHookFunctions, record: RegistrationRecord) {
 	try {
-		await openWaApiRequest.call(
-			ctx,
-			'DELETE',
-			`${webhooksPath(sessionId)}/${encodeURIComponent(webhookId)}`,
-			{
-				sessionId,
-			},
-		);
+		await openWaApiRequest.call(ctx, 'DELETE', webhookPath(record.sessionId, record.webhookId), {
+			sessionId: record.sessionId,
+		});
 	} catch (error) {
-		// Already gone on the gateway: nothing left to clean up.
 		if (!isNotFound(error)) throw new NodeApiError(ctx.getNode(), error as JsonObject);
 	}
+}
+
+function currentUrl(ctx: IHookFunctions): string {
+	return ctx.getNodeWebhookUrl('default') ?? '';
 }
 
 /** Registration hooks shared by every OpenWA trigger node. */
@@ -114,37 +140,39 @@ export const webhookMethods = {
 	default: {
 		async checkExists(this: IHookFunctions): Promise<boolean> {
 			const data = triggerStaticData(this);
-			if (!data.webhookId) return false;
-			const registration = readRegistration(this);
+			const url = currentUrl(this);
+			const record = data.registrations?.[url];
+			if (!record) return false;
+
+			const registration = await readRegistration(this);
 			try {
 				const hook = (await openWaApiRequest.call(
 					this,
 					'GET',
-					`${webhooksPath(registration.sessionId)}/${encodeURIComponent(data.webhookId)}`,
-					{ sessionId: registration.sessionId },
+					webhookPath(record.sessionId, record.webhookId),
+					{ sessionId: record.sessionId },
 				)) as IDataObject;
-				if (hook.active !== false && data.fingerprint === fingerprint(registration)) return true;
+				if (hook.active !== false && record.fingerprint === fingerprint(registration)) return true;
 			} catch (error) {
 				if (!isNotFound(error)) throw new NodeApiError(this.getNode(), error as JsonObject);
-				clearRegistration(data);
+				delete data.registrations![url];
 				return false;
 			}
-			// The settings changed since it was registered: replace it.
-			await deleteWebhook(this, registration.sessionId, data.webhookId);
-			clearRegistration(data);
+			// The settings (session, events, filters, key…) changed: replace this URL's webhook.
+			await deleteWebhook(this, record);
+			delete data.registrations![url];
 			return false;
 		},
 
 		async create(this: IHookFunctions): Promise<boolean> {
-			const registration = readRegistration(this);
-			const secret = randomBytes(32).toString('hex');
+			const registration = await readRegistration(this);
 			let hook: IDataObject;
 			try {
-				hook = (await openWaApiRequest.call(this, 'POST', webhooksPath(registration.sessionId), {
+				hook = (await openWaApiRequest.call(this, 'POST', webhookPath(registration.sessionId), {
 					body: {
 						url: registration.url,
 						events: registration.events,
-						secret,
+						secret: registration.secret,
 						retryCount: registration.retryCount,
 						...(registration.filters ? { filters: registration.filters } : {}),
 					},
@@ -164,23 +192,25 @@ export const webhookMethods = {
 			}
 
 			const data = triggerStaticData(this);
-			data.webhookId = String(hook.id);
-			data.secret = secret;
-			data.events = registration.events;
-			data.fingerprint = fingerprint(registration);
-			data.seenKeys = [];
+			data.registrations = {
+				...data.registrations,
+				[registration.url]: {
+					webhookId: String(hook.id),
+					sessionId: registration.sessionId,
+					fingerprint: fingerprint(registration),
+				},
+			};
 			return true;
 		},
 
 		async delete(this: IHookFunctions): Promise<boolean> {
 			const data = triggerStaticData(this);
-			if (data.webhookId) {
-				const sessionId = String(
-					this.getNodeParameter('session', '', { extractValue: true }) ?? '',
-				).trim();
-				await deleteWebhook(this, sessionId, data.webhookId);
+			const url = currentUrl(this);
+			const record = data.registrations?.[url];
+			if (record) {
+				await deleteWebhook(this, record);
+				delete data.registrations![url];
 			}
-			clearRegistration(data);
 			return true;
 		},
 	},

@@ -1,7 +1,7 @@
 import type { IDataObject, IWebhookFunctions, IWebhookResponseData } from 'n8n-workflow';
 import { ALL_EVENTS_WILDCARD } from './events';
-import { triggerStaticData } from './lifecycle';
-import { rememberDelivery, verifySignature } from './webhook';
+import { configuredSessionId, credentialApiKey, triggerStaticData } from './lifecycle';
+import { deriveWebhookSecret, rememberDelivery, verifySignature } from './webhook';
 
 /** Answer the gateway without starting the workflow. */
 function acknowledge(
@@ -18,19 +18,28 @@ const header = (headers: IDataObject, name: string) => {
 	return Array.isArray(value) ? String(value[0]) : value === undefined ? undefined : String(value);
 };
 
-/** Handle one OpenWA webhook delivery: verify, filter by event, drop duplicates, then run. */
+/** Handle one OpenWA webhook delivery: verify, check session and event, drop duplicates, run. */
 export async function receiveWebhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
-	const data = triggerStaticData(this);
 	const options = this.getNodeParameter('options', {}) as IDataObject;
 	const headers = this.getHeaderData() as IDataObject;
 	const body = this.getBodyData();
 
-	if (options.verifySignature !== false && data.secret) {
-		// The HMAC covers the exact bytes sent; fall back to re-serializing only if n8n kept none.
+	if (options.verifySignature !== false) {
+		// The secret is derived, not stored, so there is always one to check against (fail closed).
+		const secret = deriveWebhookSecret(
+			await credentialApiKey(this),
+			this.getNodeWebhookUrl('default') ?? '',
+		);
+		// The HMAC covers the exact bytes sent; re-serializing is only a fallback if n8n kept none.
 		const raw = this.getRequestObject().rawBody ?? Buffer.from(JSON.stringify(body));
-		if (!verifySignature(raw, header(headers, 'x-openwa-signature'), data.secret)) {
+		if (!verifySignature(raw, header(headers, 'x-openwa-signature'), secret)) {
 			return acknowledge(this, 401, { error: 'Invalid or missing X-OpenWA-Signature' });
 		}
+	}
+
+	const sessionId = configuredSessionId(this);
+	if (body.sessionId !== undefined && sessionId && String(body.sessionId) !== sessionId) {
+		return acknowledge(this, 200, { ignored: `delivery is for another session` });
 	}
 
 	const event = String(body.event ?? header(headers, 'x-openwa-event') ?? '');
@@ -40,6 +49,7 @@ export async function receiveWebhook(this: IWebhookFunctions): Promise<IWebhookR
 	}
 
 	if (options.ignoreDuplicates !== false) {
+		const data = triggerStaticData(this);
 		const key = header(headers, 'x-openwa-idempotency-key') ?? (body.idempotencyKey as string);
 		data.seenKeys = data.seenKeys ?? [];
 		if (rememberDelivery(data.seenKeys, key)) {

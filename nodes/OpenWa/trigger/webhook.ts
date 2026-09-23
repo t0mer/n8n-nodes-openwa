@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import { normalizeChatId, parseContactList } from '../helpers/chatId';
 
 /**
@@ -18,6 +18,20 @@ export function verifySignature(
 	return received.length === expected.length && timingSafeEqual(received, expected);
 }
 
+/**
+ * The signing secret for one webhook URL, derived from the API key. Registration and delivery
+ * compute the same value, so verification never depends on stored state (and can't fail open),
+ * and rotating the API key changes it.
+ */
+export function deriveWebhookSecret(apiKey: string, webhookUrl: string): string {
+	return createHmac('sha256', apiKey).update(`openwa-trigger:${webhookUrl}`).digest('hex');
+}
+
+/** A short, non-reversible tag of a secret, for noticing that it changed. */
+export function secretTag(secret: string): string {
+	return createHash('sha256').update(secret).digest('hex').slice(0, 16);
+}
+
 export interface MessageFilterOptions {
 	onlyFrom?: unknown;
 	onlyInChat?: unknown;
@@ -33,10 +47,15 @@ export interface FilterCondition {
 }
 
 /**
- * Message events whose payload has no sender, body, chat or flags, so any server-side filter
- * would silently drop them.
+ * The only events whose payload carries the message fields filters test (sender, chat, body,
+ * flags). Any other event, including other families, would be silently dropped by a filter.
  */
-export const UNFILTERABLE_MESSAGE_EVENTS = ['message.ack', 'message.failed', 'message.reaction'];
+export const FILTERABLE_EVENTS = [
+	'message.received',
+	'message.sent',
+	'message.edited',
+	'message.revoked',
+];
 
 /** Turn the trigger's filter options into the gateway's `filters` object, or undefined for none. */
 export function buildMessageFilters(

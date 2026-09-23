@@ -8,6 +8,7 @@ It sends text, media, locations, polls, contact cards and templates to **contact
 - [Installation](#installation)
 - [Credentials](#credentials)
 - [Operations](#operations)
+- [Triggers](#triggers)
 - [Chat ID formats](#chat-id-formats)
 - [Size limits](#size-limits)
 - [Error handling](#error-handling)
@@ -201,6 +202,52 @@ Text templates are stored on the gateway per session. Placeholders in double cur
 
 - **Template**: pick one from the list, or enter its ID.
 - Template names are unique per session. Creating or renaming to a name that exists fails with the gateway's message.
+
+## Triggers
+
+Trigger nodes start a workflow when OpenWA reports an event. On activation, a trigger registers a webhook for its session on the gateway, with a secret it generates. On deactivation, it deletes the webhook. There's one trigger per event family, plus a general one:
+
+| Node | Events |
+|---|---|
+| **OpenWA Message Trigger** | `message.received`, `message.sent`, `message.ack`, `message.failed`, `message.revoked`, `message.reaction`, `message.edited` |
+| **OpenWA Session Trigger** | `session.status`, `session.qr`, `session.authenticated`, `session.disconnected`, `session.reconnect_loop`, `session.restriction` |
+| **OpenWA Group Trigger** | `group.join`, `group.leave`, `group.update`, `group.join_request` |
+| **OpenWA Call Trigger** | `call.received`, `call.accepted`, `call.rejected`, `call.missed` (only `call.received` on whatsapp-web.js) |
+| **OpenWA Status & Presence Trigger** | `status.received`, `presence.update` (only for chats you subscribed to presence for) |
+| **OpenWA Trigger** | Any of the above, or **All Events** (`*`) |
+
+Each run outputs one item with the OpenWA delivery:
+
+```json
+{
+  "event": "message.received",
+  "timestamp": "2026-09-23T10:00:00.000Z",
+  "sessionId": "…",
+  "idempotencyKey": "msg_…",
+  "deliveryId": "dlv_…",
+  "data": { "id": "…", "from": "…", "body": "Hi", "type": "chat", "isGroup": false }
+}
+```
+
+**The gateway must be able to reach n8n.** OpenWA refuses webhook URLs on private or local addresses (`localhost`, `192.168.x.x`, …). If activation fails with *"refused this n8n webhook URL"*, you have two options:
+- expose n8n on a public URL and set n8n's `WEBHOOK_URL` to it; or
+- add the n8n host to `SSRF_ALLOWED_HOSTS` on the gateway.
+
+Each session can have up to 16 webhooks. Every active trigger uses one, and so does a trigger listening for a test event (removed when the test ends). Deliveries for another session are ignored.
+
+**Options:**
+- **Verify Signature** (on by default): each delivery's `X-OpenWA-Signature` (HMAC-SHA256 of the raw body) is checked against the trigger's secret. Mismatches get `401` and don't run the workflow.
+  - The secret is derived from your API key and the webhook URL, so nothing secret is stored in the workflow.
+  - Rotating the API key re-registers the webhook on the next activation.
+- **Ignore Duplicate Deliveries** (on by default): OpenWA delivers *at least once* and retries failures, so the same event can arrive twice. The trigger drops repeats of an idempotency key it has seen recently.
+  - This is best effort: a retry that arrives while the first run is still in progress, or that lands on another n8n worker in queue mode, can still get through.
+  - For strict once-only processing, dedupe on `idempotencyKey` in your own storage.
+- **Retry Count**: delivery attempts per event, 0–5 (default 3).
+- **Message filters** (Message Trigger and OpenWA Trigger): Only From, Only In Chats, Body Contains, Chat Type (direct or groups) and Ignore Messages From Me. OpenWA applies them on the gateway, so filtered-out events never reach n8n.
+  - They only work with `message.received`, `message.sent`, `message.edited` and `message.revoked`. Other events carry no sender or text, so the gateway would silently drop them.
+  - The node refuses filters combined with any other event, including All Events.
+
+To try a trigger, click **Listen for test event** (n8n registers a temporary webhook), then send a WhatsApp message to the session's number, or from it.
 
 ## Chat ID formats
 

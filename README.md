@@ -193,6 +193,26 @@ List operations output one item per entry, and **no items** when the list is emp
 - Most changes need the session account to be a group admin. WhatsApp's refusal comes back as a 403 with the gateway's message.
 - Leave, Remove Participants, Revoke Invite Link, Remove Picture, and Approve/Reject with All Pending Requests change the group and can't be undone from the node. Keep that in mind when giving the node to an AI Agent.
 
+### Label
+
+Labels are a WhatsApp Business feature: on a personal account, Get Many is empty and label writes fail with HTTP 422. The two engines support different parts.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Get Many | `GET /labels` | Return All, or Limit (default 50). One item per label (`id`, `name`, `hexColor`). |
+| Get | `GET /labels/{labelId}` | Label |
+| Create or Update | `PUT /labels/{labelId}` | Label ID, Name (up to 100 characters), Color (index 0–19). **Baileys only.** |
+| Delete | `DELETE /labels/{labelId}` | Label. Removes it from every chat. **Baileys only.** |
+| Get Chats | `GET /labels/{labelId}/chats` | Label. One item per chat. **whatsapp-web.js only.** |
+| Get Chat Labels | `GET /labels/chat/{chatId}` | Chat. One item per label. |
+| Add to Chat | `POST /labels/chat/{chatId}` | Chat, Label |
+| Remove From Chat | `DELETE /labels/chat/{chatId}/{labelId}` | Chat, Label |
+
+- **Label**: pick one from the list, or enter its ID. Baileys can't read labels, so enter the ID there.
+- **Chat**: a phone number, a contact ID (`@c.us` / `@lid`) or a group ID (`@g.us`).
+- **Create or Update** creates a label when the ID is unused and silently replaces the label when it exists. It always sends both Name and Color, because the gateway replaces the whole label.
+- **Color** is WhatsApp's colour index. Reads return `hexColor` instead, and the gateway can't map one to the other.
+
 ### Status
 
 Status updates (stories) last 24 hours.
@@ -334,6 +354,7 @@ To send files larger than 18 MB, host them somewhere the gateway can reach and u
 | 404 | Session not found | Names the session |
 | 409 | Session not `ready` (reconnecting or reloading) | Transient, retry shortly |
 | 413 | Media too large | States the limits above |
+| 422 | Labels need a WhatsApp Business account, or the chat type has no labels | The gateway's own message, with a WhatsApp Business hint |
 | 501 | Not supported by the active engine | The gateway's own message |
 | 503 | WhatsApp, a proxy or media conversion is unavailable | Retryable |
 

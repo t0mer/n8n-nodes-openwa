@@ -23,6 +23,11 @@ interface Template {
 	name: string;
 }
 
+interface Label {
+	id: string;
+	name: string;
+}
+
 interface Session {
 	id: string;
 	name: string;
@@ -126,5 +131,24 @@ export async function searchTemplates(
 			.filter((template) => matches(filter, template.name, template.id))
 			.sort((a, b) => a.name.localeCompare(b.name))
 			.map((template) => ({ name: template.name, value: template.id })),
+	};
+}
+
+export async function searchLabels(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'labels');
+	const labels = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/labels`,
+		{ sessionId },
+	)) as Label[];
+	return {
+		results: labels
+			.filter((label) => matches(filter, label.name, label.id))
+			.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+			.map((label) => ({ name: label.name || label.id, value: label.id })),
 	};
 }

@@ -14,6 +14,7 @@ import { executeCall } from './actions/call';
 import { executeChat } from './actions/chat';
 import { executeContact } from './actions/contact';
 import { executeGroup } from './actions/group';
+import { executeLabel } from './actions/label';
 import { executeMessage } from './actions/message';
 import { executeProfile } from './actions/profile';
 import { executeSession } from './actions/session';
@@ -26,6 +27,7 @@ import { contactFields, contactOperations } from './descriptions/contact';
 import { contactCardFields } from './descriptions/contactCard';
 import { groupFields, groupOperations } from './descriptions/group';
 import { historyFields } from './descriptions/history';
+import { labelFields, labelOperations } from './descriptions/label';
 import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
 import { pollFields } from './descriptions/poll';
@@ -38,6 +40,7 @@ import { textFields } from './descriptions/text';
 import {
 	searchContacts,
 	searchGroups,
+	searchLabels,
 	searchSessions,
 	searchTemplates,
 } from './methods/listSearch';
@@ -59,6 +62,7 @@ const EXECUTORS: Record<string, Executor> = {
 	chat: executeChat,
 	contact: executeContact,
 	group: executeGroup,
+	label: executeLabel,
 	message: executeMessage,
 	profile: executeProfile,
 	session: executeSession,
@@ -93,6 +97,7 @@ export class OpenWa implements INodeType {
 					{ name: 'Chat', value: 'chat' },
 					{ name: 'Contact', value: 'contact' },
 					{ name: 'Group', value: 'group' },
+					{ name: 'Label', value: 'label' },
 					{ name: 'Message', value: 'message' },
 					{ name: 'Profile', value: 'profile' },
 					{ name: 'Session', value: 'session' },
@@ -107,6 +112,7 @@ export class OpenWa implements INodeType {
 			contactOperations,
 			templateOperations,
 			groupOperations,
+			labelOperations,
 			profileOperations,
 			sessionOperations,
 			statusOperations,
@@ -116,6 +122,7 @@ export class OpenWa implements INodeType {
 			...contactFields,
 			...templateFields,
 			...groupFields,
+			...labelFields,
 			...profileFields,
 			...sessionResourceFields,
 			...statusFields,
@@ -138,6 +145,7 @@ export class OpenWa implements INodeType {
 			searchGroups,
 			searchContacts,
 			searchTemplates,
+			searchLabels,
 		},
 	};
 

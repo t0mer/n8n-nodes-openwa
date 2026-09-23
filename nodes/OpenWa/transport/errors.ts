@@ -52,6 +52,13 @@ export function describeOpenWaError(
 				message: 'Media too large',
 				description: apiMessage ? `${apiMessage}. ${SIZE_LIMITS_TEXT}` : SIZE_LIMITS_TEXT,
 			};
+		case 422:
+			// Only the label routes answer 422 (e.g. adding a label on a personal account).
+			return {
+				message: apiMessage || 'OpenWA could not process the request (HTTP 422)',
+				description:
+					'Labels need a WhatsApp Business account, and some chat types cannot carry labels.',
+			};
 		case 501:
 			return { message: apiMessage || 'Not supported by the active OpenWA engine' };
 		case 503:

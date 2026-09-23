@@ -4,6 +4,7 @@ import {
 	type IDataObject,
 	type IExecuteFunctions,
 	type INodeExecutionData,
+	type IPairedItemData,
 } from 'n8n-workflow';
 import { BULK_CAPTION_TYPES, BULK_TYPES } from '../descriptions/bulk';
 import { openWaApiRequest } from '../transport/request';
@@ -23,8 +24,9 @@ const toMb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
 
 /**
  * Send Bulk: every input item becomes one message, grouped by session into batches of up to
- * 100, each posted once. Outputs one item per batch, paired with all its input items. An item
- * that can't be built (or a batch that fails) becomes an error item with Continue On Fail.
+ * 100, each posted once. Every batch is built and checked before the first is posted. Outputs
+ * one item per batch, paired with all its input items. An item that can't be built (or a batch
+ * that fails) becomes an error item with Continue On Fail.
  */
 export async function sendBulk(
 	ctx: IExecuteFunctions,
@@ -51,6 +53,13 @@ export async function sendBulk(
 		}
 	}
 
+	// Build and check every batch before posting any, so a bad batch can't leave the run half-sent.
+	const ready: Array<{
+		sessionId: string;
+		first: number;
+		pairedItem: IPairedItemData[];
+		body: IDataObject;
+	}> = [];
 	for (const [sessionId, entries] of bySession) {
 		const batches: Entry[][] = [];
 		for (let start = 0; start < entries.length; start += MAX_BATCH_MESSAGES) {
@@ -61,17 +70,26 @@ export async function sendBulk(
 			const pairedItem = batch.map(({ item }) => ({ item }));
 			try {
 				const body = buildBatchBody(ctx, first, batch, batches.length > 1 ? n + 1 : undefined);
-				const response = (await openWaApiRequest.call(
-					ctx,
-					'POST',
-					`/api/sessions/${encodeURIComponent(sessionId)}/messages/send-bulk`,
-					{ body, sessionId, itemIndex: first },
-				)) as IDataObject;
-				output.push({ json: response, pairedItem });
+				ready.push({ sessionId, first, pairedItem, body });
 			} catch (error) {
 				if (!ctx.continueOnFail()) throw toNodeError(ctx, error, first);
 				output.push({ json: { error: (error as Error).message }, pairedItem });
 			}
+		}
+	}
+
+	for (const { sessionId, first, pairedItem, body } of ready) {
+		try {
+			const response = (await openWaApiRequest.call(
+				ctx,
+				'POST',
+				`/api/sessions/${encodeURIComponent(sessionId)}/messages/send-bulk`,
+				{ body, sessionId, itemIndex: first },
+			)) as IDataObject;
+			output.push({ json: response, pairedItem });
+		} catch (error) {
+			if (!ctx.continueOnFail()) throw toNodeError(ctx, error, first);
+			output.push({ json: { error: (error as Error).message }, pairedItem });
 		}
 	}
 	return output;

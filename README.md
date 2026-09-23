@@ -301,7 +301,7 @@ Send Bulk works differently from the other operations: instead of one request pe
   ```
 
   `202`-accepted means queued, not sent. Exact duplicate messages are collapsed by the gateway, so `totalMessages` can be lower than the item count. Use **Get Batch Status** with the `batchId` to follow progress and see per-recipient results, and **Cancel Batch** to stop it.
-- An item that can't be turned into a message (e.g. an invalid phone number or text over 4096 characters) fails the node, or with **Continue On Fail** outputs an error item for that input item and is left out of the batch.
+- An item that can't be turned into a message (e.g. an invalid phone number or text over 4096 characters) fails the node, or with **Continue On Fail** outputs an error item for that input item and is left out of the batch. Every batch is built and checked (delay, size) before the first one is posted, so without Continue On Fail a bad batch stops the run before anything is sent.
 - One batch request must fit OpenWA's 25 MB request limit. Binary and Base64 media travel inside the request, so a batch with several large files is refused before sending. Send media by **URL** instead: the gateway downloads each file itself (up to 50 MiB).
 - API keys restricted with `allowedChats` can't use Get Batch Status or Cancel Batch (HTTP 403).
 

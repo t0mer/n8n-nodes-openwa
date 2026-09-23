@@ -215,6 +215,28 @@ describe('Message → Send Bulk', () => {
 		expect(calls).toHaveLength(0);
 	});
 
+	it('checks every batch before posting any', async () => {
+		const params = { ...base, phoneNumber: '972501234567', bulkType: 'text', text: 'Hi' };
+		// The second batch takes its options from item 100.
+		const options = (i: number) => ({ delayBetweenMessages: i === 100 ? 500 : 3000 });
+
+		const { ctx, calls } = fakeContext(params, accepted, { items: 101 });
+		perItem(ctx, 'options', options);
+		perItem(ctx, 'text', (i) => `Hi ${i}`);
+		await expect(run(ctx)).rejects.toThrow(/from 1000 to 60000, got 500/);
+		expect(calls).toHaveLength(0);
+
+		const cof = fakeContext(params, accepted, { items: 101, continueOnFail: true });
+		perItem(cof.ctx, 'options', options);
+		perItem(cof.ctx, 'text', (i) => `Hi ${i}`);
+		const [output] = await run(cof.ctx);
+		expect(cof.calls).toHaveLength(1);
+		expect(output.map((item) => item.json)).toEqual([
+			{ error: expect.stringMatching(/got 500/) },
+			accepted,
+		]);
+	});
+
 	it('refuses a batch above the 25 MB request limit, suggesting URLs', async () => {
 		const params = {
 			...base,

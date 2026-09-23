@@ -542,7 +542,7 @@ To send files larger than 18 MB, host them somewhere the gateway can reach and u
 
 | HTTP status | Meaning | Message in n8n |
 |---|---|---|
-| 400 | Session not active, validation failed, or URL unreachable | The gateway's own message |
+| 400 | Session not active, validation failed, or URL unreachable | The gateway's own message; a bare "Bad Request" adds a hint to check field values and formats |
 | 401 | Bad API key | Check your OpenWA API key |
 | 403 | The API key's role or restrictions don't allow the request, or WhatsApp refused it (e.g. the account isn't a group admin); see [API key roles](#api-key-roles) | The gateway's own message, with a hint covering both causes |
 | 404 | Session not found, the item (message, template, product, …) doesn't exist, or the server doesn't have the route | Names the session, or the gateway's own message; for a missing route, a hint to check the Base URL (see [Server compatibility](#server-compatibility)) |

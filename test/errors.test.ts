@@ -43,6 +43,15 @@ describe('describeOpenWaError', () => {
 		expect(describeOpenWaError(501, 'Not supported').message).toBe('Not supported');
 	});
 
+	it('explains a bare Bad Request, but not a detailed 400', () => {
+		const bare = describeOpenWaError(400, 'Bad Request');
+		expect(bare.message).toBe('Bad Request');
+		expect(bare.description).toMatch(/Check the values and formats/);
+		expect(describeOpenWaError(400, 'bad request').description).toBeDefined();
+		expect(describeOpenWaError(400, undefined).description).toBeDefined();
+		expect(describeOpenWaError(400, 'Session not active').description).toBeUndefined();
+	});
+
 	it('tells the user to check credentials on 401', () => {
 		expect(describeOpenWaError(401, 'Invalid API key').message).toMatch(
 			/check your OpenWA API key/,

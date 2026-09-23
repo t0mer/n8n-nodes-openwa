@@ -17,7 +17,15 @@ export function describeOpenWaError(
 	const session = sessionId ? `Session "${sessionId}"` : 'The session';
 	switch (status) {
 		case 400:
-			return { message: apiMessage || 'OpenWA rejected the request (400 Bad Request)' };
+			// A bare "Bad Request" is NestJS's default text: the gateway rejected a field without saying which.
+			if (!apiMessage || /^bad request$/i.test(apiMessage.trim())) {
+				return {
+					message: apiMessage || 'OpenWA rejected the request (400 Bad Request)',
+					description:
+						'The gateway rejected a value without naming it. Check the values and formats of the fields, e.g. filter conditions.',
+				};
+			}
+			return { message: apiMessage };
 		case 401:
 			return {
 				message: 'Authentication failed — check your OpenWA API key in the credentials',

@@ -152,7 +152,13 @@ export async function executeGroup(
 				body: await readMediaInput(
 					ctx,
 					i,
-					{ source: 'pictureSource', url: 'pictureUrl', binary: 'pictureBinaryField' },
+					{
+						source: 'pictureSource',
+						url: 'pictureUrl',
+						binary: 'pictureBinaryField',
+						base64: 'pictureBase64',
+						mimeType: 'pictureMimeType',
+					},
 					{ accept: 'image', label: 'The group picture' },
 				),
 			});

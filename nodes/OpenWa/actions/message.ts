@@ -441,12 +441,19 @@ async function buildMediaRequestBody(
 	operation: string,
 	sessionId: string,
 ): Promise<IDataObject> {
+	const source = ctx.getNodeParameter('mediaSource', i);
 	let input: MediaInput;
-	if (ctx.getNodeParameter('mediaSource', i) === 'binary') {
+	if (source === 'binary') {
 		const field = ctx.getNodeParameter('binaryPropertyName', i) as string;
 		const binary = ctx.helpers.assertBinaryData(i, field);
 		const data = await ctx.helpers.getBinaryDataBuffer(i, field);
 		input = { source: 'binary', data, mimeType: binary.mimeType, fileName: binary.fileName };
+	} else if (source === 'base64') {
+		input = {
+			source: 'base64',
+			data: String(ctx.getNodeParameter('mediaBase64', i) ?? ''),
+			mimeType: String(ctx.getNodeParameter('mediaMimeType', i, '') ?? ''),
+		};
 	} else {
 		input = { source: 'url', url: String(ctx.getNodeParameter('mediaUrl', i) ?? '') };
 	}

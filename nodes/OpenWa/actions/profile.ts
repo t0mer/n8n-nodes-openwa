@@ -48,6 +48,8 @@ export async function executeProfile(
 						source: 'profilePictureSource',
 						url: 'profilePictureUrl',
 						binary: 'profilePictureBinaryField',
+						base64: 'profilePictureBase64',
+						mimeType: 'profilePictureMimeType',
 					},
 					{ accept: 'image', label: 'The profile picture' },
 				),

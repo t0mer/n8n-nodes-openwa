@@ -137,7 +137,13 @@ async function readStatusMedia(
 	return await readMediaInput(
 		ctx,
 		i,
-		{ source: 'statusMediaSource', url: 'statusMediaUrl', binary: 'statusBinaryField' },
+		{
+			source: 'statusMediaSource',
+			url: 'statusMediaUrl',
+			binary: 'statusBinaryField',
+			base64: 'statusMediaBase64',
+			mimeType: 'statusMediaMimeType',
+		},
 		{ accept: kind, label: `The ${!kind || kind === 'audio' ? 'voice' : kind} status` },
 	);
 }

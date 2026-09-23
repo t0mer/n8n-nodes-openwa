@@ -17,16 +17,18 @@ import { openWaApiRequest } from '../transport/request';
 
 const ARTICLE_NOUN = { image: 'an image', video: 'a video', audio: 'an audio file' };
 
-/** Parameter names of a URL-or-binary media source. */
+/** Parameter names of a URL, binary or Base64 media source. */
 export interface MediaFields {
 	source: string;
 	url: string;
 	binary: string;
+	base64: string;
+	mimeType: string;
 }
 
 /**
- * Read a URL-or-binary media source into `{ url }` or `{ base64, mimetype }` (no file name).
- * With `accept`, binary data must be of that kind (e.g. `image`); `label` names it in errors.
+ * Read a URL, binary or Base64 media source into `{ url }` or `{ base64, mimetype }` (no file
+ * name). With `accept`, the media must be of that kind (e.g. `image`); `label` names it in errors.
  */
 export async function readMediaInput(
 	ctx: IExecuteFunctions,
@@ -34,8 +36,9 @@ export async function readMediaInput(
 	fields: MediaFields,
 	{ accept, label }: { accept?: 'image' | 'video' | 'audio'; label: string },
 ): Promise<IDataObject> {
+	const source = ctx.getNodeParameter(fields.source, i);
 	let input: MediaInput;
-	if (ctx.getNodeParameter(fields.source, i) === 'binary') {
+	if (source === 'binary') {
 		const field = ctx.getNodeParameter(fields.binary, i) as string;
 		const binary = ctx.helpers.assertBinaryData(i, field);
 		if (accept && !binary.mimeType?.startsWith(`${accept}/`)) {
@@ -47,15 +50,31 @@ export async function readMediaInput(
 		}
 		const data = await ctx.helpers.getBinaryDataBuffer(i, field);
 		input = { source: 'binary', data, mimeType: binary.mimeType };
+	} else if (source === 'base64') {
+		input = {
+			source: 'base64',
+			data: String(ctx.getNodeParameter(fields.base64, i) ?? ''),
+			mimeType: String(ctx.getNodeParameter(fields.mimeType, i, '') ?? ''),
+		};
 	} else {
 		input = { source: 'url', url: String(ctx.getNodeParameter(fields.url, i) ?? '') };
 	}
+	let body;
 	try {
-		const { url, base64, mimetype } = buildMediaBody(input);
-		return url ? { url } : { base64, mimetype };
+		body = buildMediaBody(input);
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
+	const { url, base64, mimetype } = body;
+	if (url) return { url };
+	if (source === 'base64' && accept && !mimetype?.startsWith(`${accept}/`)) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			`${label} must be ${ARTICLE_NOUN[accept]}, but the Base64 data is ${mimetype}`,
+			{ itemIndex: i },
+		);
+	}
+	return { base64, mimetype };
 }
 
 /** GET a file from the gateway as n8n binary data, named from Content-Disposition. */

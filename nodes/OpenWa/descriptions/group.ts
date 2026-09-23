@@ -343,6 +343,11 @@ export const groupFields: INodeProperties[] = [
 				value: 'binary',
 				description: 'Upload an image from a previous node (up to 18 MB)',
 			},
+			{
+				name: 'Base64',
+				value: 'base64',
+				description: 'Send a base64-encoded image (up to 18 MB decoded)',
+			},
 		],
 		default: 'url',
 		displayOptions: showFor(['setPicture']),
@@ -369,5 +374,30 @@ export const groupFields: INodeProperties[] = [
 			show: { resource: ['group'], operation: ['setPicture'], pictureSource: ['binary'] },
 		},
 		hint: 'The name of the input binary field containing the image',
+	},
+	{
+		displayName: 'Base64 Data',
+		name: 'pictureBase64',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. data:image/jpeg;base64,iVBORw0KGgo...',
+		displayOptions: {
+			show: { resource: ['group'], operation: ['setPicture'], pictureSource: ['base64'] },
+		},
+		description:
+			'The image as base64 text, or as a data URL (<code>data:&lt;mime&gt;;base64,…</code>)',
+	},
+	{
+		displayName: 'MIME Type',
+		name: 'pictureMimeType',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. image/jpeg',
+		displayOptions: {
+			show: { resource: ['group'], operation: ['setPicture'], pictureSource: ['base64'] },
+		},
+		description:
+			'MIME type of the image. Required unless Base64 Data is a data URL, which carries its own.',
 	},
 ];

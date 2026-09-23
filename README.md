@@ -105,6 +105,7 @@ Common fields:
 - **Media Source** (media operations):
   - `URL`: the gateway downloads the file itself.
   - `Binary Data`: sends the file from a binary field of the input item (default field `data`), e.g. from an HTTP Request or Read/Write Files from Disk node. The mimetype and file name come from the binary metadata.
+  - `Base64`: sends base64 text, e.g. from a Code node or a JSON API. Set **MIME Type** (e.g. `image/jpeg`), or paste a data URL (`data:image/jpeg;base64,…`), whose prefix is stripped and whose MIME type is used when MIME Type is empty. For documents, set the file name with **File Name**.
 - **Message ID** (Reply, React, Forward, Edit, Delete, Vote Poll, Pin, Star, Download Media): the `messageId` returned when the message was sent, or `waMessageId` (not `id`) from Get Many. The recipient must be the chat that contains the message. You can only edit messages sent by this account.
 - **Options → Check Number Exists** (contacts only, operations that send a new message): looks the number up with `GET /contacts/check/{number}` before sending and fails the item if it is not on WhatsApp. OpenWA otherwise accepts sends to unregistered numbers without error.
 - **Options → Reply To Message ID** (Send Text, media, Location, Poll, Contact Card): quote a message in the same chat, turning the send into a reply.
@@ -184,7 +185,7 @@ List operations output one item per entry, and **no items** when the list is emp
 | Get Join Info | `GET /groups/join-info?code=` | Invite Link (full link or code). Preview without joining. |
 | Join | `POST /groups/join` | Invite Link. Outputs `{ success, groupId }`. |
 | Get / Update Settings | `GET` / `PUT /groups/{groupId}/settings` | Only Admins Can Send Messages, Only Admins Can Edit Group Info, Who Can Add Members, Disappearing Messages (off, 24 hours, 7 days, 90 days) |
-| Get / Set / Remove Picture | `GET` / `PUT` / `DELETE /groups/{groupId}/picture` | Set: Picture Source (URL, or a binary image up to 18 MB) |
+| Get / Set / Remove Picture | `GET` / `PUT` / `DELETE /groups/{groupId}/picture` | Set: Picture Source (URL, or a binary or Base64 image up to 18 MB) |
 | Leave | `POST /groups/{groupId}/leave` | — |
 
 - **Group**: pick one from the list, or enter its ID (ending in `@g.us`).
@@ -201,7 +202,7 @@ Status updates (stories) last 24 hours.
 | Get Many | `GET /status` | One item per status visible to the session, newest first |
 | Get From Contact | `GET /status/{contactId}` | Contact (phone number or contact ID). One item per status. |
 | Post Text | `POST /status/send-text` | Text; options: Background Color, Font, Recipients |
-| Post Image / Post Video | `POST /status/send-image`, `/send-video` | Media Source (URL, or binary up to 18 MB of the matching type), Caption; option: Recipients |
+| Post Image / Post Video | `POST /status/send-image`, `/send-video` | Media Source (URL, or binary or Base64 up to 18 MB of the matching type), Caption; option: Recipients |
 | Post Voice | `POST /status/send-voice` | Media Source, Convert to Voice Note (on by default); options: Background Color, Recipients |
 | Delete | `DELETE /status/{statusId}` | Status ID (one of your own) |
 | Download Media | `GET /status/{statusId}/media` | Status ID, Put Output File in Field. Outputs the file as binary data. |
@@ -218,7 +219,7 @@ Changes the session's own WhatsApp account.
 |---|---|---|
 | Set Name | `PUT /profile/name` | Name (up to 25 characters) |
 | Set About | `PUT /profile/status` | About (up to 139 characters; empty clears it) |
-| Set Picture | `PUT /profile/picture` | Picture Source (URL, or a binary image up to 18 MB) |
+| Set Picture | `PUT /profile/picture` | Picture Source (URL, or a binary or Base64 image up to 18 MB) |
 | Remove Picture | `DELETE /profile/picture` | — |
 | Set Presence | `PUT /presence` | Online on/off. An always-online linked device suppresses the phone's notifications; go offline to get them back. |
 
@@ -297,7 +298,7 @@ You can enter a phone number (normalized for you), or a full `@c.us` / `@lid` ID
 
 | Source | Limit | Why |
 |---|---|---|
-| Binary Data | ~18 MB | OpenWA's request body limit (`BODY_SIZE_LIMIT`) is 25 MB by default, and base64 encoding inflates files by about a third. The node rejects larger files before sending. |
+| Binary Data, Base64 | ~18 MB (decoded) | OpenWA's request body limit (`BODY_SIZE_LIMIT`) is 25 MB by default, and base64 encoding inflates files by about a third. The node rejects larger files before sending. |
 | URL | 50 MiB | OpenWA's media download cap (`MEDIA_DOWNLOAD_MAX_BYTES`). |
 
 To send files larger than 18 MB, host them somewhere the gateway can reach and use the URL source.

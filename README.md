@@ -373,6 +373,27 @@ Webhooks the gateway calls with session events. Get Many (All Sessions) and Get 
 - **Filters (JSON)**: every condition must match for the event to be delivered. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. Example: `[{"field": "body", "operator": "contains", "value": "invoice"}]`. On Update, turn on **Clear Filters** to deliver every subscribed event again.
 - The OpenWA trigger nodes register and delete their own webhooks. Don't update or delete those here; deactivate the workflow instead.
 
+### API Key
+
+Manage the gateway's API keys. None of these operations need a Session. Every operation except Validate needs an **admin** API key in the credentials; with a viewer or operator key the gateway answers 403.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Create | `POST /api/auth/api-keys` | Name, Role (Admin, Operator, Viewer; default Operator); options: Allowed IPs, Allowed Sessions, Allowed Chats, Expires At. The output includes the full key in `apiKey` — **only this once**, so store it right away. |
+| Get Many | `GET /api/auth/api-keys` | Return All, or Limit (default 50). One item per key, without the key itself (only `keyPrefix`). |
+| Get | `GET /api/auth/api-keys/{id}` | API Key |
+| Update | `PUT /api/auth/api-keys/{id}` | API Key; Update Fields: Name, Role, Allowed IPs, Allowed Sessions, Allowed Chats, Expires At |
+| Revoke | `POST /api/auth/api-keys/{id}/revoke` | API Key. Deactivates the key (`isActive: false`) but keeps its record. |
+| Delete | `DELETE /api/auth/api-keys/{id}` | API Key. Outputs `{ success, apiKeyId }`. |
+| Validate | `POST /api/auth/validate` | Checks the credential's own key. Outputs `{ valid, role }`, or `{ valid: false }` when the key is rejected. |
+
+- **API Key**: pick one from the list (shown as name, role and key prefix; revoked keys are marked), or enter its ID.
+- **Allowed IPs** (addresses or CIDR ranges), **Allowed Sessions** and **Allowed Chats** are comma-separated lists; empty means no restriction. On Update, add the field and leave it empty to remove the restriction.
+- **Allowed Sessions** takes session IDs (the UUIDs), not session names. A name never matches, so the key would reach no session.
+- **Allowed Chats** takes groups (`@g.us`), contacts (`@c.us` or `@lid`) or bare phone numbers.
+- **Expires At** is read in the workflow timezone unless the value has its own offset.
+- Update, Revoke and Delete fail with 409 when the change would leave the gateway without a usable admin key.
+
 ## Triggers
 
 Trigger nodes start a workflow when OpenWA reports an event. On activation, a trigger registers a webhook for its session on the gateway, with a secret it generates. On deactivation, it deletes the webhook. There's one trigger per event family, plus a general one:
@@ -444,6 +465,7 @@ To send files larger than 18 MB, host them somewhere the gateway can reach and u
 |---|---|---|
 | 400 | Session not active, validation failed, or URL unreachable | The gateway's own message |
 | 401 | Bad API key | Check your OpenWA API key |
+| 403 | The API key's role or scope doesn't allow the request (API keys need admin) | The gateway's own message, with a roles hint |
 | 404 | Session not found | Names the session |
 | 409 | Session not `ready` (reconnecting or reloading) | Transient, retry shortly |
 | 413 | Media too large | States the limits above |

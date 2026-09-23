@@ -39,6 +39,14 @@ interface Webhook {
 	events?: string[];
 }
 
+interface ApiKey {
+	id: string;
+	name: string;
+	role: string;
+	keyPrefix: string;
+	isActive?: boolean;
+}
+
 interface Session {
 	id: string;
 	name: string;
@@ -200,6 +208,21 @@ export async function searchWebhooks(
 			.map((webhook) => ({
 				name: `${webhook.url} (${(webhook.events ?? []).join(', ')})`,
 				value: webhook.id,
+			})),
+	};
+}
+
+export async function searchApiKeys(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const keys = (await openWaApiRequest.call(this, 'GET', '/api/auth/api-keys')) as ApiKey[];
+	return {
+		results: keys
+			.filter((key) => matches(filter, key.name, key.id, key.keyPrefix, key.role))
+			.map((key) => ({
+				name: `${key.name} (${key.role}, ${key.keyPrefix}…${key.isActive === false ? ', revoked' : ''})`,
+				value: key.id,
 			})),
 	};
 }

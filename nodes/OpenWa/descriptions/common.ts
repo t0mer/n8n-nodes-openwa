@@ -8,6 +8,7 @@ export const CHATLESS_OPERATIONS = ['getAll', 'getBatchStatus', 'cancelBatch'];
  * whole resource. The Session field is hidden for them and the router passes `''`.
  */
 export const SESSIONLESS: Record<string, string[] | '*'> = {
+	apiKey: '*',
 	session: ['create', 'getAll', 'getStats'],
 	webhook: ['getAllSessions', 'getDeliveryFailures'],
 };

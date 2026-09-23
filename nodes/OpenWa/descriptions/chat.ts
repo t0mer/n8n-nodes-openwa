@@ -5,7 +5,17 @@ const showFor = (operation: string[]): IDisplayOptions => ({
 });
 
 /** Chat operations that act on one chat. */
-export const CHAT_OPERATIONS: string[] = ['markRead', 'markUnread', 'sendChatState'];
+export const CHAT_OPERATIONS: string[] = [
+	'markRead',
+	'markUnread',
+	'sendChatState',
+	'archive',
+	'unarchive',
+	'pin',
+	'unpin',
+	'mute',
+	'unmute',
+];
 
 export const chatOperations: INodeProperties = {
 	displayName: 'Operation',
@@ -14,6 +24,12 @@ export const chatOperations: INodeProperties = {
 	noDataExpression: true,
 	displayOptions: { show: { resource: ['chat'] } },
 	options: [
+		{
+			name: 'Archive',
+			value: 'archive',
+			action: 'Archive a chat',
+			description: 'Move a chat to the archive',
+		},
 		{
 			name: 'Get Many',
 			value: 'getAll',
@@ -33,10 +49,40 @@ export const chatOperations: INodeProperties = {
 			description: 'Mark a chat as unread',
 		},
 		{
+			name: 'Mute',
+			value: 'mute',
+			action: 'Mute a chat',
+			description: 'Mute notifications for a chat',
+		},
+		{
+			name: 'Pin',
+			value: 'pin',
+			action: 'Pin a chat',
+			description: 'Pin a chat to the top of the chat list',
+		},
+		{
 			name: 'Send Chat State',
 			value: 'sendChatState',
 			action: 'Show typing or recording in a chat',
 			description: 'Show "typing…" or "recording…" in a chat, or clear it',
+		},
+		{
+			name: 'Unarchive',
+			value: 'unarchive',
+			action: 'Unarchive a chat',
+			description: 'Move a chat out of the archive',
+		},
+		{
+			name: 'Unmute',
+			value: 'unmute',
+			action: 'Unmute a chat',
+			description: 'Turn notifications for a chat back on',
+		},
+		{
+			name: 'Unpin',
+			value: 'unpin',
+			action: 'Unpin a chat',
+			description: 'Unpin a chat',
 		},
 	],
 	default: 'getAll',
@@ -91,5 +137,26 @@ export const chatFields: INodeProperties[] = [
 		],
 		default: 'typing',
 		displayOptions: showFor(['sendChatState']),
+	},
+	{
+		displayName: 'Mute For',
+		name: 'muteFor',
+		type: 'options',
+		options: [
+			{ name: '8 Hours', value: '8h' },
+			{ name: '1 Week', value: '1w' },
+			{ name: 'Until a Date', value: 'until' },
+		],
+		default: '8h',
+		displayOptions: showFor(['mute']),
+	},
+	{
+		displayName: 'Mute Until',
+		name: 'muteUntil',
+		type: 'dateTime',
+		default: '',
+		required: true,
+		displayOptions: { show: { resource: ['chat'], operation: ['mute'], muteFor: ['until'] } },
+		description: 'When notifications turn back on. Must be in the future.',
 	},
 ];

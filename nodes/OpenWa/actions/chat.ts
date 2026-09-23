@@ -50,6 +50,24 @@ export async function executeChat(
 			return await request('POST', '/chats/typing', {
 				body: { chatId: getChatId(ctx, i), state: ctx.getNodeParameter('chatState', i) as string },
 			});
+		case 'archive':
+		case 'unarchive':
+			return await request('POST', '/chats/archive', {
+				body: { chatId: getChatId(ctx, i), archive: operation === 'archive' },
+			});
+		case 'pin':
+		case 'unpin':
+			return await request('POST', '/chats/pin', {
+				body: { chatId: getChatId(ctx, i), pin: operation === 'pin' },
+			});
+		case 'mute':
+			return await request('POST', '/chats/mute', {
+				body: { chatId: getChatId(ctx, i), muteUntil: getMuteUntil(ctx, i) },
+			});
+		case 'unmute':
+			return await request('POST', '/chats/mute', {
+				body: { chatId: getChatId(ctx, i), muteUntil: null },
+			});
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,
@@ -70,4 +88,28 @@ export function getChatId(ctx: IExecuteFunctions, i: number): string {
 function splitList(input: unknown): string[] {
 	const entries = Array.isArray(input) ? input : String(input ?? '').split(',');
 	return entries.map((entry) => String(entry ?? '').trim()).filter((entry) => entry.length > 0);
+}
+
+const MUTE_DURATIONS: Record<string, number> = {
+	'8h': 8 * 60 * 60 * 1000,
+	'1w': 7 * 24 * 60 * 60 * 1000,
+};
+
+/** When the mute should end, as epoch milliseconds (what the gateway expects). */
+function getMuteUntil(ctx: IExecuteFunctions, i: number): number {
+	const muteFor = ctx.getNodeParameter('muteFor', i, '8h') as string;
+	if (MUTE_DURATIONS[muteFor]) return Date.now() + MUTE_DURATIONS[muteFor];
+	const value = ctx.getNodeParameter('muteUntil', i, '') as string;
+	const until = new Date(String(value ?? '')).getTime();
+	if (!Number.isFinite(until)) {
+		throw new NodeOperationError(ctx.getNode(), `Mute Until is not a valid date: "${value}"`, {
+			itemIndex: i,
+		});
+	}
+	if (until <= Date.now()) {
+		throw new NodeOperationError(ctx.getNode(), 'Mute Until must be in the future', {
+			itemIndex: i,
+		});
+	}
+	return until;
 }

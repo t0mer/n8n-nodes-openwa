@@ -17,6 +17,8 @@ export const CHAT_OPERATIONS: string[] = [
 	'unmute',
 	'delete',
 	'clearMessages',
+	'subscribePresence',
+	'getPresence',
 ];
 
 export const chatOperations: INodeProperties = {
@@ -52,6 +54,12 @@ export const chatOperations: INodeProperties = {
 			description: 'List the chats of the session, one item per chat',
 		},
 		{
+			name: 'Get Presence',
+			value: 'getPresence',
+			action: 'Get the presence of a chat',
+			description: 'Get the last reported online/typing state of a chat you subscribed to',
+		},
+		{
 			name: 'Mark as Read',
 			value: 'markRead',
 			action: 'Mark a chat as read',
@@ -80,6 +88,13 @@ export const chatOperations: INodeProperties = {
 			value: 'sendChatState',
 			action: 'Show typing or recording in a chat',
 			description: 'Show "typing…" or "recording…" in a chat, or clear it',
+		},
+		{
+			name: 'Subscribe to Presence',
+			value: 'subscribePresence',
+			action: 'Subscribe to presence updates of a chat',
+			description:
+				'Start receiving online/typing updates for a chat (needed for the presence.update trigger event)',
 		},
 		{
 			name: 'Unarchive',

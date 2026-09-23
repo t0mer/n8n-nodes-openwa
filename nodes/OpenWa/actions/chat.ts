@@ -1,8 +1,10 @@
 import {
+	NodeApiError,
 	NodeOperationError,
 	type IDataObject,
 	type IExecuteFunctions,
 	type IHttpRequestMethods,
+	type JsonObject,
 } from 'n8n-workflow';
 import { normalizeChatId } from '../helpers/chatId';
 import { fetchPaged } from '../helpers/pagination';
@@ -72,6 +74,21 @@ export async function executeChat(
 			return await request('POST', '/chats/delete', { body: { chatId: getChatId(ctx, i) } });
 		case 'clearMessages':
 			return await request('DELETE', `/chats/${encodeURIComponent(getChatId(ctx, i))}/messages`);
+		case 'subscribePresence':
+			return await request('POST', '/presence/subscribe', { body: { chatId: getChatId(ctx, i) } });
+		case 'getPresence': {
+			const chatId = getChatId(ctx, i);
+			try {
+				return await request('GET', `/presence/${encodeURIComponent(chatId)}`);
+			} catch (error) {
+				if (error instanceof NodeApiError && error.httpCode === '404') {
+					error.message = `No presence reported yet for ${chatId}`;
+					error.description =
+						'Run Subscribe to Presence for this chat first, then wait for the contact to come online or type.';
+				}
+				throw new NodeApiError(ctx.getNode(), error as JsonObject, { itemIndex: i });
+			}
+		}
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,

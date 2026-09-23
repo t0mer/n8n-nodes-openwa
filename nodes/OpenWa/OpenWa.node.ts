@@ -18,6 +18,7 @@ import { executeChat } from './actions/chat';
 import { executeContact } from './actions/contact';
 import { executeGroup } from './actions/group';
 import { executeLabel } from './actions/label';
+import { executeMediaTools } from './actions/mediaTools';
 import { executeMessage } from './actions/message';
 import { executeProfile } from './actions/profile';
 import { executeSession } from './actions/session';
@@ -36,6 +37,7 @@ import { historyFields } from './descriptions/history';
 import { labelFields, labelOperations } from './descriptions/label';
 import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
+import { mediaToolsFields, mediaToolsOperations } from './descriptions/mediaTools';
 import { pollFields } from './descriptions/poll';
 import { productMessageFields } from './descriptions/product';
 import { profileFields, profileOperations } from './descriptions/profile';
@@ -73,6 +75,7 @@ const EXECUTORS: Record<string, Executor> = {
 	contact: executeContact,
 	group: executeGroup,
 	label: executeLabel,
+	media: executeMediaTools,
 	message: executeMessage,
 	profile: executeProfile,
 	session: executeSession,
@@ -110,6 +113,7 @@ export class OpenWa implements INodeType {
 					{ name: 'Contact', value: 'contact' },
 					{ name: 'Group', value: 'group' },
 					{ name: 'Label', value: 'label' },
+					{ name: 'Media', value: 'media' },
 					{ name: 'Message', value: 'message' },
 					{ name: 'Profile', value: 'profile' },
 					{ name: 'Session', value: 'session' },
@@ -127,6 +131,7 @@ export class OpenWa implements INodeType {
 			templateOperations,
 			groupOperations,
 			labelOperations,
+			mediaToolsOperations,
 			profileOperations,
 			sessionOperations,
 			statusOperations,
@@ -139,6 +144,7 @@ export class OpenWa implements INodeType {
 			...templateFields,
 			...groupFields,
 			...labelFields,
+			...mediaToolsFields,
 			...profileFields,
 			...sessionResourceFields,
 			...statusFields,

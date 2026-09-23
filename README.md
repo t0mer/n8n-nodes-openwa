@@ -270,6 +270,20 @@ WhatsApp channels (newsletters). Channel IDs end in `@newsletter`. The two engin
 - Promoting an admin isn't available through the gateway; do it in the WhatsApp app.
 - Creating a channel fails with HTTP 403 when WhatsApp hasn't enabled channel creation for the account.
 
+### Media
+
+Converts media with the gateway's ffmpeg, so a file WhatsApp won't play can be sent anyway. Needs media conversion enabled on the OpenWA gateway.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Check Conversion | `GET /media/convert` | Outputs `{ available }`: true only when conversion is enabled and ffmpeg runs |
+| Convert to Voice Note | `POST /media/convert/voice` | Media Source (URL, or binary or Base64 up to 18 MB), Put Output File in Field (default `data`). Outputs Ogg/Opus audio. |
+| Convert Video | `POST /media/convert/video` | Same fields. Outputs an MP4 (H.264 baseline + AAC, long edge up to 1280 px, fast start). |
+
+- Conversions output `{ fileName, mimetype, bytes }` plus the file as binary data, named after the input (e.g. `note.m4a` → `note.ogg`), or `voice.ogg` / `video.mp4`.
+- Feed the output to Message → **Send Audio** (with Send as Voice Note) or **Send Video** using the Binary Data source. Send Audio can also convert on the fly with its own Convert to Voice Note option.
+- The convert operations fail with HTTP 503 when conversion is disabled, ffmpeg is missing, or the conversion queue is full.
+
 ### Status
 
 Status updates (stories) last 24 hours.

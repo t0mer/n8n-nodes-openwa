@@ -112,6 +112,49 @@ export async function downloadBinary(
 	};
 }
 
+/** What the gateway's convert endpoints answer: the converted bytes, their type and size. */
+export interface ConvertedMedia {
+	base64: string;
+	mimetype: string;
+	bytes: number;
+}
+
+const CONVERT_TARGET = { voice: 'the audio to a voice note', video: 'the video' };
+
+/**
+ * Have the gateway convert `media` (url or base64): `voice` to Ogg/Opus, `video` to a
+ * WhatsApp-compatible MP4. `hint` is added to the advice when conversion is unavailable.
+ */
+export async function convertMedia(
+	ctx: IExecuteFunctions,
+	i: number,
+	sessionId: string,
+	media: IDataObject,
+	kind: 'voice' | 'video',
+	hint?: string,
+): Promise<ConvertedMedia> {
+	try {
+		return (await openWaApiRequest.call(
+			ctx,
+			'POST',
+			`/api/sessions/${encodeURIComponent(sessionId)}/media/convert/${kind}`,
+			{
+				body: media.base64 ? { base64: media.base64 } : { url: media.url },
+				sessionId,
+				itemIndex: i,
+			},
+		)) as ConvertedMedia;
+	} catch (error) {
+		// A 503 here usually means conversion is off or ffmpeg is missing, which retrying won't fix.
+		if (error instanceof NodeApiError && error.httpCode === '503') {
+			const reason = error.description;
+			error.message = `The gateway could not convert ${CONVERT_TARGET[kind]} (media conversion disabled, ffmpeg missing, or the conversion queue is full)`;
+			error.description = `Enable media conversion on the OpenWA gateway${hint ? `, or ${hint}` : ''}.${reason ? ` Gateway: ${reason}` : ''}`;
+		}
+		throw new NodeApiError(ctx.getNode(), error as JsonObject, { itemIndex: i });
+	}
+}
+
 /**
  * Have the gateway convert the audio in `media` (url or base64) to Ogg/Opus, and return the
  * `base64`/`mimetype` to send instead.
@@ -122,28 +165,14 @@ export async function convertToVoiceNote(
 	sessionId: string,
 	media: IDataObject,
 ): Promise<IDataObject> {
-	let converted: { base64: string; mimetype: string; bytes: number };
-	try {
-		converted = (await openWaApiRequest.call(
-			ctx,
-			'POST',
-			`/api/sessions/${encodeURIComponent(sessionId)}/media/convert/voice`,
-			{
-				body: media.base64 ? { base64: media.base64 } : { url: media.url },
-				sessionId,
-				itemIndex: i,
-			},
-		)) as typeof converted;
-	} catch (error) {
-		// A 503 here usually means conversion is off or ffmpeg is missing, which retrying won't fix.
-		if (error instanceof NodeApiError && error.httpCode === '503') {
-			const reason = error.description;
-			error.message =
-				'The gateway could not convert the audio to a voice note (media conversion disabled, ffmpeg missing, or the conversion queue is full)';
-			error.description = `Enable media conversion on the OpenWA gateway, or turn off Convert to Voice Note if the audio is already Ogg/Opus.${reason ? ` Gateway: ${reason}` : ''}`;
-		}
-		throw new NodeApiError(ctx.getNode(), error as JsonObject, { itemIndex: i });
-	}
+	const converted = await convertMedia(
+		ctx,
+		i,
+		sessionId,
+		media,
+		'voice',
+		'turn off Convert to Voice Note if the audio is already Ogg/Opus',
+	);
 	// The converted audio is always sent inline, so sending by URL can't get around the limit.
 	if (converted.bytes > MAX_BINARY_BYTES) {
 		const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);

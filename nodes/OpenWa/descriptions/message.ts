@@ -1,4 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
+import { bulkOptions } from './bulk';
 import { locationOptions } from './location';
 import { MEDIA_ENDPOINTS } from './media';
 import { LINK_PREVIEW_OPERATIONS, MENTION_OPERATIONS, textOptions } from './text';
@@ -32,6 +33,12 @@ export const messageOperations: INodeProperties = {
 	displayOptions: { show: { resource: ['message'] } },
 	options: [
 		{
+			name: 'Cancel Batch',
+			value: 'cancelBatch',
+			action: 'Cancel a bulk batch',
+			description: 'Cancel the messages of a Send Bulk batch that are not sent yet',
+		},
+		{
 			name: 'Delete',
 			value: 'delete',
 			action: 'Delete a message',
@@ -54,6 +61,12 @@ export const messageOperations: INodeProperties = {
 			value: 'forward',
 			action: 'Forward a message',
 			description: 'Forward a message from one chat to a contact or group',
+		},
+		{
+			name: 'Get Batch Status',
+			value: 'getBatchStatus',
+			action: 'Get the status of a bulk batch',
+			description: 'Get the progress and per-recipient results of a Send Bulk batch',
 		},
 		{
 			name: 'Get Chat History',
@@ -96,6 +109,13 @@ export const messageOperations: INodeProperties = {
 			value: 'sendAudio',
 			action: 'Send an audio file',
 			description: 'Send an audio file to a contact or group',
+		},
+		{
+			name: 'Send Bulk',
+			value: 'sendBulk',
+			action: 'Send bulk messages',
+			description:
+				'Send one message per input item as a gateway-side batch (up to 100 per batch), with a delay between messages',
 		},
 		{
 			name: 'Send Contact Card',
@@ -192,6 +212,7 @@ const OPTION_OPERATIONS = [
 		...QUOTE_OPERATIONS,
 		...MENTION_OPERATIONS,
 		...LINK_PREVIEW_OPERATIONS,
+		'sendBulk',
 	]),
 ];
 
@@ -224,5 +245,6 @@ export const messageOptions: INodeProperties = {
 		},
 		...textOptions,
 		...locationOptions,
+		...bulkOptions,
 	],
 };

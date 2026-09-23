@@ -3,7 +3,7 @@ import type { INodeProperties } from 'n8n-workflow';
 /** Operations that take the Text field. */
 export const TEXT_OPERATIONS = ['sendText', 'reply', 'edit'];
 /** Operations whose request accepts `mentions`. */
-export const MENTION_OPERATIONS = ['sendText', 'reply', 'edit', 'sendTemplate'];
+export const MENTION_OPERATIONS = ['sendText', 'reply', 'edit', 'sendTemplate', 'sendBulk'];
 /** Operations whose request accepts `linkPreview`. */
 export const LINK_PREVIEW_OPERATIONS = ['sendText', 'sendTemplate'];
 
@@ -39,6 +39,6 @@ export const textOptions: INodeProperties[] = [
 		placeholder: 'e.g. 972501234567, 972509876543',
 		displayOptions: { show: { '/operation': MENTION_OPERATIONS } },
 		description:
-			'Comma-separated phone numbers to @mention. The text must contain a matching @ mention (e.g. @972501234567) for each one.',
+			'Comma-separated phone numbers to @mention. The text (or, for Send Bulk media, the caption) must contain a matching @ mention (e.g. @972501234567) for each one.',
 	},
 ];

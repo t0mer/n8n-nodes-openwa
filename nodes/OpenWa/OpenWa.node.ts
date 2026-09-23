@@ -10,6 +10,7 @@ import {
 	type JsonObject,
 } from 'n8n-workflow';
 import { isSessionless, recipientFields, sessionFields } from './descriptions/common';
+import { sendBulk } from './actions/bulk';
 import { executeCall } from './actions/call';
 import { executeCatalog } from './actions/catalog';
 import { executeChannel } from './actions/channel';
@@ -23,6 +24,7 @@ import { executeSession } from './actions/session';
 import { executeStatus } from './actions/status';
 import { executeTemplate } from './actions/template';
 import { messageActionFields } from './descriptions/actions';
+import { bulkFields } from './descriptions/bulk';
 import { callFields, callOperations } from './descriptions/call';
 import { catalogFields, catalogOperations } from './descriptions/catalog';
 import { channelFields, channelOperations } from './descriptions/channel';
@@ -148,6 +150,7 @@ export class OpenWa implements INodeType {
 			...pollFields,
 			...contactCardFields,
 			...productMessageFields,
+			...bulkFields,
 			...historyFields,
 			...sendTemplateFields,
 			messageOptions,
@@ -167,6 +170,14 @@ export class OpenWa implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
+		// Send Bulk turns all input items into batches instead of sending one request per item.
+		if (
+			items.length > 0 &&
+			this.getNodeParameter('resource', 0) === 'message' &&
+			this.getNodeParameter('operation', 0) === 'sendBulk'
+		) {
+			return [await sendBulk(this, items.length)];
+		}
 		const returnData: INodeExecutionData[] = [];
 
 		for (let i = 0; i < items.length; i++) {

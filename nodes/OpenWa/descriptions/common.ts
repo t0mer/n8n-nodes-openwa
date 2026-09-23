@@ -1,7 +1,7 @@
 import type { IDisplayOptions, INodeProperties } from 'n8n-workflow';
 
 /** Message operations that don't target one chat, so they have no recipient. */
-export const CHATLESS_OPERATIONS = ['getAll'];
+export const CHATLESS_OPERATIONS = ['getAll', 'getBatchStatus', 'cancelBatch'];
 
 /**
  * Operations that need no session, by resource: a list of operation values, or '*' for the

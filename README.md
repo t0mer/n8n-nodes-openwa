@@ -90,6 +90,9 @@ When you save, n8n tests the credential by calling `POST /api/auth/validate`. A 
 | Vote Poll | `vote-poll` | Message ID (the poll), Selected Options (empty withdraws your vote) |
 | Send Contact Card | `send-contact` | Contact Name, Contact Phone Number |
 | Send Product | `send-product` | Product ID (e.g. from Catalog → Get Products), Body (optional). **Baileys only** (whatsapp-web.js answers HTTP 501). The product needs an image (HTTP 400 otherwise); an unknown product ID answers HTTP 404. |
+| Send Bulk | `send-bulk` | Bulk Message Type (Text, Image, Video, Audio, Document), then the matching Text or Media fields, Caption, File Name, Send as Voice Note; options: Mentions, Batch ID, Delay Between Messages, Randomize Delay, Stop On Error. **All input items form the batch**, see [Bulk send](#bulk-send). |
+| Get Batch Status | `GET /messages/batch/{batchId}` | Batch ID. Outputs the status, progress counts and one result per recipient already attempted. No recipient needed. |
+| Cancel Batch | `POST /messages/batch/{batchId}/cancel` | Batch ID. Stops the messages not sent yet; a finished batch answers HTTP 400. No recipient needed. |
 | Pin / Unpin | `pin` / `unpin` | Message ID; Pin Duration (24 hours, 7 days or 30 days) |
 | Star / Unstar | `star` | Message ID. Best-effort on whatsapp-web.js, which may silently ignore it. |
 | Get Many | `GET /messages` | Return All or Limit; filters: Chat, Sender, Include Media. One item per message, newest first. No recipient needed. |
@@ -122,6 +125,23 @@ Each item outputs the OpenWA response:
 A `messageId` means the gateway accepted the message. It does not confirm delivery.
 
 List operations output one item per entry, and **no items** when the list is empty, so the next node doesn't run. Turn on the node's **Always Output Data** setting if a workflow must continue either way. React, Delete and Vote Poll output `{ "success": true }`.
+
+#### Bulk send
+
+Send Bulk works differently from the other operations: instead of one request per input item, **each input item becomes one message** and the node posts them together as gateway-side batches. The gateway then sends them in the background, waiting **Delay Between Messages** (1000–60000 ms, default 3000, plus a random 0–2 s with **Randomize Delay**) between messages.
+
+- Recipient, type, text, media, caption and mentions are read per item, so expressions like `{{ $json.phone }}` give each item its own message. Check Number Exists is not available for bulk sends, and audio must already be Ogg/Opus for voice notes (no Convert to Voice Note). Stickers can't be sent in bulk.
+- A batch holds up to **100 messages**. 150 input items become two batches (100 + 50). The batch options (Batch ID, delay, Randomize Delay, Stop On Error) are taken from the first item of each batch. With a custom **Batch ID** and more than one batch, the batches get the IDs `<id>-1`, `<id>-2`, and so on. Items with a different session go into separate batches.
+- The node outputs **one item per batch**, paired with all its input items:
+
+  ```json
+  { "batchId": "batch_abc123", "status": "processing", "totalMessages": 100, "statusUrl": "/api/sessions/…/messages/batch/batch_abc123" }
+  ```
+
+  `202`-accepted means queued, not sent. Exact duplicate messages are collapsed by the gateway, so `totalMessages` can be lower than the item count. Use **Get Batch Status** with the `batchId` to follow progress and see per-recipient results, and **Cancel Batch** to stop it.
+- An item that can't be turned into a message (e.g. an invalid phone number or text over 4096 characters) fails the node, or with **Continue On Fail** outputs an error item for that input item and is left out of the batch.
+- One batch request must fit OpenWA's 25 MB request limit. Binary and Base64 media travel inside the request, so a batch with several large files is refused before sending. Send media by **URL** instead: the gateway downloads each file itself (up to 50 MiB).
+- API keys restricted with `allowedChats` can't use Get Batch Status or Cancel Batch (HTTP 403).
 
 ### Chat
 

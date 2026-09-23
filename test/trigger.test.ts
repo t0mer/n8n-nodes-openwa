@@ -523,7 +523,7 @@ describe('custom webhook secret', () => {
 });
 
 describe('raw filter conditions', () => {
-	const hasMedia = { field: 'hasMedia', operator: 'equals', value: true };
+	const hasMedia = { field: 'hasMedia', operator: 'is', value: true };
 	const groupKind = { field: 'kind', operator: 'is', value: ['group'] };
 	const withRaw = (filterConditions: unknown, extra: IDataObject = {}, events?: string[]) => ({
 		...base,
@@ -548,7 +548,7 @@ describe('raw filter conditions', () => {
 	});
 
 	it('allows raw conditions with events of any family', async () => {
-		const status = { field: 'status', operator: 'is', value: 'failed' };
+		const status = { field: 'status', operator: 'is', value: ['failed'] };
 		const { ctx, calls } = hookContext(
 			withRaw(JSON.stringify([status]), {}, ['session.status', '*']),
 		);

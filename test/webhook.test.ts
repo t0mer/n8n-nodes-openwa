@@ -131,10 +131,31 @@ describe('parseFilterConditions', () => {
 	it('keeps string arrays, booleans and caseSensitive', () => {
 		const conditions = [
 			{ field: 'sender', operator: 'is', value: ['1@c.us', '2@c.us'] },
-			{ field: 'isGroup', operator: 'equals', value: true },
-			{ field: 'body', operator: 'isNot', value: 'spam', caseSensitive: true },
+			{ field: 'isGroup', operator: 'is', value: true },
+			{ field: 'fromMe', operator: 'isNot', value: false },
+			{ field: 'body', operator: 'equals', value: 'hi', caseSensitive: true },
 		];
 		expect(parseFilterConditions(conditions)).toEqual(conditions);
+	});
+
+	it('wraps a single string for is and isNot', () => {
+		expect(
+			parseFilterConditions([
+				{ field: 'sender', operator: 'is', value: '1@c.us' },
+				{ field: 'body', operator: 'isNot', value: 'spam', caseSensitive: true },
+				{ field: 'body', operator: 'contains', value: 'x' },
+			]),
+		).toEqual([
+			{ field: 'sender', operator: 'is', value: ['1@c.us'] },
+			{ field: 'body', operator: 'isNot', value: ['spam'], caseSensitive: true },
+			{ field: 'body', operator: 'contains', value: 'x' },
+		]);
+	});
+
+	it.each([['equals'], ['contains']])('rejects a boolean with %s', (operator) => {
+		expect(() =>
+			parseFilterConditions([condition, { field: 'isGroup', operator, value: false }]),
+		).toThrow('Filter condition 2: a true/false value needs the operator is or isNot');
 	});
 
 	it('rejects invalid JSON and non-arrays', () => {

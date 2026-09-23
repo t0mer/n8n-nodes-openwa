@@ -384,7 +384,7 @@ Server-side auto-replies. The gateway itself answers inbound messages that match
 | Delete | `DELETE /api/sessions/{id}/automation-rules/{ruleId}` | Rule. Outputs `{ success, ruleId }`. |
 
 - **Rule**: pick one from the list (shown as name and enabled/disabled), or enter its ID.
-- **Conditions (JSON)** use the webhook filter format on the message fields `sender`, `recipient`, `chatId`, `body`, `type`, `isGroup`, `kind`, `fromMe`, `hasMedia` and `mentions`. Every condition must match. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals`. Example: reply to private messages that ask about prices:
+- **Conditions (JSON)** use the webhook filter format on the message fields `sender`, `recipient`, `chatId`, `body`, `type`, `isGroup`, `kind`, `fromMe`, `hasMedia` and `mentions`. Every condition must match. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals`. True/false values need `is` or `isNot` (the gateway rejects them with `equals` or `contains`), and a single string with `is` or `isNot` is sent as a one-item list, the only form the gateway accepts. Example: reply to private messages that ask about prices:
   ```json
   {"conditions": [
     {"field": "body", "operator": "contains", "value": "price"},
@@ -457,7 +457,7 @@ Webhooks the gateway calls with session events. Get Many (All Sessions) and Get 
 - The gateway never returns a webhook's secret or headers.
 - **Secret** signs each delivery with an `X-OpenWA-Signature: sha256=<hex>` header (HMAC-SHA256 of the body). On Update, turn on **Clear Secret** to remove it.
 - **Headers** on Update replace all stored headers; add the field with no headers to remove them.
-- **Filters (JSON)**: every condition must match for the event to be delivered. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. Example: `[{"field": "body", "operator": "contains", "value": "invoice"}]`. On Update, turn on **Clear Filters** to deliver every subscribed event again.
+- **Filters (JSON)**: every condition must match for the event to be delivered. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. True/false values need `is` or `isNot` (the gateway rejects them with `equals` or `contains`), and a single string with `is` or `isNot` is sent as a one-item list, the only form the gateway accepts. Example: `[{"field": "body", "operator": "contains", "value": "invoice"}]`. On Update, turn on **Clear Filters** to deliver every subscribed event again.
 - The OpenWA trigger nodes register and delete their own webhooks. Don't update or delete those here; deactivate the workflow instead.
 
 ## Triggers
@@ -503,10 +503,10 @@ Each session can have up to 16 webhooks. Every active trigger uses one, and so d
 - **Message filters** (Message Trigger and OpenWA Events Trigger): Only From, Only In Chats, Body Contains, Chat Type (direct or groups) and Ignore Messages From Me. OpenWA applies them on the gateway, so filtered-out events never reach n8n.
   - They only work with `message.received`, `message.sent`, `message.edited` and `message.revoked`. Other events carry no sender or text, so the gateway would silently drop them.
   - The node refuses filters combined with any other event, including All Events.
-- **Filter Conditions (JSON)** (every trigger): extra conditions in the gateway's filter format, checked on the gateway like the message filters. Give `{"conditions": [...]}` or a bare array of conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. Every condition must match. For example, only group messages with media:
+- **Filter Conditions (JSON)** (every trigger): extra conditions in the gateway's filter format, checked on the gateway like the message filters. Give `{"conditions": [...]}` or a bare array of conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. True/false values need `is` or `isNot` (the gateway rejects them with `equals` or `contains`), and a single string with `is` or `isNot` is sent as a one-item list, the only form the gateway accepts. Every condition must match. For example, only group messages with media:
   ```json
   [
-    { "field": "hasMedia", "operator": "equals", "value": true },
+    { "field": "hasMedia", "operator": "is", "value": true },
     { "field": "kind", "operator": "is", "value": ["group"] }
   ]
   ```

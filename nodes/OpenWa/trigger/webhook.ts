@@ -65,6 +65,7 @@ export const MAX_FILTER_CONDITIONS = 20;
 /**
  * Validate raw filter conditions (a JSON string or an already parsed value): either
  * `{ "conditions": [...] }` or a bare array of `{ field, operator, value, caseSensitive? }`.
+ * A single string with is/isNot is wrapped in an array, the only form the gateway accepts.
  * Returns the conditions, or throws an error naming the first problem.
  */
 export function parseFilterConditions(value: unknown): FilterCondition[] {
@@ -100,13 +101,19 @@ export function parseFilterConditions(value: unknown): FilterCondition[] {
 			typeof value === 'boolean' ||
 			(Array.isArray(value) && value.every((item) => typeof item === 'string'));
 		if (!validValue) throw fail('"value" must be a string, an array of strings, or a boolean');
+		const listOperator = operator === 'is' || operator === 'isNot';
+		// The gateway rejects booleans with contains/equals, and strings with is/isNot.
+		if (typeof value === 'boolean' && !listOperator) {
+			throw fail('a true/false value needs the operator is or isNot');
+		}
 		if (caseSensitive !== undefined && typeof caseSensitive !== 'boolean') {
 			throw fail('"caseSensitive" must be a boolean');
 		}
 		const condition: FilterCondition = {
 			field: field.trim(),
 			operator: operator as FilterCondition['operator'],
-			value: value as FilterCondition['value'],
+			value:
+				listOperator && typeof value === 'string' ? [value] : (value as FilterCondition['value']),
 		};
 		if (caseSensitive !== undefined) condition.caseSensitive = caseSensitive;
 		return condition;

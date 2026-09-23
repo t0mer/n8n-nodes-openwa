@@ -89,6 +89,7 @@ When you save, n8n tests the credential by calling `POST /api/auth/validate`. A 
 | Delete | `delete` | Message ID, Delete for Everyone (default on) |
 | Vote Poll | `vote-poll` | Message ID (the poll), Selected Options (empty withdraws your vote) |
 | Send Contact Card | `send-contact` | Contact Name, Contact Phone Number |
+| Send Product | `send-product` | Product ID (e.g. from Catalog → Get Products), Body (optional). **Baileys only** (whatsapp-web.js answers HTTP 501). The product needs an image (HTTP 400 otherwise); an unknown product ID answers HTTP 404. |
 | Pin / Unpin | `pin` / `unpin` | Message ID; Pin Duration (24 hours, 7 days or 30 days) |
 | Star / Unstar | `star` | Message ID. Best-effort on whatsapp-web.js, which may silently ignore it. |
 | Get Many | `GET /messages` | Return All or Limit; filters: Chat, Sender, Include Media. One item per message, newest first. No recipient needed. |

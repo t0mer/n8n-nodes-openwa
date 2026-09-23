@@ -35,6 +35,7 @@ import { labelFields, labelOperations } from './descriptions/label';
 import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
 import { pollFields } from './descriptions/poll';
+import { productMessageFields } from './descriptions/product';
 import { profileFields, profileOperations } from './descriptions/profile';
 import { sessionOperations, sessionResourceFields } from './descriptions/session';
 import { statusFields, statusOperations } from './descriptions/status';
@@ -146,6 +147,7 @@ export class OpenWa implements INodeType {
 			...locationFields,
 			...pollFields,
 			...contactCardFields,
+			...productMessageFields,
 			...historyFields,
 			...sendTemplateFields,
 			messageOptions,

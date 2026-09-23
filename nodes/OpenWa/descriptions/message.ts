@@ -12,6 +12,7 @@ export const SEND_OPERATIONS = [
 	'sendPoll',
 	'sendTemplate',
 	'sendContact',
+	'sendProduct',
 ];
 
 /** Send operations whose request accepts `quotedMessageId` (send-template does not). */
@@ -125,6 +126,12 @@ export const messageOperations: INodeProperties = {
 			value: 'sendPoll',
 			action: 'Send a poll',
 			description: 'Send a poll to a contact or group',
+		},
+		{
+			name: 'Send Product',
+			value: 'sendProduct',
+			action: 'Send a product',
+			description: 'Send a catalog product card to a contact or group (Baileys engine only)',
 		},
 		{
 			name: 'Send Sticker',

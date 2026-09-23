@@ -197,6 +197,55 @@ describe('executeMessage — contact cards, pins, stars, replies', () => {
 		).rejects.toThrow('not an @lid ID');
 	});
 
+	it('send product to a contact, with optional body', async () => {
+		expect(
+			await sent({ operation: 'sendProduct', productId: ' p42 ', productBody: 'Back!' }),
+		).toEqual({
+			url: `${base}/messages/send-product`,
+			method: 'POST',
+			body: { chatId, productId: 'p42', body: 'Back!' },
+		});
+		expect(
+			(await sent({ operation: 'sendProduct', productId: 'p42', productBody: '  ' })).body,
+		).toEqual({ chatId, productId: 'p42' });
+	});
+
+	it('send product to a group, ignoring a reply-to option', async () => {
+		const group = '120363012345678901@g.us';
+		expect(
+			(
+				await sent({
+					operation: 'sendProduct',
+					recipientType: 'group',
+					group,
+					productId: 'p42',
+					options: { quotedMessageId: 'm1' },
+				})
+			).body,
+		).toEqual({ chatId: group, productId: 'p42' });
+	});
+
+	it('send product requires a product ID', async () => {
+		await expect(sent({ operation: 'sendProduct', productId: ' ' })).rejects.toThrow(
+			'Product ID is required',
+		);
+	});
+
+	it('send product can pre-check the number', async () => {
+		const { ctx, calls } = fakeContext(
+			{
+				...contact,
+				operation: 'sendProduct',
+				productId: 'p42',
+				options: { checkNumberExists: true },
+			},
+			(o: IHttpRequestOptions) =>
+				o.url.includes('/contacts/check/') ? { exists: false, number: '972501234567' } : {},
+		);
+		await expect(executeMessage(ctx, 0, 's1')).rejects.toThrow('is not on WhatsApp');
+		expect(calls).toHaveLength(1);
+	});
+
 	it('pin defaults to 24 hours and honours the chosen duration', async () => {
 		expect((await sent({ operation: 'pin', messageId: 'm1' })).body).toEqual({
 			chatId,

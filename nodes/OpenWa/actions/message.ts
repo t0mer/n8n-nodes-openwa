@@ -45,6 +45,7 @@ const OPERATIONS: Record<string, { endpoint: string; build: BodyBuilder }> = {
 	pin: { endpoint: 'pin', build: buildPinBody },
 	unpin: { endpoint: 'unpin', build: buildMessageRefBody },
 	sendContact: { endpoint: 'send-contact', build: buildContactCardBody },
+	sendProduct: { endpoint: 'send-product', build: buildProductBody },
 	sendTemplate: { endpoint: 'send-template', build: buildTemplateBody },
 	votePoll: { endpoint: 'vote-poll', build: buildVotePollBody },
 	sendPoll: { endpoint: 'send-poll', build: buildPollBody },
@@ -398,6 +399,16 @@ function buildContactCardBody(ctx: IExecuteFunctions, i: number, chatId: string)
 		);
 	}
 	return { chatId, contactName, contactNumber: chatIdUser(contactId) };
+}
+
+function buildProductBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {
+	const productId = String(ctx.getNodeParameter('productId', i) ?? '').trim();
+	if (!productId)
+		throw new NodeOperationError(ctx.getNode(), 'Product ID is required', { itemIndex: i });
+	const body: IDataObject = { chatId, productId };
+	const text = String(ctx.getNodeParameter('productBody', i, '') ?? '');
+	if (text.trim()) body.body = text;
+	return body;
 }
 
 function buildPinBody(ctx: IExecuteFunctions, i: number, chatId: string): IDataObject {

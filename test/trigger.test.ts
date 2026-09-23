@@ -75,6 +75,9 @@ function hookContext(
 }
 
 const sessionA = { mode: 'id', value: 'sA' };
+const customSecret = ['custom', 'signing', 'value', 'for', 'tests'].join('-');
+const signWith = (secret: string, raw: Buffer | string) =>
+	`sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`;
 const base = { session: sessionA, events: ['message.received'], options: {} };
 
 async function registered(params: Record<string, unknown> = base, url = prodUrl) {
@@ -375,6 +378,25 @@ describe('receiveWebhook', () => {
 		expect(await receiveWebhook.call(off.ctx)).toHaveProperty('workflowData');
 	});
 
+	it('verifies with the custom Webhook Secret when set, not the derived one', async () => {
+		const params = { ...base, options: { webhookSecret: customSecret } };
+		const raw = Buffer.from(JSON.stringify(delivery));
+		const good = webhookContext({
+			params,
+			headers: { 'x-openwa-signature': signWith(customSecret, raw) },
+		});
+		expect(await receiveWebhook.call(good.ctx)).toHaveProperty('workflowData');
+
+		const derived = webhookContext({ params }); // signed with the derived secret
+		expect(await receiveWebhook.call(derived.ctx)).toEqual({ noWebhookResponse: true });
+		expect(derived.response.code).toBe(401);
+	});
+
+	it('fails closed on an invalid Webhook Secret', async () => {
+		const { ctx } = webhookContext({ params: { ...base, options: { webhookSecret: 'short' } } });
+		await expect(receiveWebhook.call(ctx)).rejects.toThrow('16–255 characters');
+	});
+
 	it('ignores deliveries for another session', async () => {
 		const { ctx, response } = webhookContext({ body: { ...delivery, sessionId: 'sB' } });
 		expect(await receiveWebhook.call(ctx)).toEqual({ noWebhookResponse: true });
@@ -443,5 +465,59 @@ describe('test-mode deliveries (regression)', () => {
 			helpers: { returnJsonArray: (items: IDataObject[]) => items.map((json) => ({ json })) },
 		} as unknown as IWebhookFunctions;
 		expect(await receiveWebhook.call(ctx)).toHaveProperty('workflowData');
+	});
+});
+
+describe('custom webhook secret', () => {
+	const withSecret = (webhookSecret: string) => ({ ...base, options: { webhookSecret } });
+
+	it('registers the custom secret exactly as typed', async () => {
+		const { ctx, calls, staticData } = hookContext(withSecret(customSecret));
+		await webhookMethods.default.create.call(ctx);
+		expect((calls[0].body as IDataObject).secret).toBe(customSecret);
+		expect(JSON.stringify(staticData)).not.toContain(customSecret);
+	});
+
+	it('derives the secret when the option is empty', async () => {
+		const { ctx, calls } = hookContext(withSecret(''));
+		await webhookMethods.default.create.call(ctx);
+		expect((calls[0].body as IDataObject).secret).toBe(deriveWebhookSecret(apiKey, 'wf1:1'));
+	});
+
+	it.each([
+		['a'.repeat(15), '16–255 characters'],
+		['a'.repeat(256), '16–255 characters'],
+		[` ${customSecret}`, 'must not start or end with spaces'],
+		[`${customSecret}\n`, 'must not start or end with spaces'],
+	])('refuses %j before calling the gateway', async (secret, message) => {
+		const { ctx, calls } = hookContext(withSecret(secret));
+		await expect(webhookMethods.default.create.call(ctx)).rejects.toThrow(message);
+		expect(calls).toHaveLength(0);
+	});
+
+	it('accepts 16 and 255 characters', async () => {
+		for (const secret of ['a'.repeat(16), 'a'.repeat(255)]) {
+			const { ctx, calls } = hookContext(withSecret(secret));
+			await webhookMethods.default.create.call(ctx);
+			expect((calls[0].body as IDataObject).secret).toBe(secret);
+		}
+	});
+
+	it('re-registers when the secret is set, changed or cleared', async () => {
+		const exists = (staticData: TriggerStaticData, params: Record<string, unknown>) =>
+			webhookMethods.default.checkExists.call(
+				hookContext(params, {
+					respond: (o) => (o.method === 'GET' ? { id: 'wh1', active: true } : { success: true }),
+					staticData,
+				}).ctx,
+			);
+		expect(await exists(await registered(), withSecret(customSecret))).toBe(false);
+		expect(await exists(await registered(withSecret(customSecret)), withSecret(customSecret))).toBe(
+			true,
+		);
+		expect(
+			await exists(await registered(withSecret(customSecret)), withSecret(`${customSecret}-2`)),
+		).toBe(false);
+		expect(await exists(await registered(withSecret(customSecret)), base)).toBe(false);
 	});
 });

@@ -123,6 +123,15 @@ export function triggerProperties(
 						'How many times OpenWA attempts each delivery (0 and 1 mean a single attempt)',
 				},
 				{
+					displayName: 'Webhook Secret',
+					name: 'webhookSecret',
+					type: 'string',
+					typeOptions: { password: true },
+					default: '',
+					description:
+						'The secret OpenWA signs deliveries with, 16–255 characters. Set it when another system must verify the same deliveries, or to rotate the secret (the webhook is re-registered). Leave empty to derive it from the API key and this node.',
+				},
+				{
 					displayName: 'Verify Signature',
 					name: 'verifySignature',
 					type: 'boolean',

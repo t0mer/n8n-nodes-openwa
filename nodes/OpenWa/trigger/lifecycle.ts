@@ -3,6 +3,7 @@ import {
 	NodeOperationError,
 	type IDataObject,
 	type IHookFunctions,
+	type IWebhookFunctions,
 	type JsonObject,
 } from 'n8n-workflow';
 import { openWaApiRequest } from '../transport/request';
@@ -69,6 +70,29 @@ export function configuredSessionId(ctx: {
 	return String(ctx.getNodeParameter('session', '', { extractValue: true }) ?? '').trim();
 }
 
+/**
+ * The trigger's signing secret: the Webhook Secret option when set, else one derived from the
+ * API key and node. A custom secret is used exactly as typed: leading or trailing whitespace is
+ * refused rather than trimmed, since the other side verifying the same secret would not trim it.
+ */
+export async function resolveWebhookSecret(
+	ctx: IHookFunctions | IWebhookFunctions,
+	options: IDataObject,
+): Promise<string> {
+	const custom = String(options.webhookSecret ?? '');
+	if (!custom) return deriveWebhookSecret(await credentialApiKey(ctx), secretScope(ctx));
+	if (custom !== custom.trim()) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			'Webhook Secret must not start or end with spaces or line breaks',
+		);
+	}
+	if (custom.length < 16 || custom.length > 255) {
+		throw new NodeOperationError(ctx.getNode(), 'Webhook Secret must be 16–255 characters long');
+	}
+	return custom;
+}
+
 /** Read and validate the trigger's settings for the current webhook URL. */
 async function readRegistration(ctx: IHookFunctions): Promise<Registration> {
 	const sessionId = configuredSessionId(ctx);
@@ -105,7 +129,7 @@ async function readRegistration(ctx: IHookFunctions): Promise<Registration> {
 		events,
 		retryCount: Number.isFinite(retryCount) ? retryCount : 3,
 		filters,
-		secret: deriveWebhookSecret(await credentialApiKey(ctx), secretScope(ctx)),
+		secret: await resolveWebhookSecret(ctx, options),
 	};
 }
 

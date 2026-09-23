@@ -441,7 +441,7 @@ Gateway-wide statistics, settings, audit log, message search and health checks. 
 
 ## Triggers
 
-Trigger nodes start a workflow when OpenWA reports an event. On activation, a trigger registers a webhook for its session on the gateway, with a secret it generates. On deactivation, it deletes the webhook. There's one trigger per event family, plus a general one:
+Trigger nodes start a workflow when OpenWA reports an event. On activation, a trigger registers a webhook for its session on the gateway, with a signing secret (generated, or your own). On deactivation, it deletes the webhook. There's one trigger per event family, plus a general one:
 
 | Node | Events |
 |---|---|
@@ -473,8 +473,8 @@ Each session can have up to 16 webhooks. Every active trigger uses one, and so d
 
 **Options:**
 - **Verify Signature** (on by default): each delivery's `X-OpenWA-Signature` (HMAC-SHA256 of the raw body) is checked against the trigger's secret. Mismatches get `401` and don't run the workflow.
-  - The secret is derived from your API key and the trigger node (workflow and node ID), so nothing secret is stored in the workflow, and test and production listens share it.
-  - Rotating the API key re-registers the webhook on the next activation.
+  - By default the secret is derived from your API key and the trigger node (workflow and node ID), so nothing secret is stored in the workflow, and test and production listens share it. Rotating the API key re-registers the webhook on the next activation.
+- **Webhook Secret**: set your own signing secret (16–255 characters) instead of the derived one. Use it when another system must verify the same deliveries, or to rotate the secret without changing the API key. Changing or clearing it re-registers the webhook on the next activation. It's used exactly as typed; leading or trailing spaces are refused. Leave it empty to use the derived secret.
 - **Ignore Duplicate Deliveries** (on by default): OpenWA delivers *at least once* and retries failures, so the same event can arrive twice. The trigger drops repeats of an idempotency key it has seen recently.
   - This is best effort: a retry that arrives while the first run is still in progress, or that lands on another n8n worker in queue mode, can still get through.
   - For strict once-only processing, dedupe on `idempotencyKey` in your own storage.

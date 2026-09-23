@@ -144,7 +144,12 @@ async function readStatusMedia(
 			base64: 'statusMediaBase64',
 			mimeType: 'statusMediaMimeType',
 		},
-		{ accept: kind, label: `The ${!kind || kind === 'audio' ? 'voice' : kind} status` },
+		{
+			accept: kind,
+			label: `The ${!kind || kind === 'audio' ? 'voice' : kind} status`,
+			// A voice status defaults to Ogg/Opus, and conversion takes no MIME type.
+			mimeTypeOptional: !kind || kind === 'audio',
+		},
 	);
 }
 

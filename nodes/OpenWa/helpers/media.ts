@@ -52,8 +52,15 @@ export function parseBase64(text: string): { base64: string; mimeType?: string }
 	return { base64, mimeType };
 }
 
-/** Build the media part of a send request from a URL, a binary buffer, or base64 text. */
-export function buildMediaBody(input: MediaInput): MediaBody {
+/**
+ * Build the media part of a send request from a URL, a binary buffer, or base64 text. With
+ * `mimeTypeOptional`, base64 without a MIME type is sent without one (for endpoints that don't
+ * need it).
+ */
+export function buildMediaBody(
+	input: MediaInput,
+	{ mimeTypeOptional = false }: { mimeTypeOptional?: boolean } = {},
+): MediaBody {
 	if (input.source === 'url') {
 		const url = String(input.url ?? '').trim();
 		const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(url)?.[1].toLowerCase();
@@ -69,10 +76,11 @@ export function buildMediaBody(input: MediaInput): MediaBody {
 	if (input.source === 'base64') {
 		const parsed = parseBase64(input.data);
 		const mimetype = input.mimeType?.trim() || parsed.mimeType;
-		if (!mimetype) {
+		if (!mimetype && !mimeTypeOptional) {
 			throw new Error('MIME Type is required with Base64 data (e.g. image/jpeg)');
 		}
-		const body: MediaBody = { base64: parsed.base64, mimetype };
+		const body: MediaBody = { base64: parsed.base64 };
+		if (mimetype) body.mimetype = mimetype;
 		if (input.fileName) body.filename = input.fileName;
 		return body;
 	}

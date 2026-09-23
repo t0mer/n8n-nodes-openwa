@@ -101,8 +101,7 @@ export const mediaToolsFields: INodeProperties[] = [
 		default: '',
 		placeholder: 'e.g. audio/mpeg',
 		displayOptions: showFor(CONVERT_OPERATIONS, { convertSource: ['base64'] }),
-		description:
-			'MIME type of the file. Required unless Base64 Data is a data URL, which carries its own.',
+		description: 'Optional. The gateway detects the input format itself.',
 	},
 	{
 		displayName: 'Put Output File in Field',

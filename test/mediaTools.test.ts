@@ -95,9 +95,12 @@ describe('executeMediaTools', () => {
 		);
 	});
 
-	it('rejects Base64 input without a MIME type', async () => {
-		await expect(
-			run({ operation: 'convertVoice', convertSource: 'base64', convertBase64: 'SUQz' }),
-		).rejects.toThrow(/MIME type/i);
+	it('accepts Base64 input without a MIME type', async () => {
+		const { calls } = await run({
+			operation: 'convertVoice',
+			convertSource: 'base64',
+			convertBase64: 'SUQz',
+		});
+		expect(calls[0]).toEqual({ method: 'POST', url: `${base}/voice`, body: { base64: 'SUQz' } });
 	});
 });

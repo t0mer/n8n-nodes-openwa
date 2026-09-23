@@ -172,7 +172,7 @@ export const statusFields: INodeProperties[] = [
 			},
 		},
 		description:
-			'MIME type of the file. Required unless Base64 Data is a data URL, which carries its own.',
+			'MIME type of the file. Required for Post Image and Post Video unless Base64 Data is a data URL, which carries its own. Optional for Post Voice, where OpenWA assumes Ogg/Opus.',
 	},
 	{
 		displayName: 'Caption',

@@ -224,7 +224,7 @@ Converts media with the gateway's ffmpeg, so a file WhatsApp won't play can be s
 | Operation | OpenWA endpoint | Fields / output |
 |---|---|---|
 | Check Conversion | `GET /media/convert` | Outputs `{ available }`: true only when conversion is enabled and ffmpeg runs |
-| Convert to Voice Note | `POST /media/convert/voice` | Media Source (URL, or binary or Base64 up to 18 MB), Put Output File in Field (default `data`). Outputs Ogg/Opus audio. |
+| Convert to Voice Note | `POST /media/convert/voice` | Media Source (URL, or binary or Base64 up to 18 MB), Put Output File in Field (default `data`). MIME Type is optional for Base64, since the gateway detects the format. Outputs Ogg/Opus audio. |
 | Convert Video | `POST /media/convert/video` | Same fields. Outputs an MP4 (H.264 baseline + AAC, long edge up to 1280 px, fast start). |
 
 - Conversions output `{ fileName, mimetype, bytes }` plus the file as binary data, named after the input (e.g. `note.m4a` → `note.ogg`), or `voice.ogg` / `video.mp4`.
@@ -327,7 +327,7 @@ Status updates (stories) last 24 hours.
 | Get From Contact | `GET /status/{contactId}` | Contact (phone number or contact ID). One item per status. |
 | Post Text | `POST /status/send-text` | Text; options: Background Color, Font, Recipients |
 | Post Image / Post Video | `POST /status/send-image`, `/send-video` | Media Source (URL, or binary or Base64 up to 18 MB of the matching type), Caption; option: Recipients |
-| Post Voice | `POST /status/send-voice` | Media Source, Convert to Voice Note (on by default); options: Background Color, Recipients |
+| Post Voice | `POST /status/send-voice` | Media Source (MIME Type optional for Base64; OpenWA assumes Ogg/Opus), Convert to Voice Note (on by default); options: Background Color, Recipients |
 | Delete | `DELETE /status/{statusId}` | Status ID (one of your own) |
 | Download Media | `GET /status/{statusId}/media` | Status ID, Put Output File in Field. Outputs the file as binary data. |
 

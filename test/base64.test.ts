@@ -78,6 +78,12 @@ describe('buildMediaBody — Base64 source', () => {
 			'MIME Type is required with Base64 data',
 		);
 	});
+
+	it('omits the MIME type when it is optional and missing', () => {
+		expect(buildMediaBody({ source: 'base64', data: png }, { mimeTypeOptional: true })).toEqual({
+			base64: png,
+		});
+	});
 });
 
 describe('Base64 media source per operation', () => {

@@ -67,8 +67,12 @@ export async function executeMediaTools(
 			itemIndex: i,
 		});
 	}
-	// Any format ffmpeg reads is fine, so the input type isn't checked.
-	const media = await readMediaInput(ctx, i, SOURCE_FIELDS, { label: output.label });
+	// Any format ffmpeg reads is fine, so the input type isn't checked, and the gateway takes no
+	// MIME type.
+	const media = await readMediaInput(ctx, i, SOURCE_FIELDS, {
+		label: output.label,
+		mimeTypeOptional: true,
+	});
 	const converted = await convertMedia(ctx, i, sessionId, media, output.kind);
 	const field =
 		String(ctx.getNodeParameter('convertOutputField', i, 'data') ?? '').trim() || 'data';

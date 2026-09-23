@@ -16,6 +16,7 @@ import { executeContact } from './actions/contact';
 import { executeGroup } from './actions/group';
 import { executeMessage } from './actions/message';
 import { executeProfile } from './actions/profile';
+import { executeSession } from './actions/session';
 import { executeStatus } from './actions/status';
 import { executeTemplate } from './actions/template';
 import { messageActionFields } from './descriptions/actions';
@@ -29,6 +30,7 @@ import { locationFields } from './descriptions/location';
 import { mediaFields } from './descriptions/media';
 import { pollFields } from './descriptions/poll';
 import { profileFields, profileOperations } from './descriptions/profile';
+import { sessionOperations, sessionResourceFields } from './descriptions/session';
 import { statusFields, statusOperations } from './descriptions/status';
 import { messageOperations, messageOptions } from './descriptions/message';
 import { sendTemplateFields, templateFields, templateOperations } from './descriptions/template';
@@ -59,6 +61,7 @@ const EXECUTORS: Record<string, Executor> = {
 	group: executeGroup,
 	message: executeMessage,
 	profile: executeProfile,
+	session: executeSession,
 	status: executeStatus,
 	template: executeTemplate,
 };
@@ -92,6 +95,7 @@ export class OpenWa implements INodeType {
 					{ name: 'Group', value: 'group' },
 					{ name: 'Message', value: 'message' },
 					{ name: 'Profile', value: 'profile' },
+					{ name: 'Session', value: 'session' },
 					{ name: 'Status', value: 'status' },
 					{ name: 'Template', value: 'template' },
 				],
@@ -104,6 +108,7 @@ export class OpenWa implements INodeType {
 			templateOperations,
 			groupOperations,
 			profileOperations,
+			sessionOperations,
 			statusOperations,
 			...sessionFields(),
 			...callFields,
@@ -112,6 +117,7 @@ export class OpenWa implements INodeType {
 			...templateFields,
 			...groupFields,
 			...profileFields,
+			...sessionResourceFields,
 			...statusFields,
 			...recipientFields,
 			...messageActionFields,

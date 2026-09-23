@@ -7,7 +7,9 @@ export const CHATLESS_OPERATIONS = ['getAll'];
  * Operations that need no session, by resource: a list of operation values, or '*' for the
  * whole resource. The Session field is hidden for them and the router passes `''`.
  */
-export const SESSIONLESS: Record<string, string[] | '*'> = {};
+export const SESSIONLESS: Record<string, string[] | '*'> = {
+	session: ['create', 'getAll', 'getStats'],
+};
 
 export function isSessionless(
 	resource: string,

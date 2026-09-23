@@ -1,11 +1,6 @@
 import { NodeHelpers, type IExecuteFunctions, type INodeParameters } from 'n8n-workflow';
-import { afterEach, describe, expect, it } from 'vitest';
-import {
-	SESSIONLESS,
-	isSessionless,
-	sessionField,
-	sessionFields,
-} from '../nodes/OpenWa/descriptions/common';
+import { describe, expect, it } from 'vitest';
+import { isSessionless, sessionField, sessionFields } from '../nodes/OpenWa/descriptions/common';
 import { OpenWa } from '../nodes/OpenWa/OpenWa.node';
 import { fakeContext } from './fakeContext';
 
@@ -48,14 +43,9 @@ describe('sessionFields', () => {
 describe('OpenWa.execute session routing', () => {
 	const run = (ctx: IExecuteFunctions) => new OpenWa().execute.call(ctx);
 
-	afterEach(() => {
-		delete SESSIONLESS.template;
-	});
-
 	it('runs a sessionless operation without a session', async () => {
-		SESSIONLESS.template = ['getAll'];
 		const { ctx, calls } = fakeContext(
-			{ resource: 'template', operation: 'getAll', returnAll: true },
+			{ resource: 'session', operation: 'getAll', returnAll: true },
 			[{ id: 'a' }],
 		);
 		expect(await run(ctx)).toEqual([[{ json: { id: 'a' }, pairedItem: { item: 0 } }]]);
@@ -63,9 +53,14 @@ describe('OpenWa.execute session routing', () => {
 	});
 
 	it('still requires a session for other operations', async () => {
-		SESSIONLESS.template = ['getAll'];
-		const { ctx, calls } = fakeContext({ resource: 'template', operation: 'get', templateId: 't1' });
+		const { ctx, calls } = fakeContext({ resource: 'session', operation: 'get' });
 		await expect(run(ctx)).rejects.toThrow('Session is required');
 		expect(calls).toHaveLength(0);
+	});
+
+	it('hides the Session field for the sessionless Session operations', () => {
+		expect(isSessionless('session', 'create')).toBe(true);
+		expect(isSessionless('session', 'getStats')).toBe(true);
+		expect(isSessionless('session', 'start')).toBe(false);
 	});
 });

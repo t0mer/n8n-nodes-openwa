@@ -223,6 +223,28 @@ Changes the session's own WhatsApp account.
 | Remove Picture | `DELETE /profile/picture` | — |
 | Set Presence | `PUT /presence` | Online on/off. An always-online linked device suppresses the phone's notifications; go offline to get them back. |
 
+### Session
+
+Manages the gateway's sessions. Create, Get Many and Get Stats don't need a Session; the other operations act on the selected one.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Get Many | `GET /api/sessions` | Return All, or Limit (default 50); filter: Name (exact). One item per session. |
+| Get | `GET /api/sessions/{id}` | The session with its status |
+| Create | `POST /api/sessions` | Name (3–50 letters, digits, hyphens); options: Auto Reject Calls (Baileys only), Max Reconnect Attempts (0–20), Reconnect Base Delay (1000–300000 ms), Proxy URL, Proxy Type |
+| Delete | `DELETE /api/sessions/{id}` | Outputs `{ success, sessionId }` |
+| Start / Stop | `POST /api/sessions/{id}/start`, `/stop` | Stop keeps the session linked |
+| Log Out | `POST /api/sessions/{id}/logout` | Unlinks the WhatsApp account |
+| Force Kill | `POST /api/sessions/{id}/force-kill` | Tears down a stuck engine when Stop doesn't work |
+| Get QR Code | `GET /api/sessions/{id}/qr` | `{ qrCode, status }`, plus the QR as a PNG in the binary field `data` when `qrCode` is a data URL. Start the session first. |
+| Request Pairing Code | `POST /api/sessions/{id}/pairing-code` | Phone Number (spaces, dashes, parentheses and `+` are removed). Links by phone instead of a QR scan. |
+| Get / Update Config | `GET` / `PATCH /api/sessions/{id}/config` | Update Fields: Auto Reject Calls, Max Reconnect Attempts, Reconnect Base Delay; Reset to Default: any of them. Applies without a restart. |
+| Get / Update Proxy | `GET` / `PATCH /api/sessions/{id}/proxy` | Proxy URL; empty removes the proxy. Needs OpenWA 0.23.4 or newer. |
+| Get Stats | `GET /api/sessions/stats/overview` | Session counts and memory usage |
+
+- Delete, Log Out and Force Kill can't be undone from the node: linking again needs a new QR scan or pairing code. Keep that in mind when giving the node to an AI Agent.
+- A proxy must be reachable. An unreachable one blocks the WhatsApp connection, and the session start times out.
+
 ### Template
 
 Text templates are stored on the gateway per session. Placeholders in double curly braces, e.g. `{{name}}`, are filled from the **Variables** of Message → Send Template.

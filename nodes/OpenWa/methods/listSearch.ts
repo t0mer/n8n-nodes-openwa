@@ -28,6 +28,11 @@ interface Label {
 	name: string;
 }
 
+interface Channel {
+	id: string;
+	name: string;
+}
+
 interface Session {
 	id: string;
 	name: string;
@@ -150,5 +155,24 @@ export async function searchLabels(
 			.filter((label) => matches(filter, label.name, label.id))
 			.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
 			.map((label) => ({ name: label.name || label.id, value: label.id })),
+	};
+}
+
+export async function searchChannels(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const sessionId = getSelectedSessionId(this, 'channels');
+	const channels = (await openWaApiRequest.call(
+		this,
+		'GET',
+		`/api/sessions/${encodeURIComponent(sessionId)}/channels`,
+		{ sessionId },
+	)) as Channel[];
+	return {
+		results: channels
+			.filter((channel) => matches(filter, channel.name, channel.id))
+			.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+			.map((channel) => ({ name: channel.name || channel.id, value: channel.id })),
 	};
 }

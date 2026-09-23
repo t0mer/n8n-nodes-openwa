@@ -55,13 +55,31 @@ export function parseContactList(input: unknown): string[] {
 
 /** The code from a group invite link (https://chat.whatsapp.com/<code>) or a bare code. */
 export function parseInviteCode(input: unknown): string {
+	return extractInviteCode(input, /chat\.whatsapp\.com\/(?:invite\/)?([A-Za-z0-9]+)/i, 'group');
+}
+
+/** The code from a channel invite link (https://whatsapp.com/channel/<code>) or a bare code. */
+export function parseChannelInviteCode(input: unknown): string {
+	return extractInviteCode(input, /whatsapp\.com\/channel\/([A-Za-z0-9]+)/i, 'channel');
+}
+
+function extractInviteCode(input: unknown, link: RegExp, kind: string): string {
 	const value = String(input ?? '').trim();
-	const fromLink = /chat\.whatsapp\.com\/(?:invite\/)?([A-Za-z0-9]+)/i.exec(value);
+	const fromLink = link.exec(value);
 	const code = fromLink ? fromLink[1] : value;
 	if (!/^[A-Za-z0-9]{6,}$/.test(code)) {
-		throw new Error(`"${value}" is not a valid group invite code or link`);
+		throw new Error(`"${value}" is not a valid ${kind} invite code or link`);
 	}
 	return code;
+}
+
+/** Validate a channel (newsletter) ID (`<id>@newsletter`). */
+export function validateChannelId(input: unknown): string {
+	const value = String(input ?? '').trim();
+	if (!/^[^@\s]+@newsletter$/.test(value)) {
+		throw new Error(`"${value}" is not a valid channel ID (expected <id>@newsletter)`);
+	}
+	return value;
 }
 
 /** The bare number/ID part of a chat ID, as expected by the check-number endpoint. */

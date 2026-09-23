@@ -213,6 +213,29 @@ Labels are a WhatsApp Business feature: on a personal account, Get Many is empty
 - **Create or Update** creates a label when the ID is unused and silently replaces the label when it exists. It always sends both Name and Color, because the gateway replaces the whole label.
 - **Color** is WhatsApp's colour index. Reads return `hexColor` instead, and the gateway can't map one to the other.
 
+### Channel
+
+WhatsApp channels (newsletters). Channel IDs end in `@newsletter`. The two engines support different parts.
+
+| Operation | OpenWA endpoint | Fields / output |
+|---|---|---|
+| Get Many | `GET /channels` | Return All, or Limit (default 50). One item per subscribed channel (`id`, `name`, `description`, `inviteCode`, `subscriberCount`, `verified`, …). **whatsapp-web.js only.** |
+| Get | `GET /channels/{channelId}` | Channel. On whatsapp-web.js, only channels the account follows. |
+| Get Messages | `GET /channels/{channelId}/messages` | Channel, Limit (1–100, default 50). One item per post. **whatsapp-web.js only.** |
+| Create | `POST /channels` | Name (up to 100 characters), Description. The session account becomes the owner. |
+| Delete | `POST /channels/{channelId}/delete` | Channel. **Owner only, irreversible**: every subscriber loses the channel. |
+| Subscribe | `POST /channels/subscribe` | Invite Link (`https://whatsapp.com/channel/<code>`) or just the code. **Baileys only.** |
+| Unsubscribe | `DELETE /channels/{channelId}` | Channel. Stops following it; the channel is not deleted. |
+| Mute / Unmute | `POST /channels/{channelId}/mute` | Channel. Only notifications change; the subscription is kept. |
+| Demote Admin | `POST /channels/{channelId}/admins/demote` | Channel, Admin (phone number or contact ID). **Owner only, Baileys only.** |
+| Transfer Ownership | `POST /channels/{channelId}/owner/transfer` | Channel, New Owner (phone number or contact ID). **Owner only, Baileys only, irreversible.** |
+
+- **Channel**: pick one from the list, or enter its ID. Baileys can't list channels, so enter the ID there.
+- Delete, Unsubscribe, Mute, Unmute, Demote Admin and Transfer Ownership output `{ success, channelId }`.
+- Delete and Transfer Ownership can't be undone: after a transfer the session account can't take the channel back. Keep that in mind when giving the node to an AI Agent.
+- Promoting an admin isn't available through the gateway; do it in the WhatsApp app.
+- Creating a channel fails with HTTP 403 when WhatsApp hasn't enabled channel creation for the account.
+
 ### Status
 
 Status updates (stories) last 24 hours.

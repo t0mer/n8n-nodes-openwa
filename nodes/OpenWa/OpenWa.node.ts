@@ -11,6 +11,7 @@ import {
 } from 'n8n-workflow';
 import { isSessionless, recipientFields, sessionFields } from './descriptions/common';
 import { executeCall } from './actions/call';
+import { executeChannel } from './actions/channel';
 import { executeChat } from './actions/chat';
 import { executeContact } from './actions/contact';
 import { executeGroup } from './actions/group';
@@ -22,6 +23,7 @@ import { executeStatus } from './actions/status';
 import { executeTemplate } from './actions/template';
 import { messageActionFields } from './descriptions/actions';
 import { callFields, callOperations } from './descriptions/call';
+import { channelFields, channelOperations } from './descriptions/channel';
 import { chatFields, chatOperations } from './descriptions/chat';
 import { contactFields, contactOperations } from './descriptions/contact';
 import { contactCardFields } from './descriptions/contactCard';
@@ -38,6 +40,7 @@ import { messageOperations, messageOptions } from './descriptions/message';
 import { sendTemplateFields, templateFields, templateOperations } from './descriptions/template';
 import { textFields } from './descriptions/text';
 import {
+	searchChannels,
 	searchContacts,
 	searchGroups,
 	searchLabels,
@@ -59,6 +62,7 @@ function isExecutionData(value: unknown): value is INodeExecutionData {
 
 const EXECUTORS: Record<string, Executor> = {
 	call: executeCall,
+	channel: executeChannel,
 	chat: executeChat,
 	contact: executeContact,
 	group: executeGroup,
@@ -94,6 +98,7 @@ export class OpenWa implements INodeType {
 				noDataExpression: true,
 				options: [
 					{ name: 'Call', value: 'call' },
+					{ name: 'Channel', value: 'channel' },
 					{ name: 'Chat', value: 'chat' },
 					{ name: 'Contact', value: 'contact' },
 					{ name: 'Group', value: 'group' },
@@ -108,6 +113,7 @@ export class OpenWa implements INodeType {
 			},
 			messageOperations,
 			callOperations,
+			channelOperations,
 			chatOperations,
 			contactOperations,
 			templateOperations,
@@ -118,6 +124,7 @@ export class OpenWa implements INodeType {
 			statusOperations,
 			...sessionFields(),
 			...callFields,
+			...channelFields,
 			...chatFields,
 			...contactFields,
 			...templateFields,
@@ -146,6 +153,7 @@ export class OpenWa implements INodeType {
 			searchContacts,
 			searchTemplates,
 			searchLabels,
+			searchChannels,
 		},
 	};
 

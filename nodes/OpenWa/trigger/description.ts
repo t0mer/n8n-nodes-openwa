@@ -111,7 +111,7 @@ export function triggerProperties(
 					type: 'boolean',
 					default: true,
 					description:
-						'Whether to skip deliveries already received (same idempotency key). OpenWA delivers at least once, so retries can repeat an event.',
+						'Whether to skip deliveries already received (same idempotency key). OpenWA delivers at least once, so retries can repeat an event. Best effort: a retry that arrives while the first run is still going, or on another n8n worker, can still get through.',
 				},
 				{
 					displayName: 'Retry Count',

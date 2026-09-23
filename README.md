@@ -233,14 +233,19 @@ Each run outputs one item with the OpenWA delivery:
 - expose n8n on a public URL and set n8n's `WEBHOOK_URL` to it; or
 - add the n8n host to `SSRF_ALLOWED_HOSTS` on the gateway.
 
-Each session can have up to 16 webhooks, and every active trigger uses one.
+Each session can have up to 16 webhooks. Every active trigger uses one, and so does a trigger listening for a test event (removed when the test ends). Deliveries for another session are ignored.
 
 **Options:**
-- **Verify Signature** (on by default): each delivery's `X-OpenWA-Signature` (HMAC-SHA256 of the raw body) is checked against the secret the trigger registered. Mismatches get `401` and don't run the workflow.
+- **Verify Signature** (on by default): each delivery's `X-OpenWA-Signature` (HMAC-SHA256 of the raw body) is checked against the trigger's secret. Mismatches get `401` and don't run the workflow.
+  - The secret is derived from your API key and the webhook URL, so nothing secret is stored in the workflow.
+  - Rotating the API key re-registers the webhook on the next activation.
 - **Ignore Duplicate Deliveries** (on by default): OpenWA delivers *at least once* and retries failures, so the same event can arrive twice. The trigger drops repeats of an idempotency key it has seen recently.
+  - This is best effort: a retry that arrives while the first run is still in progress, or that lands on another n8n worker in queue mode, can still get through.
+  - For strict once-only processing, dedupe on `idempotencyKey` in your own storage.
 - **Retry Count**: delivery attempts per event, 0–5 (default 3).
 - **Message filters** (Message Trigger and OpenWA Trigger): Only From, Only In Chats, Body Contains, Chat Type (direct or groups) and Ignore Messages From Me. OpenWA applies them on the gateway, so filtered-out events never reach n8n.
-  - `message.ack`, `message.failed` and `message.reaction` carry no sender or text, so the gateway would silently drop them. The node refuses filters combined with those events, or with All Events.
+  - They only work with `message.received`, `message.sent`, `message.edited` and `message.revoked`. Other events carry no sender or text, so the gateway would silently drop them.
+  - The node refuses filters combined with any other event, including All Events.
 
 To try a trigger, click **Listen for test event** (n8n registers a temporary webhook), then send a WhatsApp message to the session's number, or from it.
 

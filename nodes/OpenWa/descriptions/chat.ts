@@ -128,7 +128,8 @@ export const chatFields: INodeProperties[] = [
 		required: true,
 		placeholder: 'e.g. 972501234567 or 120363012345678901@g.us',
 		displayOptions: showFor(CHAT_OPERATIONS),
-		description: 'A phone number, a contact ID (@c.us / @lid) or a group ID (@g.us)',
+		description:
+			'A phone number, a contact ID (@c.us / @lid) or a group ID (@g.us). If an operation fails for a phone number, use the chat ID from Chat → Get Many (often …@lid).',
 	},
 	{
 		displayName: 'Return All',

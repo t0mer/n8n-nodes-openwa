@@ -68,6 +68,10 @@ export async function executeChat(
 			return await request('POST', '/chats/mute', {
 				body: { chatId: getChatId(ctx, i), muteUntil: null },
 			});
+		case 'delete':
+			return await request('POST', '/chats/delete', { body: { chatId: getChatId(ctx, i) } });
+		case 'clearMessages':
+			return await request('DELETE', `/chats/${encodeURIComponent(getChatId(ctx, i))}/messages`);
 		default:
 			throw new NodeOperationError(ctx.getNode(), `Unsupported operation "${operation}"`, {
 				itemIndex: i,

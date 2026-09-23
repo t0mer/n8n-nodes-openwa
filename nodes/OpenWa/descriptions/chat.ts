@@ -15,6 +15,8 @@ export const CHAT_OPERATIONS: string[] = [
 	'unpin',
 	'mute',
 	'unmute',
+	'delete',
+	'clearMessages',
 ];
 
 export const chatOperations: INodeProperties = {
@@ -29,6 +31,19 @@ export const chatOperations: INodeProperties = {
 			value: 'archive',
 			action: 'Archive a chat',
 			description: 'Move a chat to the archive',
+		},
+		{
+			name: 'Clear Messages',
+			value: 'clearMessages',
+			action: 'Clear all messages in a chat',
+			description: 'Delete every message in a chat, keeping the chat. Cannot be undone.',
+		},
+		{
+			name: 'Delete',
+			value: 'delete',
+			action: 'Delete a chat',
+			description:
+				'Remove a chat from the chat list (e.g. a group you have left). Cannot be undone.',
 		},
 		{
 			name: 'Get Many',

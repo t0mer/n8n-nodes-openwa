@@ -2,6 +2,7 @@ import {
 	NodeApiError,
 	type IDataObject,
 	type IExecuteFunctions,
+	type IHookFunctions,
 	type IHttpRequestMethods,
 	type IHttpRequestOptions,
 	type ILoadOptionsFunctions,
@@ -23,7 +24,7 @@ interface RequestOptions {
 
 /** Authenticated request to the OpenWA API with errors mapped to clear messages. */
 export async function openWaApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
 	{ body, qs, sessionId, itemIndex, conflictIsSessionState, raw }: RequestOptions = {},

@@ -119,7 +119,7 @@ const filtersField: INodeProperties = {
 	default: '',
 	placeholder: '{"conditions": [{"field": "body", "operator": "contains", "value": "invoice"}]}',
 	description:
-		'Deliver only events matching every condition: {"conditions": [...]} or a bare array of 1–20 {field, operator (is, isNot, contains, equals), value, caseSensitive} objects',
+		'Deliver only events matching every condition: {"conditions": [...]} or a bare array of 1–20 {field, operator (is, isNot, contains, equals), value, caseSensitive} objects. True/false values need is or isNot; a single string with is or isNot is sent as a one-item list.',
 };
 
 const retryCountField: INodeProperties = {

@@ -17,18 +17,26 @@ export function describeOpenWaError(
 	const session = sessionId ? `Session "${sessionId}"` : 'The session';
 	switch (status) {
 		case 400:
-			return { message: apiMessage || 'OpenWA rejected the request (400 Bad Request)' };
+			// A bare "Bad Request" is NestJS's default text: the gateway rejected a field without saying which.
+			if (!apiMessage || /^bad request$/i.test(apiMessage.trim())) {
+				return {
+					message: apiMessage || 'OpenWA rejected the request (400 Bad Request)',
+					description:
+						'The gateway rejected a value without naming it. Check the values and formats of the fields, e.g. filter conditions.',
+				};
+			}
+			return { message: apiMessage };
 		case 401:
 			return {
 				message: 'Authentication failed — check your OpenWA API key in the credentials',
 				description: apiMessage,
 			};
 		case 403:
-			// Wrong role (e.g. managing API keys needs admin), or outside the key's allowed IPs, sessions or chats.
+			// Either the API key isn't allowed, or (most 403s in the spec) WhatsApp/the engine refused.
 			return {
-				message: apiMessage || 'The OpenWA API key is not allowed to do this (HTTP 403)',
+				message: apiMessage || 'OpenWA refused the request (HTTP 403)',
 				description:
-					'The API key lacks the required role or scope: viewer keys can only read, operator keys can also write, and only admin keys can manage API keys. A key can also be limited to certain IPs, sessions and chats.',
+					'Either the API key lacks the required role or scope (viewer keys can only read, operator keys can also write, only admin keys can manage API keys, and a key can be limited to certain IPs, sessions and chats), or WhatsApp refused the action, e.g. because the account is not an admin or owner of the group or channel.',
 			};
 		case 404:
 			// Only blame the session when the gateway says so; a proxy 404 usually means a wrong Base URL.

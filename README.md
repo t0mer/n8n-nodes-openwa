@@ -224,7 +224,7 @@ Converts media with the gateway's ffmpeg, so a file WhatsApp won't play can be s
 | Operation | OpenWA endpoint | Fields / output |
 |---|---|---|
 | Check Conversion | `GET /media/convert` | Outputs `{ available }`: true only when conversion is enabled and ffmpeg runs |
-| Convert to Voice Note | `POST /media/convert/voice` | Media Source (URL, or binary or Base64 up to 18 MB), Put Output File in Field (default `data`). Outputs Ogg/Opus audio. |
+| Convert to Voice Note | `POST /media/convert/voice` | Media Source (URL, or binary or Base64 up to 18 MB), Put Output File in Field (default `data`). MIME Type is optional for Base64, since the gateway detects the format. Outputs Ogg/Opus audio. |
 | Convert Video | `POST /media/convert/video` | Same fields. Outputs an MP4 (H.264 baseline + AAC, long edge up to 1280 px, fast start). |
 
 - Conversions output `{ fileName, mimetype, bytes }` plus the file as binary data, named after the input (e.g. `note.m4a` → `note.ogg`), or `voice.ogg` / `video.mp4`.
@@ -271,7 +271,7 @@ Common fields:
 - **Media Source** (media operations):
   - `URL`: the gateway downloads the file itself.
   - `Binary Data`: sends the file from a binary field of the input item (default field `data`), e.g. from an HTTP Request or Read/Write Files from Disk node. The mimetype and file name come from the binary metadata.
-  - `Base64`: sends base64 text, e.g. from a Code node or a JSON API. Set **MIME Type** (e.g. `image/jpeg`), or paste a data URL (`data:image/jpeg;base64,…`), whose prefix is stripped and whose MIME type is used when MIME Type is empty. For documents, set the file name with **File Name**.
+  - `Base64`: sends base64 text, e.g. from a Code node or a JSON API. Set **MIME Type** (e.g. `image/jpeg`), or paste a data URL (`data:image/jpeg;base64,…`), whose prefix is stripped and whose MIME type is used when MIME Type is empty. Standard and URL-safe base64 are both accepted, with or without `=` padding. For documents, set the file name with **File Name**; without one, the document is named after its MIME type (e.g. `file.pdf`).
 - **Message ID** (Reply, React, Forward, Edit, Delete, Vote Poll, Pin, Star, Download Media): the `messageId` returned when the message was sent, or `waMessageId` (not `id`) from Get Many. The recipient must be the chat that contains the message. You can only edit messages sent by this account.
 - **Options → Check Number Exists** (contacts only, operations that send a new message): looks the number up with `GET /contacts/check/{number}` before sending and fails the item if it is not on WhatsApp. OpenWA otherwise accepts sends to unregistered numbers without error.
 - **Options → Reply To Message ID** (Send Text, media, Location, Poll, Contact Card): quote a message in the same chat, turning the send into a reply.
@@ -293,16 +293,16 @@ List operations output one item per entry, and **no items** when the list is emp
 Send Bulk works differently from the other operations: instead of one request per input item, **each input item becomes one message** and the node posts them together as gateway-side batches. The gateway then sends them in the background, waiting **Delay Between Messages** (1000–60000 ms, default 3000, plus a random 0–2 s with **Randomize Delay**) between messages.
 
 - Recipient, type, text, media, caption and mentions are read per item, so expressions like `{{ $json.phone }}` give each item its own message. Check Number Exists is not available for bulk sends, and audio must already be Ogg/Opus for voice notes (no Convert to Voice Note). Stickers can't be sent in bulk.
-- A batch holds up to **100 messages**. 150 input items become two batches (100 + 50). The batch options (Batch ID, delay, Randomize Delay, Stop On Error) are taken from the first item of each batch. With a custom **Batch ID** and more than one batch, the batches get the IDs `<id>-1`, `<id>-2`, and so on. Items with a different session go into separate batches.
-- The node outputs **one item per batch**, paired with all its input items:
+- A batch holds up to **100 messages** and must fit OpenWA's **25 MB** request limit. 150 text items become two batches (100 + 50); Binary Data and Base64 media travel inside the request, so large files start a new batch sooner (three 8 MB files become two batches). The batch options (Batch ID, delay, Randomize Delay, Stop On Error) are taken from the first item of each batch. With a custom **Batch ID** and more than one batch, the batches get the IDs `<id>-1`, `<id>-2`, and so on. Items with a different session go into separate batches.
+- The node outputs **one item per batch**, paired with all its input items, plus any error items (see below), all ordered by their first input item:
 
   ```json
   { "batchId": "batch_abc123", "status": "processing", "totalMessages": 100, "statusUrl": "/api/sessions/…/messages/batch/batch_abc123" }
   ```
 
   `202`-accepted means queued, not sent. Exact duplicate messages are collapsed by the gateway, so `totalMessages` can be lower than the item count. Use **Get Batch Status** with the `batchId` to follow progress and see per-recipient results, and **Cancel Batch** to stop it.
-- An item that can't be turned into a message (e.g. an invalid phone number or text over 4096 characters) fails the node, or with **Continue On Fail** outputs an error item for that input item and is left out of the batch.
-- One batch request must fit OpenWA's 25 MB request limit. Binary and Base64 media travel inside the request, so a batch with several large files is refused before sending. Send media by **URL** instead: the gateway downloads each file itself (up to 50 MiB).
+- An item that can't be turned into a message (e.g. an invalid phone number or text over 4096 characters) fails the node, or with **Continue On Fail** outputs an error item for that input item and is left out of the batch. Every batch is built and checked (delay, size) before the first one is posted, so without Continue On Fail a bad batch stops the run before anything is sent.
+- More batches mean more requests and separate delays per batch. Sending media by **URL** keeps batches small: the gateway downloads each file itself (up to 50 MiB).
 - API keys restricted with `allowedChats` can't use Get Batch Status or Cancel Batch (HTTP 403).
 
 ### Profile
@@ -327,7 +327,7 @@ Status updates (stories) last 24 hours.
 | Get From Contact | `GET /status/{contactId}` | Contact (phone number or contact ID). One item per status. |
 | Post Text | `POST /status/send-text` | Text; options: Background Color, Font, Recipients |
 | Post Image / Post Video | `POST /status/send-image`, `/send-video` | Media Source (URL, or binary or Base64 up to 18 MB of the matching type), Caption; option: Recipients |
-| Post Voice | `POST /status/send-voice` | Media Source, Convert to Voice Note (on by default); options: Background Color, Recipients |
+| Post Voice | `POST /status/send-voice` | Media Source (MIME Type optional for Base64; OpenWA assumes Ogg/Opus), Convert to Voice Note (on by default); options: Background Color, Recipients |
 | Delete | `DELETE /status/{statusId}` | Status ID (one of your own) |
 | Download Media | `GET /status/{statusId}/media` | Status ID, Put Output File in Field. Outputs the file as binary data. |
 
@@ -384,14 +384,14 @@ Server-side auto-replies. The gateway itself answers inbound messages that match
 | Delete | `DELETE /api/sessions/{id}/automation-rules/{ruleId}` | Rule. Outputs `{ success, ruleId }`. |
 
 - **Rule**: pick one from the list (shown as name and enabled/disabled), or enter its ID.
-- **Conditions (JSON)** use the webhook filter format on the message fields `sender`, `recipient`, `chatId`, `body`, `type`, `isGroup`, `kind`, `fromMe`, `hasMedia` and `mentions`. Every condition must match. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals`. Example: reply to private messages that ask about prices:
+- **Conditions (JSON)** use the webhook filter format on the message fields `sender`, `recipient`, `chatId`, `body`, `type`, `isGroup`, `kind`, `fromMe`, `hasMedia` and `mentions`. Every condition must match. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals`. True/false values need `is` or `isNot` (the gateway rejects them with `equals` or `contains`), and a single string with `is` or `isNot` is sent as a one-item list, the only form the gateway accepts. Example: reply to private messages that ask about prices:
   ```json
   {"conditions": [
     {"field": "body", "operator": "contains", "value": "price"},
     {"field": "isGroup", "operator": "is", "value": false}
   ]}
   ```
-- Leave Conditions empty to reply to every inbound message. On Update, turn on **Clear Conditions** to go back to matching every message (sent as `conditions: {}`).
+- Leave Conditions empty to reply to every inbound message. On Update, turn on **Clear Conditions** to go back to matching every message (sent as `conditions: null`).
 - **Cooldown (Seconds)**: after a rule replies in a chat, it stays silent in that chat for this long (default 60, 0–86400; 0 disables). This keeps two auto-repliers from answering each other forever, so disable it knowingly.
 - **Enabled** defaults to true. Turn it off to keep a rule without it replying.
 
@@ -457,7 +457,7 @@ Webhooks the gateway calls with session events. Get Many (All Sessions) and Get 
 - The gateway never returns a webhook's secret or headers.
 - **Secret** signs each delivery with an `X-OpenWA-Signature: sha256=<hex>` header (HMAC-SHA256 of the body). On Update, turn on **Clear Secret** to remove it.
 - **Headers** on Update replace all stored headers; add the field with no headers to remove them.
-- **Filters (JSON)**: every condition must match for the event to be delivered. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. Example: `[{"field": "body", "operator": "contains", "value": "invoice"}]`. On Update, turn on **Clear Filters** to deliver every subscribed event again.
+- **Filters (JSON)**: every condition must match for the event to be delivered. Give `{"conditions": [...]}` or a bare array of 1–20 conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. True/false values need `is` or `isNot` (the gateway rejects them with `equals` or `contains`), and a single string with `is` or `isNot` is sent as a one-item list, the only form the gateway accepts. Example: `[{"field": "body", "operator": "contains", "value": "invoice"}]`. On Update, turn on **Clear Filters** to deliver every subscribed event again.
 - The OpenWA trigger nodes register and delete their own webhooks. Don't update or delete those here; deactivate the workflow instead.
 
 ## Triggers
@@ -495,7 +495,7 @@ Each session can have up to 16 webhooks. Every active trigger uses one, and so d
 **Options:**
 - **Verify Signature** (on by default): each delivery's `X-OpenWA-Signature` (HMAC-SHA256 of the raw body) is checked against the trigger's secret. Mismatches get `401` and don't run the workflow.
   - By default the secret is derived from your API key and the trigger node (workflow and node ID), so nothing secret is stored in the workflow, and test and production listens share it. Rotating the API key re-registers the webhook on the next activation.
-- **Webhook Secret**: set your own signing secret (16–255 characters) instead of the derived one. Use it when another system must verify the same deliveries, or to rotate the secret without changing the API key. Changing or clearing it re-registers the webhook on the next activation. It's used exactly as typed; leading or trailing spaces are refused. Leave it empty to use the derived secret.
+- **Webhook Secret**: set your own signing secret (16–255 characters) instead of the derived one. Use it when another system must verify the same deliveries, or to rotate the secret without changing the API key. Changing or clearing it re-registers the webhook on the next activation. It's used exactly as typed; leading or trailing spaces are refused. It's stored in plain text in the workflow (like any node parameter), so anyone who can open or export the workflow can read it. Leave it empty to use the derived secret, which stores no secret at all.
 - **Ignore Duplicate Deliveries** (on by default): OpenWA delivers *at least once* and retries failures, so the same event can arrive twice. The trigger drops repeats of an idempotency key it has seen recently.
   - This is best effort: a retry that arrives while the first run is still in progress, or that lands on another n8n worker in queue mode, can still get through.
   - For strict once-only processing, dedupe on `idempotencyKey` in your own storage.
@@ -503,10 +503,10 @@ Each session can have up to 16 webhooks. Every active trigger uses one, and so d
 - **Message filters** (Message Trigger and OpenWA Events Trigger): Only From, Only In Chats, Body Contains, Chat Type (direct or groups) and Ignore Messages From Me. OpenWA applies them on the gateway, so filtered-out events never reach n8n.
   - They only work with `message.received`, `message.sent`, `message.edited` and `message.revoked`. Other events carry no sender or text, so the gateway would silently drop them.
   - The node refuses filters combined with any other event, including All Events.
-- **Filter Conditions (JSON)** (every trigger): extra conditions in the gateway's filter format, checked on the gateway like the message filters. Give `{"conditions": [...]}` or a bare array of conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. Every condition must match. For example, only group messages with media:
+- **Filter Conditions (JSON)** (every trigger): extra conditions in the gateway's filter format, checked on the gateway like the message filters. Give `{"conditions": [...]}` or a bare array of conditions, each `{ "field", "operator", "value", "caseSensitive" }` with operator `is`, `isNot`, `contains` or `equals` and value a string, an array of strings, or a boolean. True/false values need `is` or `isNot` (the gateway rejects them with `equals` or `contains`), and a single string with `is` or `isNot` is sent as a one-item list, the only form the gateway accepts. Every condition must match. For example, only group messages with media:
   ```json
   [
-    { "field": "hasMedia", "operator": "equals", "value": true },
+    { "field": "hasMedia", "operator": "is", "value": true },
     { "field": "kind", "operator": "is", "value": ["group"] }
   ]
   ```
@@ -536,17 +536,17 @@ You can enter a phone number (normalized for you), or a full `@c.us` / `@lid` ID
 
 To send files larger than 18 MB, host them somewhere the gateway can reach and use the URL source.
 
-**Send Bulk** puts a whole batch (up to 100 messages) in one request, so the 25 MB body limit applies to the batch, not to each file: several Binary Data or Base64 files that are fine alone can together be refused. Use the URL source for media in bulk sends; see [Bulk send](#bulk-send).
+**Send Bulk** puts a whole batch in one request, so the node splits the batches to keep each under the 25 MB body limit; each Binary Data or Base64 file still has the 18 MB limit. Use the URL source to keep bulk batches small; see [Bulk send](#bulk-send).
 
 ## Error handling
 
 | HTTP status | Meaning | Message in n8n |
 |---|---|---|
-| 400 | Session not active, validation failed, or URL unreachable | The gateway's own message |
+| 400 | Session not active, validation failed, or URL unreachable | The gateway's own message; a bare "Bad Request" adds a hint to check field values and formats |
 | 401 | Bad API key | Check your OpenWA API key |
-| 403 | The API key's role or restrictions don't allow the request, or WhatsApp refused it (e.g. the account isn't a group admin); see [API key roles](#api-key-roles) | The gateway's own message, with a roles hint |
+| 403 | The API key's role or restrictions don't allow the request, or WhatsApp refused it (e.g. the account isn't a group admin); see [API key roles](#api-key-roles) | The gateway's own message, with a hint covering both causes |
 | 404 | Session not found, the item (message, template, product, …) doesn't exist, or the server doesn't have the route | Names the session, or the gateway's own message; for a missing route, a hint to check the Base URL (see [Server compatibility](#server-compatibility)) |
-| 409 | Session not `ready` (reconnecting or reloading) | Transient, retry shortly |
+| 409 | Session not `ready` (reconnecting or reloading); for Session Create, Delete, Start and Stop, a name that already exists, a pending teardown or another node owning the session | Transient, retry shortly; for those Session operations, the gateway's own message |
 | 413 | Media too large | States the limits above |
 | 422 | Labels need a WhatsApp Business account, or the chat type has no labels | The gateway's own message, with a WhatsApp Business hint |
 | 501 | Not supported by the active engine (see [Engine support](#engine-support)), or no search provider configured | The gateway's own message |

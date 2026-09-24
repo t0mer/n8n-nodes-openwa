@@ -3,6 +3,7 @@ import {
 	MAX_BINARY_BYTES,
 	assertBinarySize,
 	buildMediaBody,
+	documentFileName,
 	parseContentDispositionFilename,
 } from '../nodes/OpenWa/helpers/media';
 
@@ -79,5 +80,33 @@ describe('parseContentDispositionFilename', () => {
 		expect(parseContentDispositionFilename('attachment')).toBeUndefined();
 		expect(parseContentDispositionFilename(undefined)).toBeUndefined();
 		expect(parseContentDispositionFilename('attachment; filename=""')).toBeUndefined();
+	});
+});
+
+describe('documentFileName', () => {
+	const inline = (mimetype: string, filename?: string) => ({ base64: 'AAAA', mimetype, filename });
+
+	it('prefers the File Name, then the media file name', () => {
+		expect(documentFileName('invoice.pdf', inline('application/pdf', 'a.pdf'))).toBe('invoice.pdf');
+		expect(documentFileName('', inline('application/pdf', 'a.pdf'))).toBe('a.pdf');
+	});
+
+	it('names inline data without a name after its MIME type', () => {
+		expect(documentFileName('', inline('application/pdf'))).toBe('file.pdf');
+		expect(documentFileName('', inline('image/jpeg'))).toBe('file.jpg');
+		expect(documentFileName('', inline('text/plain; charset=utf-8'))).toBe('file.txt');
+		expect(
+			documentFileName(
+				'',
+				inline('application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+			),
+		).toBe('file.docx');
+		expect(documentFileName('', inline('application/zip'))).toBe('file.zip');
+	});
+
+	it('leaves unknown types and URL sources to the gateway', () => {
+		expect(documentFileName('', inline('application/octet-stream'))).toBeUndefined();
+		expect(documentFileName('', inline('application/x-something-long'))).toBeUndefined();
+		expect(documentFileName('', { url: 'https://example.com/a.pdf' })).toBeUndefined();
 	});
 });

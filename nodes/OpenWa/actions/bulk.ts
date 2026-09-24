@@ -4,8 +4,10 @@ import {
 	type IDataObject,
 	type IExecuteFunctions,
 	type INodeExecutionData,
+	type IPairedItemData,
 } from 'n8n-workflow';
 import { BULK_CAPTION_TYPES, BULK_TYPES } from '../descriptions/bulk';
+import { documentFileName, type MediaBody } from '../helpers/media';
 import { openWaApiRequest } from '../transport/request';
 import { getChatId, getMentions, getText, readMessageMedia } from './message';
 
@@ -13,6 +15,8 @@ import { getChatId, getMentions, getText, readMessageMedia } from './message';
 export const MAX_BATCH_MESSAGES = 100;
 /** OpenWA's default request body limit (`BODY_SIZE_LIMIT`, 25 MB), which one batch must fit. */
 export const MAX_BATCH_BODY_BYTES = 25 * 1024 * 1024;
+/** Room kept in each batch for everything but the messages (options, Batch ID). */
+const ENVELOPE_BYTES = 4096;
 
 interface Entry {
 	item: number;
@@ -23,13 +27,17 @@ const toMb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
 
 /**
  * Send Bulk: every input item becomes one message, grouped by session into batches of up to
- * 100, each posted once. Outputs one item per batch, paired with all its input items. An item
- * that can't be built (or a batch that fails) becomes an error item with Continue On Fail.
+ * 100 messages and 25 MB, each posted once. Every batch is built and checked before the first is posted. Outputs
+ * one item per batch, paired with all its input items. An item that can't be built (or a batch
+ * that fails) becomes an error item with Continue On Fail. Outputs are ordered by their first
+ * input item.
  */
 export async function sendBulk(
 	ctx: IExecuteFunctions,
 	itemCount: number,
 ): Promise<INodeExecutionData[]> {
+	// Indexed by each output's first input item (unique: an item is in one batch or errors
+	// alone), so the output follows input order.
 	const output: INodeExecutionData[] = [];
 	const bySession = new Map<string, Entry[]>();
 
@@ -47,34 +55,72 @@ export async function sendBulk(
 			bySession.set(sessionId, entries);
 		} catch (error) {
 			if (!ctx.continueOnFail()) throw toNodeError(ctx, error, i);
-			output.push({ json: { error: (error as Error).message }, pairedItem: { item: i } });
+			output[i] = { json: { error: (error as Error).message }, pairedItem: { item: i } };
 		}
 	}
 
+	// Build and check every batch before posting any, so a bad batch can't leave the run half-sent.
+	const ready: Array<{
+		sessionId: string;
+		first: number;
+		pairedItem: IPairedItemData[];
+		body: IDataObject;
+	}> = [];
 	for (const [sessionId, entries] of bySession) {
-		const batches: Entry[][] = [];
-		for (let start = 0; start < entries.length; start += MAX_BATCH_MESSAGES) {
-			batches.push(entries.slice(start, start + MAX_BATCH_MESSAGES));
-		}
+		const batches = splitBatches(entries);
 		for (const [n, batch] of batches.entries()) {
 			const first = batch[0].item;
 			const pairedItem = batch.map(({ item }) => ({ item }));
 			try {
 				const body = buildBatchBody(ctx, first, batch, batches.length > 1 ? n + 1 : undefined);
-				const response = (await openWaApiRequest.call(
-					ctx,
-					'POST',
-					`/api/sessions/${encodeURIComponent(sessionId)}/messages/send-bulk`,
-					{ body, sessionId, itemIndex: first },
-				)) as IDataObject;
-				output.push({ json: response, pairedItem });
+				ready.push({ sessionId, first, pairedItem, body });
 			} catch (error) {
 				if (!ctx.continueOnFail()) throw toNodeError(ctx, error, first);
-				output.push({ json: { error: (error as Error).message }, pairedItem });
+				output[first] = { json: { error: (error as Error).message }, pairedItem };
 			}
 		}
 	}
-	return output;
+
+	for (const { sessionId, first, pairedItem, body } of ready) {
+		try {
+			const response = (await openWaApiRequest.call(
+				ctx,
+				'POST',
+				`/api/sessions/${encodeURIComponent(sessionId)}/messages/send-bulk`,
+				{ body, sessionId, itemIndex: first },
+			)) as IDataObject;
+			output[first] = { json: response, pairedItem };
+		} catch (error) {
+			if (!ctx.continueOnFail()) throw toNodeError(ctx, error, first);
+			output[first] = { json: { error: (error as Error).message }, pairedItem };
+		}
+	}
+	return output.filter(Boolean);
+}
+
+/**
+ * Greedily splits a session's messages into batches of at most 100 that fit the request limit
+ * (leaving room for the options and Batch ID). A message too large on its own gets its own
+ * batch, which buildBatchBody then refuses.
+ */
+function splitBatches(entries: Entry[]): Entry[][] {
+	const batches: Entry[][] = [];
+	let batch: Entry[] = [];
+	let bytes = 0;
+	for (const entry of entries) {
+		const size = Buffer.byteLength(JSON.stringify(entry.message)) + 1;
+		const full =
+			batch.length === MAX_BATCH_MESSAGES || bytes + size > MAX_BATCH_BODY_BYTES - ENVELOPE_BYTES;
+		if (batch.length && full) {
+			batches.push(batch);
+			batch = [];
+			bytes = 0;
+		}
+		batch.push(entry);
+		bytes += size;
+	}
+	if (batch.length) batches.push(batch);
+	return batches;
 }
 
 /** The send-bulk request for one batch; options come from the batch's first item. */
@@ -108,7 +154,7 @@ function buildBatchBody(
 	if (bytes > MAX_BATCH_BODY_BYTES) {
 		throw new NodeOperationError(
 			ctx.getNode(),
-			`A batch of ${batch.length} messages is ${toMb(bytes)} MB, above OpenWA's ${toMb(MAX_BATCH_BODY_BYTES)} MB request limit`,
+			`${batch.length === 1 ? 'A message' : `A batch of ${batch.length} messages`} is ${toMb(bytes)} MB, above OpenWA's ${toMb(MAX_BATCH_BODY_BYTES)} MB request limit`,
 			{
 				itemIndex: first,
 				description:
@@ -140,7 +186,10 @@ async function buildBulkMessage(ctx: IExecuteFunctions, i: number): Promise<IDat
 	} else {
 		const media: IDataObject = { ...(await readMessageMedia(ctx, i)) };
 		if (type === 'document') {
-			const fileName = String(ctx.getNodeParameter('fileName', i, '') ?? '').trim();
+			const fileName = documentFileName(
+				String(ctx.getNodeParameter('fileName', i, '') ?? '').trim(),
+				media as MediaBody,
+			);
 			if (fileName) media.filename = fileName;
 		} else {
 			// The gateway only uses a file name for documents.

@@ -72,7 +72,7 @@ export const bulkOptions: INodeProperties[] = [
 		placeholder: 'e.g. newsletter-2026-09',
 		displayOptions: { show: { '/operation': ['sendBulk'] } },
 		description:
-			'Custom ID for the batch (the gateway generates one when empty). When the input has more than 100 items, batches get the suffixes -1, -2 and so on.',
+			'Custom ID for the batch (the gateway generates one when empty). When the input needs more than one batch (over 100 messages or 25 MB), batches get the suffixes -1, -2 and so on.',
 	},
 	{
 		displayName: 'Delay Between Messages (Ms)',

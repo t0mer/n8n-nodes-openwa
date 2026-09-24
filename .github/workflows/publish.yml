@@ -115,15 +115,31 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Scan published package
-        # Runs the same static analysis the n8n Creator Portal uses for verification.
-        # Retries while the new version propagates through the npm registry.
+  scan:
+    # Separate job so the scanner never runs alongside the npm token or the OIDC permission.
+    name: Scan published package
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Run the n8n Creator Portal scan
+        # Same static analysis the n8n Creator Portal uses for verification. Retries while
+        # the new version propagates through the npm registry.
         env:
           TAG: ${{ github.ref_name }}
         run: |
           PACKAGE="$(node -p "require('./package.json').name")@${TAG#v}"
           for attempt in 1 2 3 4 5; do
-            npx --yes @n8n/scan-community-package "$PACKAGE" && exit 0
+            npx --yes @n8n/scan-community-package@0.37.0 "$PACKAGE" && exit 0
             echo "Scan attempt $attempt failed; retrying in 30s"
             sleep 30
           done

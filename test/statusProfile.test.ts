@@ -290,6 +290,34 @@ describe('executeStatus — posting', () => {
 			},
 		]);
 	});
+
+	it('post voice takes Base64 without a MIME type, converted or not', async () => {
+		const b64 = {
+			operation: 'postVoice',
+			statusMediaSource: 'base64',
+			statusMediaBase64: 'T2dnUw==',
+		};
+		const converted = { base64: 'T2dnUw==', mimetype: 'audio/ogg; codecs=opus', bytes: 5 };
+		const { calls } = await run(executeStatus, b64, (options: IHttpRequestOptions) =>
+			String(options.url).endsWith('/media/convert/voice') ? converted : { statusId: 's' },
+		);
+		expect(calls[0].body).toEqual({ base64: 'T2dnUw==' });
+
+		const { calls: raw } = await run(executeStatus, { ...b64, statusConvertVoice: false });
+		expect(raw).toEqual([
+			{ method: 'POST', url: `${base}/status/send-voice`, body: { audio: { base64: 'T2dnUw==' } } },
+		]);
+	});
+
+	it('post image still requires a MIME type with Base64', async () => {
+		await expect(
+			run(executeStatus, {
+				operation: 'postImage',
+				statusMediaSource: 'base64',
+				statusMediaBase64: 'T2dnUw==',
+			}),
+		).rejects.toThrow('MIME Type is required with Base64 data');
+	});
 });
 
 describe('executeStatus — delete and download', () => {

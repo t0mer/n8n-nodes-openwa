@@ -43,17 +43,29 @@ describe('describeOpenWaError', () => {
 		expect(describeOpenWaError(501, 'Not supported').message).toBe('Not supported');
 	});
 
+	it('explains a bare Bad Request, but not a detailed 400', () => {
+		const bare = describeOpenWaError(400, 'Bad Request');
+		expect(bare.message).toBe('Bad Request');
+		expect(bare.description).toMatch(/Check the values and formats/);
+		expect(describeOpenWaError(400, 'bad request').description).toBeDefined();
+		expect(describeOpenWaError(400, undefined).description).toBeDefined();
+		expect(describeOpenWaError(400, 'Session not active').description).toBeUndefined();
+	});
+
 	it('tells the user to check credentials on 401', () => {
 		expect(describeOpenWaError(401, 'Invalid API key').message).toMatch(
 			/check your OpenWA API key/,
 		);
 	});
 
-	it('keeps the gateway message on 403 and explains roles', () => {
+	it('keeps the gateway message on 403 and names both key and WhatsApp causes', () => {
 		const error = describeOpenWaError(403, 'Insufficient permissions');
 		expect(error.message).toBe('Insufficient permissions');
 		expect(error.description).toMatch(/only admin keys can manage API keys/);
-		expect(describeOpenWaError(403, undefined).message).toMatch(/not allowed.*403/);
+		expect(error.description).toMatch(/or WhatsApp refused the action.*admin or owner/);
+		expect(describeOpenWaError(403, undefined).message).toBe(
+			'OpenWA refused the request (HTTP 403)',
+		);
 	});
 
 	it('names the session on 404 only when the gateway blames the session', () => {

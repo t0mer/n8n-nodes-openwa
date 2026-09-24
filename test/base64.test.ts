@@ -1,4 +1,6 @@
+import type { IDataObject } from 'n8n-workflow';
 import { describe, expect, it } from 'vitest';
+import { OpenWa } from '../nodes/OpenWa/OpenWa.node';
 import { executeGroup } from '../nodes/OpenWa/actions/group';
 import { executeMessage } from '../nodes/OpenWa/actions/message';
 import { executeProfile } from '../nodes/OpenWa/actions/profile';
@@ -26,11 +28,26 @@ describe('parseBase64', () => {
 		expect(parseBase64(`  ${png.slice(0, 4)}\n${png.slice(4)}  `).base64).toBe(png);
 	});
 
+	it('accepts URL-safe and unpadded base64 and sends it as standard padded base64', () => {
+		const bytes = Buffer.from([0xfb, 0xff, 0xbf, 0x01]);
+		const standard = bytes.toString('base64');
+		expect(standard).toBe('+/+/AQ==');
+		expect(parseBase64(bytes.toString('base64url')).base64).toBe(standard);
+		expect(parseBase64('-_-_AQ').base64).toBe(standard);
+		expect(parseBase64('+/+/AQ').base64).toBe(standard);
+		expect(parseBase64('data:image/png;base64,-_-_AQ=')).toEqual({
+			base64: standard,
+			mimeType: 'image/png',
+		});
+		expect(parseBase64('YWI').base64).toBe('YWI=');
+	});
+
 	it('rejects empty and invalid base64', () => {
 		expect(() => parseBase64('')).toThrow('The Base64 data is empty');
 		expect(() => parseBase64('data:image/png;base64,')).toThrow('empty');
 		expect(() => parseBase64('not base64!')).toThrow('not valid base64');
-		expect(() => parseBase64('abc')).toThrow('not valid base64');
+		expect(() => parseBase64('abcde')).toThrow('not valid base64');
+		expect(() => parseBase64('ab===')).toThrow('not valid base64');
 		expect(() => parseBase64('ab=c')).toThrow('not valid base64');
 	});
 
@@ -63,6 +80,12 @@ describe('buildMediaBody — Base64 source', () => {
 			'MIME Type is required with Base64 data',
 		);
 	});
+
+	it('omits the MIME type when it is optional and missing', () => {
+		expect(buildMediaBody({ source: 'base64', data: png }, { mimeTypeOptional: true })).toEqual({
+			base64: png,
+		});
+	});
 });
 
 describe('Base64 media source per operation', () => {
@@ -88,6 +111,42 @@ describe('Base64 media source per operation', () => {
 		expect(calls).toHaveLength(1);
 		expect(calls[0].url).toBe(`${base}/messages/${path}`);
 		expect(calls[0].body).toEqual({ chatId, base64: png, mimetype: 'image/png', ...extra });
+	});
+
+	it('message and bulk document sends name unnamed Base64 after its MIME type', async () => {
+		const pdf = {
+			...contact,
+			operation: 'sendDocument',
+			mediaSource: 'base64',
+			mediaBase64: `data:application/pdf;base64,${png}`,
+		};
+		const { ctx, calls } = fakeContext(pdf);
+		await executeMessage(ctx, 0, 's1');
+		expect(calls[0].body).toEqual({
+			chatId,
+			base64: png,
+			mimetype: 'application/pdf',
+			filename: 'file.pdf',
+		});
+
+		const bulk = fakeContext(
+			{
+				...pdf,
+				resource: 'message',
+				operation: 'sendBulk',
+				session: { mode: 'id', value: 's1' },
+				bulkType: 'document',
+			},
+			{ batchId: 'b' },
+		);
+		await new OpenWa().execute.call(bulk.ctx);
+		expect((bulk.calls[0].body as IDataObject).messages).toEqual([
+			{
+				chatId,
+				type: 'document',
+				content: { document: { base64: png, mimetype: 'application/pdf', filename: 'file.pdf' } },
+			},
+		]);
 	});
 
 	it('message send rejects invalid base64 before calling the API', async () => {

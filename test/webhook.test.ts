@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import { describe, expect, it } from 'vitest';
 import {
 	buildMessageFilters,
@@ -56,8 +56,8 @@ describe('buildMessageFilters', () => {
 					value: ['120363012345678901@g.us', '972509999999@c.us'],
 				},
 				{ field: 'body', operator: 'contains', value: 'invoice' },
-				{ field: 'isGroup', operator: 'equals', value: true },
-				{ field: 'fromMe', operator: 'equals', value: false },
+				{ field: 'isGroup', operator: 'is', value: true },
+				{ field: 'fromMe', operator: 'is', value: false },
 			],
 		});
 	});
@@ -66,7 +66,7 @@ describe('buildMessageFilters', () => {
 		expect(buildMessageFilters({ chatType: 'direct', onlyInChat: ['972501234567'] })).toEqual({
 			conditions: [
 				{ field: 'chatId', operator: 'is', value: ['972501234567@c.us'] },
-				{ field: 'isGroup', operator: 'equals', value: false },
+				{ field: 'isGroup', operator: 'is', value: false },
 			],
 		});
 	});
@@ -113,9 +113,16 @@ describe('deriveWebhookSecret', () => {
 
 	it('tags a secret without revealing it', () => {
 		const secret = deriveWebhookSecret(apiKey, 'u');
-		expect(secretTag(secret)).toHaveLength(16);
-		expect(secret).not.toContain(secretTag(secret));
-		expect(secretTag(secret)).toBe(secretTag(secret));
+		expect(secretTag(secret, apiKey)).toMatch(/^[0-9a-f]{16}$/);
+		expect(secret).not.toContain(secretTag(secret, apiKey));
+		expect(secretTag(secret, apiKey)).toBe(secretTag(secret, apiKey));
+	});
+
+	it('keys the tag with the API key, so it is not a plain hash of the secret', () => {
+		const secret = ['my', 'custom', 'trigger', 'secret'].join('-');
+		const tag = secretTag(secret, apiKey);
+		expect(secretTag(secret, `${apiKey}-other`)).not.toBe(tag);
+		expect(createHash('sha256').update(secret).digest('hex')).not.toContain(tag);
 	});
 });
 
@@ -131,10 +138,31 @@ describe('parseFilterConditions', () => {
 	it('keeps string arrays, booleans and caseSensitive', () => {
 		const conditions = [
 			{ field: 'sender', operator: 'is', value: ['1@c.us', '2@c.us'] },
-			{ field: 'isGroup', operator: 'equals', value: true },
-			{ field: 'body', operator: 'isNot', value: 'spam', caseSensitive: true },
+			{ field: 'isGroup', operator: 'is', value: true },
+			{ field: 'fromMe', operator: 'isNot', value: false },
+			{ field: 'body', operator: 'equals', value: 'hi', caseSensitive: true },
 		];
 		expect(parseFilterConditions(conditions)).toEqual(conditions);
+	});
+
+	it('wraps a single string for is and isNot', () => {
+		expect(
+			parseFilterConditions([
+				{ field: 'sender', operator: 'is', value: '1@c.us' },
+				{ field: 'body', operator: 'isNot', value: 'spam', caseSensitive: true },
+				{ field: 'body', operator: 'contains', value: 'x' },
+			]),
+		).toEqual([
+			{ field: 'sender', operator: 'is', value: ['1@c.us'] },
+			{ field: 'body', operator: 'isNot', value: ['spam'], caseSensitive: true },
+			{ field: 'body', operator: 'contains', value: 'x' },
+		]);
+	});
+
+	it.each([['equals'], ['contains']])('rejects a boolean with %s', (operator) => {
+		expect(() =>
+			parseFilterConditions([condition, { field: 'isGroup', operator, value: false }]),
+		).toThrow('Filter condition 2: a true/false value needs the operator is or isNot');
 	});
 
 	it('rejects invalid JSON and non-arrays', () => {

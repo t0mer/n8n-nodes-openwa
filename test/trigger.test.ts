@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import type {
 	IDataObject,
 	IHookFunctions,
@@ -117,7 +117,7 @@ describe('create', () => {
 			filters: {
 				conditions: [
 					{ field: 'sender', operator: 'is', value: ['972501234567@c.us'] },
-					{ field: 'isGroup', operator: 'equals', value: false },
+					{ field: 'isGroup', operator: 'is', value: false },
 				],
 			},
 		});
@@ -520,10 +520,19 @@ describe('custom webhook secret', () => {
 		).toBe(false);
 		expect(await exists(await registered(withSecret(customSecret)), base)).toBe(false);
 	});
+
+	it('stores only a keyed tag of the secret, never its plain hash', async () => {
+		const staticData = await registered(withSecret(customSecret));
+		const stored = JSON.stringify(staticData);
+		expect(stored).not.toContain(customSecret);
+		expect(stored).not.toContain(
+			createHash('sha256').update(customSecret).digest('hex').slice(0, 16),
+		);
+	});
 });
 
 describe('raw filter conditions', () => {
-	const hasMedia = { field: 'hasMedia', operator: 'equals', value: true };
+	const hasMedia = { field: 'hasMedia', operator: 'is', value: true };
 	const groupKind = { field: 'kind', operator: 'is', value: ['group'] };
 	const withRaw = (filterConditions: unknown, extra: IDataObject = {}, events?: string[]) => ({
 		...base,
@@ -548,7 +557,7 @@ describe('raw filter conditions', () => {
 	});
 
 	it('allows raw conditions with events of any family', async () => {
-		const status = { field: 'status', operator: 'is', value: 'failed' };
+		const status = { field: 'status', operator: 'is', value: ['failed'] };
 		const { ctx, calls } = hookContext(
 			withRaw(JSON.stringify([status]), {}, ['session.status', '*']),
 		);

@@ -122,6 +122,6 @@ export const mediaFields: INodeProperties[] = [
 		placeholder: 'e.g. invoice.pdf',
 		displayOptions: { show: { resource: ['message'], operation: ['sendDocument'] } },
 		description:
-			'File name shown to the recipient. Defaults to the binary file name, or to the name in the URL.',
+			'File name shown to the recipient. Defaults to the binary file name, the name in the URL, or for Base64 data a name from the MIME type (e.g. file.pdf).',
 	},
 ];

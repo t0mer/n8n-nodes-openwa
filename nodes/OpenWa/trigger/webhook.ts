@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { normalizeChatId, parseContactList } from '../helpers/chatId';
 
 /**
@@ -27,9 +27,12 @@ export function deriveWebhookSecret(apiKey: string, scope: string): string {
 	return createHmac('sha256', apiKey).update(`openwa-trigger:${scope}`).digest('hex');
 }
 
-/** A short, non-reversible tag of a secret, for noticing that it changed. */
-export function secretTag(secret: string): string {
-	return createHash('sha256').update(secret).digest('hex').slice(0, 16);
+/**
+ * A short tag of a secret, for noticing that it changed. Keyed with the API key, so a tag kept
+ * in static data can't be checked offline against guesses of a custom secret.
+ */
+export function secretTag(secret: string, apiKey: string): string {
+	return createHmac('sha256', apiKey).update(secret).digest('hex').slice(0, 16);
 }
 
 export interface MessageFilterOptions {
@@ -65,6 +68,7 @@ export const MAX_FILTER_CONDITIONS = 20;
 /**
  * Validate raw filter conditions (a JSON string or an already parsed value): either
  * `{ "conditions": [...] }` or a bare array of `{ field, operator, value, caseSensitive? }`.
+ * A single string with is/isNot is wrapped in an array, the only form the gateway accepts.
  * Returns the conditions, or throws an error naming the first problem.
  */
 export function parseFilterConditions(value: unknown): FilterCondition[] {
@@ -100,13 +104,19 @@ export function parseFilterConditions(value: unknown): FilterCondition[] {
 			typeof value === 'boolean' ||
 			(Array.isArray(value) && value.every((item) => typeof item === 'string'));
 		if (!validValue) throw fail('"value" must be a string, an array of strings, or a boolean');
+		const listOperator = operator === 'is' || operator === 'isNot';
+		// The gateway rejects booleans with contains/equals, and strings with is/isNot.
+		if (typeof value === 'boolean' && !listOperator) {
+			throw fail('a true/false value needs the operator is or isNot');
+		}
 		if (caseSensitive !== undefined && typeof caseSensitive !== 'boolean') {
 			throw fail('"caseSensitive" must be a boolean');
 		}
 		const condition: FilterCondition = {
 			field: field.trim(),
 			operator: operator as FilterCondition['operator'],
-			value: value as FilterCondition['value'],
+			value:
+				listOperator && typeof value === 'string' ? [value] : (value as FilterCondition['value']),
 		};
 		if (caseSensitive !== undefined) condition.caseSensitive = caseSensitive;
 		return condition;
@@ -146,10 +156,10 @@ export function buildMessageFilters(
 	if (body) conditions.push({ field: 'body', operator: 'contains', value: body });
 
 	if (options.chatType === 'group' || options.chatType === 'direct') {
-		conditions.push({ field: 'isGroup', operator: 'equals', value: options.chatType === 'group' });
+		conditions.push({ field: 'isGroup', operator: 'is', value: options.chatType === 'group' });
 	}
 	if (options.ignoreFromMe === true) {
-		conditions.push({ field: 'fromMe', operator: 'equals', value: false });
+		conditions.push({ field: 'fromMe', operator: 'is', value: false });
 	}
 
 	return conditions.length ? { conditions } : undefined;

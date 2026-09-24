@@ -1,6 +1,7 @@
+import { NodeApiError } from 'n8n-workflow';
 import { describe, expect, it } from 'vitest';
 import { executeSession } from '../nodes/OpenWa/actions/session';
-import { fakeContext } from './fakeContext';
+import { fakeContext, type Responder } from './fakeContext';
 
 const base = 'https://wa.example.com/api/sessions';
 
@@ -15,6 +16,18 @@ async function run(
 }
 const one = async (params: Record<string, unknown>, sessionId?: string) =>
 	(await run(params, undefined, sessionId)).calls[0];
+
+/** A gateway error as the request helper would receive it. */
+const httpError =
+	(status: number, message: string): Responder =>
+	() =>
+		Object.assign(new Error(message), { response: { status, data: { message } } });
+
+const errorOf = (params: Record<string, unknown>, response: Responder, sessionId = 's1') =>
+	run(params, response, sessionId).then(
+		() => undefined,
+		(e: unknown) => e as NodeApiError,
+	);
 
 describe('session', () => {
 	it('get many pages with limit/offset and the name filter', async () => {
@@ -174,5 +187,25 @@ describe('session', () => {
 			url: `${base}/s1/proxy`,
 			body: { proxyUrl: expected },
 		});
+	});
+
+	it.each([
+		['create', 'Session name already exists', ''],
+		['delete', 'Session name teardown pending', 's1'],
+		['start', 'Another node holds this session', 's1'],
+		['stop', 'Another node holds this session', 's1'],
+	])('%s surfaces the gateway message on 409', async (operation, message, sessionId) => {
+		const error = await errorOf(
+			{ operation, sessionName: 'bot-1' },
+			httpError(409, message),
+			sessionId,
+		);
+		expect(error).toBeInstanceOf(NodeApiError);
+		expect(error?.message).toBe(message);
+	});
+
+	it('other session routes still read a 409 as session state', async () => {
+		const error = await errorOf({ operation: 'logout' }, httpError(409, 'reloading'));
+		expect(error?.message).toMatch(/Session "s1" is not ready/);
 	});
 });

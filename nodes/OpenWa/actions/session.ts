@@ -10,6 +10,12 @@ import { openWaApiRequest } from '../transport/request';
 
 const CONFIG_KEYS = ['autoRejectCalls', 'maxReconnectAttempts', 'reconnectBaseDelay'];
 
+/**
+ * Lifecycle routes whose 409 is not "session not ready": a duplicate name on create, or a pending
+ * teardown / another node owning the engine on delete, start and stop. Show the gateway's text.
+ */
+const OWN_CONFLICT_OPERATIONS = ['create', 'delete', 'start', 'stop'];
+
 /** Run one Session operation for item `i`. Get Many returns one object per session. */
 export async function executeSession(
 	ctx: IExecuteFunctions,
@@ -27,6 +33,7 @@ export async function executeSession(
 			qs,
 			sessionId: sessionId || undefined,
 			itemIndex: i,
+			conflictIsSessionState: !OWN_CONFLICT_OPERATIONS.includes(operation),
 		}) as Promise<IDataObject | IDataObject[]>;
 	const session = `/${encodeURIComponent(sessionId)}`;
 	const fail = (message: string) =>

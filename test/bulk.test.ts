@@ -1,6 +1,7 @@
 import type { IDataObject, IExecuteFunctions } from 'n8n-workflow';
 import { describe, expect, it } from 'vitest';
 import { OpenWa } from '../nodes/OpenWa/OpenWa.node';
+import { MAX_BATCH_BODY_BYTES } from '../nodes/OpenWa/actions/bulk';
 import { bulkFields } from '../nodes/OpenWa/descriptions/bulk';
 import { fakeContext } from './fakeContext';
 
@@ -160,7 +161,7 @@ describe('Message → Send Bulk', () => {
 		expect((message.content as IDataObject).image).not.toHaveProperty('filename');
 	});
 
-	it('skips a bad item with an error item under continueOnFail, and throws without it', async () => {
+	it('skips a bad item with an error item in input order under continueOnFail, and throws without it', async () => {
 		const params = { ...base, bulkType: 'text', text: 'Hi' };
 		const phone = (i: number) => (i === 1 ? 'not a number' : '972501234567');
 
@@ -168,8 +169,8 @@ describe('Message → Send Bulk', () => {
 		perItem(ctx, 'phoneNumber', phone);
 		const [output] = await run(ctx);
 		expect(output).toEqual([
-			{ json: { error: expect.any(String) }, pairedItem: { item: 1 } },
 			{ json: accepted, pairedItem: [{ item: 0 }, { item: 2 }] },
+			{ json: { error: expect.any(String) }, pairedItem: { item: 1 } },
 		]);
 		expect((calls[0].body as IDataObject).messages).toHaveLength(2);
 
@@ -215,29 +216,55 @@ describe('Message → Send Bulk', () => {
 		expect(calls).toHaveLength(0);
 	});
 
-	it('refuses a batch above the 25 MB request limit, suggesting URLs', async () => {
+	it('checks every batch before posting any', async () => {
+		const params = { ...base, phoneNumber: '972501234567', bulkType: 'text', text: 'Hi' };
+		// The second batch takes its options from item 100.
+		const options = (i: number) => ({ delayBetweenMessages: i === 100 ? 500 : 3000 });
+
+		const { ctx, calls } = fakeContext(params, accepted, { items: 101 });
+		perItem(ctx, 'options', options);
+		perItem(ctx, 'text', (i) => `Hi ${i}`);
+		await expect(run(ctx)).rejects.toThrow(/from 1000 to 60000, got 500/);
+		expect(calls).toHaveLength(0);
+
+		const cof = fakeContext(params, accepted, { items: 101, continueOnFail: true });
+		perItem(cof.ctx, 'options', options);
+		perItem(cof.ctx, 'text', (i) => `Hi ${i}`);
+		const [output] = await run(cof.ctx);
+		expect(cof.calls).toHaveLength(1);
+		expect(output.map((item) => item.json)).toEqual([
+			accepted,
+			{ error: expect.stringMatching(/got 500/) },
+		]);
+	});
+
+	it('splits batches by size, keeping each under the 25 MB request limit', async () => {
 		const params = {
 			...base,
 			phoneNumber: '972501234567',
 			bulkType: 'document',
 			mediaSource: 'binary',
 			binaryPropertyName: 'data',
-			binaryData: Buffer.alloc(10 * 1024 * 1024),
+			binaryData: Buffer.alloc(8 * 1024 * 1024),
+			options: { batchId: 'docs' },
 		};
-		// Three 10 MB files are ~40 MB once base64-encoded.
+		// Three 8 MB files are ~10.7 MB each once base64-encoded: two fit in one request.
 		const { ctx, calls } = fakeContext(params, accepted, { items: 3 });
 		perItem(ctx, 'fileName', (i) => `f${i}.bin`);
-		await expect(run(ctx)).rejects.toThrow(/above OpenWA's 25\.0 MB request limit/);
-		expect(calls).toHaveLength(0);
+		const [output] = await run(ctx);
 
-		const cof = fakeContext(params, accepted, { items: 3, continueOnFail: true });
-		perItem(cof.ctx, 'fileName', (i) => `f${i}.bin`);
-		const [output] = await run(cof.ctx);
-		expect(output).toEqual([
-			{
-				json: { error: expect.stringMatching(/request limit/) },
-				pairedItem: [{ item: 0 }, { item: 1 }, { item: 2 }],
-			},
+		expect(
+			calls.map((call) => ((call.body as IDataObject).messages as IDataObject[]).length),
+		).toEqual([2, 1]);
+		expect(calls.map((call) => (call.body as IDataObject).batchId)).toEqual(['docs-1', 'docs-2']);
+		for (const call of calls) {
+			expect(Buffer.byteLength(JSON.stringify(call.body))).toBeLessThanOrEqual(
+				MAX_BATCH_BODY_BYTES,
+			);
+		}
+		expect(output.map((item) => item.pairedItem)).toEqual([
+			[{ item: 0 }, { item: 1 }],
+			[{ item: 2 }],
 		]);
 	});
 

@@ -29,12 +29,17 @@ export interface MediaFields {
 /**
  * Read a URL, binary or Base64 media source into `{ url }` or `{ base64, mimetype }` (no file
  * name). With `accept`, the media must be of that kind (e.g. `image`); `label` names it in errors.
+ * With `mimeTypeOptional`, Base64 without a MIME type is returned as `{ base64 }` alone.
  */
 export async function readMediaInput(
 	ctx: IExecuteFunctions,
 	i: number,
 	fields: MediaFields,
-	{ accept, label }: { accept?: 'image' | 'video' | 'audio'; label: string },
+	{
+		accept,
+		label,
+		mimeTypeOptional,
+	}: { accept?: 'image' | 'video' | 'audio'; label: string; mimeTypeOptional?: boolean },
 ): Promise<IDataObject> {
 	const source = ctx.getNodeParameter(fields.source, i);
 	let input: MediaInput;
@@ -61,13 +66,14 @@ export async function readMediaInput(
 	}
 	let body;
 	try {
-		body = buildMediaBody(input);
+		body = buildMediaBody(input, { mimeTypeOptional });
 	} catch (error) {
 		throw new NodeOperationError(ctx.getNode(), error as Error, { itemIndex: i });
 	}
 	const { url, base64, mimetype } = body;
 	if (url) return { url };
-	if (source === 'base64' && accept && !mimetype?.startsWith(`${accept}/`)) {
+	if (!mimetype) return { base64 };
+	if (source === 'base64' && accept && !mimetype.startsWith(`${accept}/`)) {
 		throw new NodeOperationError(
 			ctx.getNode(),
 			`${label} must be ${ARTICLE_NOUN[accept]}, but the Base64 data is ${mimetype}`,

@@ -1,0 +1,84 @@
+{
+	"name": "OpenWA: WhatsApp auto-reply bot",
+	"nodes": [
+		{
+			"parameters": {
+				"session": {
+					"__rl": true,
+					"mode": "id",
+					"value": "YOUR_SESSION_ID"
+				},
+				"events": ["message.received"],
+				"options": {
+					"chatType": "direct",
+					"ignoreFromMe": true
+				}
+			},
+			"id": "cbec0360-f61c-4dd2-82c6-075c0def3ce7",
+			"name": "On Direct Message",
+			"type": "@t0mer/n8n-nodes-openwa.openWaMessageTrigger",
+			"typeVersion": 1,
+			"position": [0, 0],
+			"webhookId": "5b93dfb1-36f5-497c-8a30-e0b7354dd40a"
+		},
+		{
+			"parameters": {
+				"mode": "runOnceForEachItem",
+				"jsCode": "// Pick a canned answer by keyword. Unknown messages get the menu.\nconst body = String($json.data?.body ?? '').trim().toLowerCase();\nconst answers = {\n  hours: 'We are open Sunday to Thursday, 09:00-18:00.',\n  address: 'You can find us at 1 Example Street, Tel Aviv.',\n  price: 'Our price list: https://example.com/prices',\n};\nconst key = Object.keys(answers).find((k) => body.includes(k));\nconst reply = key\n  ? answers[key]\n  : 'Hi! Reply with one of these words: hours, address, price.';\nreturn { json: { reply, chatId: $json.data.from, messageId: $json.data.id } };"
+			},
+			"id": "f38e3747-aed6-4626-8c0d-cc6510ab614d",
+			"name": "Pick Reply",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [220, 0]
+		},
+		{
+			"parameters": {
+				"resource": "message",
+				"operation": "reply",
+				"session": {
+					"__rl": true,
+					"mode": "id",
+					"value": "YOUR_SESSION_ID"
+				},
+				"recipientType": "contact",
+				"phoneNumber": "={{ $json.chatId }}",
+				"messageId": "={{ $json.messageId }}",
+				"text": "={{ $json.reply }}"
+			},
+			"id": "fd80f183-86f5-427e-868e-e448f69e5e57",
+			"name": "Reply on WhatsApp",
+			"type": "@t0mer/n8n-nodes-openwa.openWa",
+			"typeVersion": 1.1,
+			"position": [440, 0]
+		}
+	],
+	"connections": {
+		"On Direct Message": {
+			"main": [
+				[
+					{
+						"node": "Pick Reply",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Pick Reply": {
+			"main": [
+				[
+					{
+						"node": "Reply on WhatsApp",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"pinData": {},
+	"settings": {
+		"executionOrder": "v1"
+	}
+}

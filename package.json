@@ -1,7 +1,7 @@
 {
   "name": "@t0mer/n8n-nodes-openwa",
   "version": "2026.9.0",
-  "description": "n8n community node for sending WhatsApp messages through a self-hosted OpenWA gateway",
+  "description": "n8n community nodes for a self-hosted OpenWA WhatsApp gateway: send messages and manage chats, groups and sessions, and trigger workflows on WhatsApp events",
   "license": "MIT",
   "homepage": "https://github.com/t0mer/n8n-nodes-openwa#readme",
   "bugs": {
@@ -15,7 +15,14 @@
     "n8n-community-node-package",
     "n8n",
     "whatsapp",
-    "openwa"
+    "openwa",
+    "whatsapp-api",
+    "whatsapp-bot",
+    "chatbot",
+    "messaging",
+    "webhook",
+    "self-hosted",
+    "automation"
   ],
   "author": {
     "name": "t0mer",

@@ -1,0 +1,107 @@
+{
+	"name": "OpenWA: daily session report to a WhatsApp group",
+	"nodes": [
+		{
+			"parameters": {
+				"rule": {
+					"interval": [
+						{
+							"triggerAtHour": 8
+						}
+					]
+				}
+			},
+			"id": "32c099dd-8d69-4bec-a027-c3c12a866036",
+			"name": "Every Day 08:00",
+			"type": "n8n-nodes-base.scheduleTrigger",
+			"typeVersion": 1.2,
+			"position": [0, 0]
+		},
+		{
+			"parameters": {
+				"resource": "session",
+				"operation": "getAll",
+				"returnAll": true,
+				"sessionFilters": {}
+			},
+			"id": "1ba5470e-8475-4109-b2b4-6760007ead9a",
+			"name": "Get All Sessions",
+			"type": "@t0mer/n8n-nodes-openwa.openWa",
+			"typeVersion": 1.1,
+			"position": [220, 0]
+		},
+		{
+			"parameters": {
+				"jsCode": "// One WhatsApp message summarizing every session on the gateway.\nconst sessions = $input.all().map((item) => item.json);\nconst ready = sessions.filter((s) => s.status === 'ready');\nconst lines = sessions.map((s) => `${s.status === 'ready' ? '✅' : '⚠️'} ${s.name}: ${s.status}`);\nreturn [{\n  json: {\n    text: [\n      `*OpenWA daily report* (${new Date().toISOString().slice(0, 10)})`,\n      `${ready.length} of ${sessions.length} sessions ready`,\n      '',\n      ...lines,\n    ].join('\\n'),\n  },\n}];"
+			},
+			"id": "32a9127a-a4cb-4ef0-8bf7-d1afc9e4c8d5",
+			"name": "Build Report",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [440, 0]
+		},
+		{
+			"parameters": {
+				"resource": "message",
+				"operation": "sendText",
+				"session": {
+					"__rl": true,
+					"mode": "id",
+					"value": "YOUR_SESSION_ID"
+				},
+				"recipientType": "group",
+				"group": {
+					"__rl": true,
+					"mode": "id",
+					"value": "120363000000000000@g.us"
+				},
+				"text": "={{ $json.text }}",
+				"options": {}
+			},
+			"id": "bed19ac6-031d-41ca-a1e8-cd59b6284420",
+			"name": "Post to Ops Group",
+			"type": "@t0mer/n8n-nodes-openwa.openWa",
+			"typeVersion": 1.1,
+			"position": [660, 0]
+		}
+	],
+	"connections": {
+		"Every Day 08:00": {
+			"main": [
+				[
+					{
+						"node": "Get All Sessions",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Get All Sessions": {
+			"main": [
+				[
+					{
+						"node": "Build Report",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Build Report": {
+			"main": [
+				[
+					{
+						"node": "Post to Ops Group",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"pinData": {},
+	"settings": {
+		"executionOrder": "v1"
+	}
+}

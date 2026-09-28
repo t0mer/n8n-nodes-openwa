@@ -1,0 +1,54 @@
+{
+	"name": "OpenWA: email alert when a session disconnects",
+	"nodes": [
+		{
+			"parameters": {
+				"session": {
+					"__rl": true,
+					"mode": "id",
+					"value": "YOUR_SESSION_ID"
+				},
+				"events": ["session.disconnected", "session.reconnect_loop", "session.restriction"],
+				"options": {}
+			},
+			"id": "7d7cf4f4-a6ec-4398-bf10-1fc1dcab1b4e",
+			"name": "On Session Problem",
+			"type": "@t0mer/n8n-nodes-openwa.openWaSessionTrigger",
+			"typeVersion": 1,
+			"position": [0, 0],
+			"webhookId": "daa06d5c-40d9-4fea-a30f-40d3c0900f03"
+		},
+		{
+			"parameters": {
+				"fromEmail": "n8n@example.com",
+				"toEmail": "ops@example.com",
+				"subject": "=OpenWA alert: {{ $json.event }} on session {{ $json.sessionId }}",
+				"emailFormat": "text",
+				"text": "=OpenWA reported {{ $json.event }} at {{ $json.timestamp }}.\n\nSession: {{ $json.sessionId }}\nDetails:\n{{ JSON.stringify($json.data, null, 2) }}\n\nIf the session was logged out, open the OpenWA dashboard and scan a new QR code.",
+				"options": {}
+			},
+			"id": "e299dd84-0040-45fd-9c82-bb09388c761c",
+			"name": "Send Alert Email",
+			"type": "n8n-nodes-base.emailSend",
+			"typeVersion": 2.1,
+			"position": [240, 0]
+		}
+	],
+	"connections": {
+		"On Session Problem": {
+			"main": [
+				[
+					{
+						"node": "Send Alert Email",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"pinData": {},
+	"settings": {
+		"executionOrder": "v1"
+	}
+}

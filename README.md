@@ -627,6 +627,17 @@ The OpenWA node uses n8n node versioning. A workflow keeps the node version it w
 
 ## Example workflows
 
+Import any of these from [`examples/`](examples/) with **Workflows → Import from File**, then select your OpenWA credentials and session in each OpenWA node. The session ID, group ID and email addresses are placeholders; replace them with your own. Trigger examples need a gateway that can reach n8n (see [Triggers](#triggers)).
+
+| File | What it does |
+|---|---|
+| [`whatsapp-auto-reply-bot.json`](examples/whatsapp-auto-reply-bot.json) | Trigger: replies to incoming direct messages with a canned answer picked by keyword (hours, address, price), quoting the original message. |
+| [`ai-agent-whatsapp-assistant.json`](examples/ai-agent-whatsapp-assistant.json) | Trigger: an AI Agent answers WhatsApp messages, with a separate conversation memory per chat, and sends the answer back. |
+| [`session-disconnected-email-alert.json`](examples/session-disconnected-email-alert.json) | Trigger: emails you when a session disconnects, gets stuck reconnecting or is restricted by WhatsApp. |
+| [`daily-session-report.json`](examples/daily-session-report.json) | Every morning, lists the gateway's sessions and posts a status summary to a WhatsApp group. |
+
+More patterns:
+
 **Alert a group when a form is submitted**
 
 `Form Trigger` → `OpenWA` (Send Text, Recipient Type: Group, Text: `New lead: {{ $json.name }}`)
